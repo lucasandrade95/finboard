@@ -9,7 +9,9 @@
 set -uo pipefail
 
 # launchd starts with a bare PATH — set the tools explicitly.
-export PATH="/Users/lucasandrade/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+# node/npm live under nvm; pick the newest installed version.
+NODE_BIN="$(ls -d "$HOME"/.nvm/versions/node/*/bin 2>/dev/null | sort -V | tail -1)"
+export PATH="${NODE_BIN:+$NODE_BIN:}/Users/lucasandrade/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 REPO="/Users/lucasandrade/Workspace/projetos_pessoais/finboard"
 DAILY="$REPO/.daily"
