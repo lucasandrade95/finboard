@@ -10,6 +10,8 @@ export const createTransactionSchema = z.object({
   occurredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'data esperada no formato YYYY-MM-DD'),
 })
 
+export const updateTransactionSchema = createTransactionSchema
+
 export const idParamSchema = z.object({
   id: z.coerce.number().int().positive(),
 })
@@ -23,3 +25,4 @@ export const monthQuerySchema = z.object({
 
 export type TransactionType = z.infer<typeof transactionTypeSchema>
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>
+export type UpdateTransactionInput = z.infer<typeof updateTransactionSchema>

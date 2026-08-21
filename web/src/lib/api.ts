@@ -58,5 +58,10 @@ export const api = {
   getSummary: (month: string) => request<MonthlySummary>(`/api/summary?month=${month}`),
   createTransaction: (input: CreateTransactionInput) =>
     request<Transaction>('/api/transactions', { method: 'POST', body: JSON.stringify(input) }),
+  updateTransaction: (id: number, input: CreateTransactionInput) =>
+    request<Transaction>(`/api/transactions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
   deleteTransaction: (id: number) => request<void>(`/api/transactions/${id}`, { method: 'DELETE' }),
 }

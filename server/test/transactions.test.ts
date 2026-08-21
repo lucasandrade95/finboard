@@ -105,6 +105,76 @@ describe('GET /api/transactions', () => {
   })
 })
 
+describe('PUT /api/transactions/:id', () => {
+  it('atualiza todos os campos e devolve o registro atualizado', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload(),
+    })
+    const { id, createdAt } = created.json()
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/transactions/${id}`,
+      payload: validPayload({
+        type: 'income',
+        description: 'Salário',
+        amountCents: 500000,
+        category: 'trabalho',
+        occurredOn: '2026-08-05',
+      }),
+    })
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      id,
+      type: 'income',
+      description: 'Salário',
+      amountCents: 500000,
+      category: 'trabalho',
+      occurredOn: '2026-08-05',
+      createdAt,
+    })
+
+    const summary = await app.inject({ method: 'GET', url: '/api/summary?month=2026-08' })
+    expect(summary.json()).toEqual({
+      incomeCents: 500000,
+      expenseCents: 0,
+      balanceCents: 500000,
+    })
+  })
+
+  it('devolve 404 quando o id não existe', async () => {
+    const response = await app.inject({
+      method: 'PUT',
+      url: '/api/transactions/999',
+      payload: validPayload(),
+    })
+    expect(response.statusCode).toBe(404)
+    expect(response.json()).toEqual({ error: 'not_found' })
+  })
+
+  it('rejeita payload inválido com 400 sem alterar o registro', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload(),
+    })
+    const { id } = created.json()
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/transactions/${id}`,
+      payload: validPayload({ amountCents: 0 }),
+    })
+    expect(response.statusCode).toBe(400)
+    expect(response.json().error).toBe('validation_error')
+
+    const list = await app.inject({ method: 'GET', url: '/api/transactions?month=2026-08' })
+    expect(list.json()[0].amountCents).toBe(15990)
+  })
+})
+
 describe('DELETE /api/transactions/:id', () => {
   it('exclui transação existente e devolve 204', async () => {
     const created = await app.inject({

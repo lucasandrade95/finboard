@@ -1,6 +1,11 @@
 import type { FastifyInstance } from 'fastify'
 import type { TransactionsRepository } from './repository.js'
-import { createTransactionSchema, idParamSchema, monthQuerySchema } from './schemas.js'
+import {
+  createTransactionSchema,
+  idParamSchema,
+  monthQuerySchema,
+  updateTransactionSchema,
+} from './schemas.js'
 
 export function registerTransactionRoutes(
   app: FastifyInstance,
@@ -15,6 +20,16 @@ export function registerTransactionRoutes(
     const input = createTransactionSchema.parse(request.body)
     const created = repository.create(input)
     return reply.code(201).send(created)
+  })
+
+  app.put('/api/transactions/:id', async (request, reply) => {
+    const { id } = idParamSchema.parse(request.params)
+    const input = updateTransactionSchema.parse(request.body)
+    const updated = repository.updateById(id, input)
+    if (!updated) {
+      return reply.code(404).send({ error: 'not_found' })
+    }
+    return updated
   })
 
   app.delete('/api/transactions/:id', async (request, reply) => {

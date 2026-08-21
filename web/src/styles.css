@@ -216,6 +216,7 @@ button[type='submit']:disabled {
   white-space: nowrap;
 }
 
+.edit-button,
 .delete-button {
   background: transparent;
   border: 1px solid var(--border);
@@ -226,11 +227,70 @@ button[type='submit']:disabled {
   cursor: pointer;
 }
 
+.edit-button {
+  color: var(--accent);
+  margin-right: 0.35rem;
+}
+
+.edit-button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
 .delete-button:hover:not(:disabled) {
   border-color: var(--negative);
 }
 
+.edit-button:disabled,
 .delete-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.edit-row input,
+.edit-row select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+  min-width: 0;
+}
+
+.edit-row input:focus,
+.edit-row select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.edit-amount {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.edit-amount input {
+  max-width: 6.5rem;
+  text-align: right;
+}
+
+.edit-row .form-error {
+  margin: 0.25rem 0 0;
+}
+
+.save-button {
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  margin-right: 0.35rem;
+}
+
+.save-button:disabled {
   opacity: 0.6;
   cursor: default;
 }

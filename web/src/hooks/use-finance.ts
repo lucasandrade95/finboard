@@ -26,6 +26,18 @@ export function useCreateTransaction() {
   })
 }
 
+export function useUpdateTransaction() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: CreateTransactionInput }) =>
+      api.updateTransaction(id, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      void queryClient.invalidateQueries({ queryKey: ['summary'] })
+    },
+  })
+}
+
 export function useDeleteTransaction() {
   const queryClient = useQueryClient()
   return useMutation({

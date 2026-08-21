@@ -1,5 +1,5 @@
 import type { AppDatabase } from '../../db/connection.js'
-import type { CreateTransactionInput, TransactionType } from './schemas.js'
+import type { CreateTransactionInput, TransactionType, UpdateTransactionInput } from './schemas.js'
 
 export interface TransactionRecord {
   id: number
@@ -60,6 +60,18 @@ export class TransactionsRepository {
     const row = this.db.prepare('SELECT * FROM transactions WHERE id = ?').get(id) as
       TransactionRow | undefined
     return row ? toRecord(row) : undefined
+  }
+
+  updateById(id: number, input: UpdateTransactionInput): TransactionRecord | undefined {
+    const result = this.db
+      .prepare(
+        `UPDATE transactions
+         SET type = @type, description = @description, amount_cents = @amountCents,
+             category = @category, occurred_on = @occurredOn
+         WHERE id = @id`,
+      )
+      .run({ ...input, id })
+    return result.changes > 0 ? this.findById(id) : undefined
   }
 
   deleteById(id: number): boolean {
