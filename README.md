@@ -48,13 +48,14 @@ npm run verify       # lint + format + testes + build (mesmo gate do CI)
 | GET    | `/health`                  | Health check                               |
 | GET    | `/api/transactions?month=` | Lista transações (filtro `YYYY-MM`)        |
 | POST   | `/api/transactions`        | Cria transação (`amountCents` inteiro > 0) |
+| DELETE | `/api/transactions/:id`    | Exclui transação (204; 404 se não existe)  |
 | GET    | `/api/summary?month=`      | Receitas, despesas e saldo do período      |
 
 ## Roadmap
 
 Uma fatia por dia, sempre com teste e build verde.
 
-- [ ] DELETE `/api/transactions/:id` + botão de excluir na lista
+- [x] DELETE `/api/transactions/:id` + botão de excluir na lista
 - [ ] PUT `/api/transactions/:id` (edição) + formulário de edição inline
 - [ ] Paginação na listagem (`limit`/`offset` + total) e na tabela
 - [ ] Filtro por categoria (query param + select na UI)

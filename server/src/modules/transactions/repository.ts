@@ -62,6 +62,11 @@ export class TransactionsRepository {
     return row ? toRecord(row) : undefined
   }
 
+  deleteById(id: number): boolean {
+    const result = this.db.prepare('DELETE FROM transactions WHERE id = ?').run(id)
+    return result.changes > 0
+  }
+
   listByMonth(month?: string): TransactionRecord[] {
     const rows = (
       month

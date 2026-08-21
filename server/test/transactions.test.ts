@@ -105,6 +105,36 @@ describe('GET /api/transactions', () => {
   })
 })
 
+describe('DELETE /api/transactions/:id', () => {
+  it('exclui transação existente e devolve 204', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload(),
+    })
+    const { id } = created.json()
+
+    const response = await app.inject({ method: 'DELETE', url: `/api/transactions/${id}` })
+    expect(response.statusCode).toBe(204)
+    expect(response.body).toBe('')
+
+    const list = await app.inject({ method: 'GET', url: '/api/transactions' })
+    expect(list.json()).toHaveLength(0)
+  })
+
+  it('devolve 404 quando o id não existe', async () => {
+    const response = await app.inject({ method: 'DELETE', url: '/api/transactions/999' })
+    expect(response.statusCode).toBe(404)
+    expect(response.json()).toEqual({ error: 'not_found' })
+  })
+
+  it('rejeita id não numérico com 400', async () => {
+    const response = await app.inject({ method: 'DELETE', url: '/api/transactions/abc' })
+    expect(response.statusCode).toBe(400)
+    expect(response.json().error).toBe('validation_error')
+  })
+})
+
 describe('GET /api/summary', () => {
   it('calcula receitas, despesas e saldo do mês', async () => {
     const entries = [

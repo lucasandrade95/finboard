@@ -47,6 +47,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     throw new Error(`API ${response.status}: ${await response.text()}`)
   }
+  if (response.status === 204) {
+    return undefined as T
+  }
   return response.json() as Promise<T>
 }
 
@@ -55,4 +58,5 @@ export const api = {
   getSummary: (month: string) => request<MonthlySummary>(`/api/summary?month=${month}`),
   createTransaction: (input: CreateTransactionInput) =>
     request<Transaction>('/api/transactions', { method: 'POST', body: JSON.stringify(input) }),
+  deleteTransaction: (id: number) => request<void>(`/api/transactions/${id}`, { method: 'DELETE' }),
 }
