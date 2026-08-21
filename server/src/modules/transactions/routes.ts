@@ -3,6 +3,7 @@ import type { TransactionsRepository } from './repository.js'
 import {
   createTransactionSchema,
   idParamSchema,
+  listTransactionsQuerySchema,
   monthQuerySchema,
   updateTransactionSchema,
 } from './schemas.js'
@@ -12,8 +13,9 @@ export function registerTransactionRoutes(
   repository: TransactionsRepository,
 ): void {
   app.get('/api/transactions', async (request) => {
-    const { month } = monthQuerySchema.parse(request.query)
-    return repository.listByMonth(month)
+    const { month, limit, offset } = listTransactionsQuerySchema.parse(request.query)
+    const { items, total } = repository.listByMonth(month, limit, offset)
+    return { items, total, limit, offset }
   })
 
   app.post('/api/transactions', async (request, reply) => {

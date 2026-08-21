@@ -92,8 +92,10 @@ describe('GET /api/transactions', () => {
     const response = await app.inject({ method: 'GET', url: '/api/transactions?month=2026-08' })
     expect(response.statusCode).toBe(200)
     const body = response.json()
-    expect(body).toHaveLength(2)
-    expect(body.map((t: { description: string }) => t.description)).toEqual([
+    expect(body.total).toBe(2)
+    expect(body.limit).toBe(20)
+    expect(body.offset).toBe(0)
+    expect(body.items.map((t: { description: string }) => t.description)).toEqual([
       'agosto tarde',
       'agosto cedo',
     ])
@@ -101,6 +103,58 @@ describe('GET /api/transactions', () => {
 
   it('rejeita mês mal formatado', async () => {
     const response = await app.inject({ method: 'GET', url: '/api/transactions?month=agosto' })
+    expect(response.statusCode).toBe(400)
+  })
+
+  it('pagina com limit/offset mantendo o total do filtro', async () => {
+    for (let day = 1; day <= 5; day += 1) {
+      await app.inject({
+        method: 'POST',
+        url: '/api/transactions',
+        payload: validPayload({
+          description: `compra ${day}`,
+          occurredOn: `2026-08-0${day}`,
+        }),
+      })
+    }
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/transactions?month=2026-08&limit=2&offset=2',
+    })
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body).toMatchObject({ total: 5, limit: 2, offset: 2 })
+    expect(body.items.map((t: { description: string }) => t.description)).toEqual([
+      'compra 3',
+      'compra 2',
+    ])
+  })
+
+  it('devolve página vazia quando offset passa do total, sem perder o total', async () => {
+    await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload() })
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/transactions?month=2026-08&limit=10&offset=50',
+    })
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({ items: [], total: 1 })
+  })
+
+  it('rejeita limit fora do intervalo 1..100', async () => {
+    for (const limit of ['0', '101', 'abc']) {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/transactions?limit=${limit}`,
+      })
+      expect(response.statusCode).toBe(400)
+      expect(response.json().error).toBe('validation_error')
+    }
+  })
+
+  it('rejeita offset negativo', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/transactions?offset=-1' })
     expect(response.statusCode).toBe(400)
   })
 })
@@ -171,7 +225,7 @@ describe('PUT /api/transactions/:id', () => {
     expect(response.json().error).toBe('validation_error')
 
     const list = await app.inject({ method: 'GET', url: '/api/transactions?month=2026-08' })
-    expect(list.json()[0].amountCents).toBe(15990)
+    expect(list.json().items[0].amountCents).toBe(15990)
   })
 })
 
@@ -189,7 +243,7 @@ describe('DELETE /api/transactions/:id', () => {
     expect(response.body).toBe('')
 
     const list = await app.inject({ method: 'GET', url: '/api/transactions' })
-    expect(list.json()).toHaveLength(0)
+    expect(list.json()).toMatchObject({ items: [], total: 0 })
   })
 
   it('devolve 404 quando o id não existe', async () => {

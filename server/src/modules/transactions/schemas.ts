@@ -23,6 +23,11 @@ export const monthQuerySchema = z.object({
     .optional(),
 })
 
+export const listTransactionsQuerySchema = monthQuerySchema.extend({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
+})
+
 export type TransactionType = z.infer<typeof transactionTypeSchema>
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>
 export type UpdateTransactionInput = z.infer<typeof updateTransactionSchema>

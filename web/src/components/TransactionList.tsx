@@ -1,10 +1,19 @@
 import { useState, type FormEvent } from 'react'
-import { formatBRL, parseReaisToCents, type Transaction, type TransactionType } from '../lib/api'
+import {
+  formatBRL,
+  parseReaisToCents,
+  PAGE_SIZE,
+  type Transaction,
+  type TransactionType,
+} from '../lib/api'
 import { useDeleteTransaction, useUpdateTransaction } from '../hooks/use-finance'
 
 interface TransactionListProps {
   transactions: Transaction[] | undefined
   loading: boolean
+  page?: number
+  total?: number
+  onPageChange?: (page: number) => void
 }
 
 function centsToReaisInput(cents: number): string {
@@ -133,9 +142,16 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
   )
 }
 
-export function TransactionList({ transactions, loading }: TransactionListProps) {
+export function TransactionList({
+  transactions,
+  loading,
+  page = 1,
+  total = 0,
+  onPageChange,
+}: TransactionListProps) {
   const [editingId, setEditingId] = useState<number | null>(null)
   const deleteTransaction = useDeleteTransaction()
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   if (loading) {
     return <p className="list-empty">Carregando…</p>
@@ -208,6 +224,29 @@ export function TransactionList({ transactions, loading }: TransactionListProps)
         </tbody>
       </table>
       {deleteTransaction.isError && <p className="form-error">Falha ao excluir. Tente de novo.</p>}
+      {onPageChange && pageCount > 1 && (
+        <nav className="pagination" aria-label="Paginação">
+          <button
+            type="button"
+            className="edit-button"
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+          >
+            Anterior
+          </button>
+          <span className="pagination-info">
+            Página {page} de {pageCount}
+          </span>
+          <button
+            type="button"
+            className="edit-button"
+            disabled={page >= pageCount}
+            onClick={() => onPageChange(page + 1)}
+          >
+            Próxima
+          </button>
+        </nav>
+      )}
     </div>
   )
 }

@@ -10,6 +10,13 @@ export interface Transaction {
   createdAt: string
 }
 
+export interface TransactionPage {
+  items: Transaction[]
+  total: number
+  limit: number
+  offset: number
+}
+
 export interface MonthlySummary {
   incomeCents: number
   expenseCents: number
@@ -23,6 +30,8 @@ export interface CreateTransactionInput {
   category?: string
   occurredOn: string
 }
+
+export const PAGE_SIZE = 20
 
 const brlFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -54,7 +63,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  listTransactions: (month: string) => request<Transaction[]>(`/api/transactions?month=${month}`),
+  listTransactions: (month: string, page: number) =>
+    request<TransactionPage>(
+      `/api/transactions?month=${month}&limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
+    ),
   getSummary: (month: string) => request<MonthlySummary>(`/api/summary?month=${month}`),
   createTransaction: (input: CreateTransactionInput) =>
     request<Transaction>('/api/transactions', { method: 'POST', body: JSON.stringify(input) }),

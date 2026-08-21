@@ -11,6 +11,11 @@ export interface TransactionRecord {
   createdAt: string
 }
 
+export interface TransactionPage {
+  items: TransactionRecord[]
+  total: number
+}
+
 export interface MonthlySummary {
   incomeCents: number
   expenseCents: number
@@ -79,17 +84,18 @@ export class TransactionsRepository {
     return result.changes > 0
   }
 
-  listByMonth(month?: string): TransactionRecord[] {
-    const rows = (
-      month
-        ? this.db
-            .prepare(
-              'SELECT * FROM transactions WHERE occurred_on LIKE ? ORDER BY occurred_on DESC, id DESC',
-            )
-            .all(`${month}-%`)
-        : this.db.prepare('SELECT * FROM transactions ORDER BY occurred_on DESC, id DESC').all()
-    ) as TransactionRow[]
-    return rows.map(toRecord)
+  listByMonth(month: string | undefined, limit: number, offset: number): TransactionPage {
+    const where = month ? 'WHERE occurred_on LIKE ?' : ''
+    const params = month ? [`${month}-%`] : []
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM transactions ${where} ORDER BY occurred_on DESC, id DESC LIMIT ? OFFSET ?`,
+      )
+      .all(...params, limit, offset) as TransactionRow[]
+    const { total } = this.db
+      .prepare(`SELECT COUNT(*) AS total FROM transactions ${where}`)
+      .get(...params) as { total: number }
+    return { items: rows.map(toRecord), total }
   }
 
   summaryByMonth(month?: string): MonthlySummary {
