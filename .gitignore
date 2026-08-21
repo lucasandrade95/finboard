@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.env
+.env.*
+.DS_Store
+.daily/*.log
+.daily/run-*.log

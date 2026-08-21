@@ -1,0 +1,33 @@
+{
+  "name": "finboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace @finboard/server",
+    "dev:web": "npm run dev --workspace @finboard/web",
+    "lint": "eslint .",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "test": "npm run test --workspaces",
+    "build": "npm run build --workspaces",
+    "verify": "npm run lint && npm run format && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.21.0",
+    "eslint": "^9.21.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.5.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.25.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
