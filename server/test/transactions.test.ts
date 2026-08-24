@@ -157,6 +157,44 @@ describe('GET /api/transactions', () => {
     const response = await app.inject({ method: 'GET', url: '/api/transactions?offset=-1' })
     expect(response.statusCode).toBe(400)
   })
+
+  it('filtra por categoria combinado com mês, com total do filtro', async () => {
+    const entries = [
+      { description: 'feira', category: 'alimentação', occurredOn: '2026-08-02' },
+      { description: 'restaurante', category: 'alimentação', occurredOn: '2026-08-10' },
+      { description: 'ônibus', category: 'transporte', occurredOn: '2026-08-05' },
+      { description: 'feira de julho', category: 'alimentação', occurredOn: '2026-07-15' },
+    ]
+    for (const entry of entries) {
+      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+    }
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/transactions?month=2026-08&category=${encodeURIComponent('alimentação')}`,
+    })
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.total).toBe(2)
+    expect(body.items.map((t: { description: string }) => t.description)).toEqual([
+      'restaurante',
+      'feira',
+    ])
+  })
+
+  it('devolve lista vazia quando a categoria não tem transações', async () => {
+    await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload() })
+
+    const response = await app.inject({ method: 'GET', url: '/api/transactions?category=viagem' })
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({ items: [], total: 0 })
+  })
+
+  it('rejeita categoria vazia', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/transactions?category=' })
+    expect(response.statusCode).toBe(400)
+    expect(response.json().error).toBe('validation_error')
+  })
 })
 
 describe('PUT /api/transactions/:id', () => {

@@ -16,6 +16,13 @@ export interface TransactionPage {
   total: number
 }
 
+export interface ListTransactionsFilters {
+  month?: string
+  category?: string
+  limit: number
+  offset: number
+}
+
 export interface MonthlySummary {
   incomeCents: number
   expenseCents: number
@@ -84,9 +91,18 @@ export class TransactionsRepository {
     return result.changes > 0
   }
 
-  listByMonth(month: string | undefined, limit: number, offset: number): TransactionPage {
-    const where = month ? 'WHERE occurred_on LIKE ?' : ''
-    const params = month ? [`${month}-%`] : []
+  list({ month, category, limit, offset }: ListTransactionsFilters): TransactionPage {
+    const conditions: string[] = []
+    const params: string[] = []
+    if (month) {
+      conditions.push('occurred_on LIKE ?')
+      params.push(`${month}-%`)
+    }
+    if (category) {
+      conditions.push('category = ?')
+      params.push(category)
+    }
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
     const rows = this.db
       .prepare(
         `SELECT * FROM transactions ${where} ORDER BY occurred_on DESC, id DESC LIMIT ? OFFSET ?`,

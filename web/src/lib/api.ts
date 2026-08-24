@@ -63,10 +63,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  listTransactions: (month: string, page: number) =>
-    request<TransactionPage>(
-      `/api/transactions?month=${month}&limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`,
-    ),
+  listTransactions: (month: string, page: number, category?: string) => {
+    const params = new URLSearchParams({
+      month,
+      limit: String(PAGE_SIZE),
+      offset: String((page - 1) * PAGE_SIZE),
+    })
+    if (category) {
+      params.set('category', category)
+    }
+    return request<TransactionPage>(`/api/transactions?${params.toString()}`)
+  },
   getSummary: (month: string) => request<MonthlySummary>(`/api/summary?month=${month}`),
   createTransaction: (input: CreateTransactionInput) =>
     request<Transaction>('/api/transactions', { method: 'POST', body: JSON.stringify(input) }),

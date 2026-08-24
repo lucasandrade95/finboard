@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { formatBRL, parseReaisToCents } from './api'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { api, formatBRL, parseReaisToCents } from './api'
 
 describe('formatBRL', () => {
   it('formata centavos como moeda brasileira', () => {
@@ -17,5 +17,32 @@ describe('parseReaisToCents', () => {
 
   it('rejeita valor não numérico', () => {
     expect(() => parseReaisToCents('abc')).toThrow()
+  })
+})
+
+describe('api.listTransactions', () => {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: async () => ({ items: [], total: 0, limit: 20, offset: 0 }),
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    fetchMock.mockClear()
+  })
+
+  it('monta a URL com mês e paginação', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    await api.listTransactions('2026-08', 2)
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/transactions?month=2026-08&limit=20&offset=20')
+  })
+
+  it('inclui categoria codificada quando informada', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    await api.listTransactions('2026-08', 1, 'alimentação')
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      '/api/transactions?month=2026-08&limit=20&offset=0&category=alimenta%C3%A7%C3%A3o',
+    )
   })
 })

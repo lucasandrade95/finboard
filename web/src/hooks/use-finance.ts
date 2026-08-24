@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type CreateTransactionInput } from '../lib/api'
 
-export function useTransactions(month: string, page: number) {
+export function useTransactions(month: string, page: number, category?: string) {
   return useQuery({
-    queryKey: ['transactions', month, page],
-    queryFn: () => api.listTransactions(month, page),
+    queryKey: ['transactions', month, page, category ?? null],
+    queryFn: () => api.listTransactions(month, page, category),
   })
 }
 

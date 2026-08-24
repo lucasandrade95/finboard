@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CategoryFilter } from './components/CategoryFilter'
 import { SummaryCards } from './components/SummaryCards'
 import { TransactionForm } from './components/TransactionForm'
 import { TransactionList } from './components/TransactionList'
@@ -12,7 +13,9 @@ function currentMonth(): string {
 export function App() {
   const [month, setMonth] = useState(currentMonth)
   const [page, setPage] = useState(1)
-  const transactions = useTransactions(month, page)
+  const [category, setCategory] = useState('')
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([])
+  const transactions = useTransactions(month, page, category || undefined)
   const summary = useSummary(month)
 
   // Excluir o último item de uma página deixa a página além do total: volta para a última válida.
@@ -26,8 +29,24 @@ export function App() {
     }
   }, [total, page])
 
+  // Opções do filtro vêm da listagem sem filtro; congela enquanto um filtro está ativo
+  // para o select não colapsar na categoria escolhida. (Endpoint /api/categories no roadmap.)
+  const items = transactions.data?.items
+  useEffect(() => {
+    if (category === '' && items) {
+      setCategoryOptions(
+        [...new Set(items.map((t) => t.category))].sort((a, b) => a.localeCompare(b, 'pt-BR')),
+      )
+    }
+  }, [category, items])
+
   function handleMonthChange(value: string) {
     setMonth(value)
+    setPage(1)
+  }
+
+  function handleCategoryChange(value: string) {
+    setCategory(value)
     setPage(1)
   }
 
@@ -47,6 +66,13 @@ export function App() {
           <p className="form-error">Falha ao carregar dados. A API está rodando?</p>
         )}
         <TransactionForm />
+        <div className="list-toolbar">
+          <CategoryFilter
+            value={category}
+            options={categoryOptions}
+            onChange={handleCategoryChange}
+          />
+        </div>
         <TransactionList
           transactions={transactions.data?.items}
           loading={transactions.isPending}

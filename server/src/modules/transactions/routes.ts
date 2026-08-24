@@ -13,8 +13,8 @@ export function registerTransactionRoutes(
   repository: TransactionsRepository,
 ): void {
   app.get('/api/transactions', async (request) => {
-    const { month, limit, offset } = listTransactionsQuerySchema.parse(request.query)
-    const { items, total } = repository.listByMonth(month, limit, offset)
+    const { month, category, limit, offset } = listTransactionsQuerySchema.parse(request.query)
+    const { items, total } = repository.list({ month, category, limit, offset })
     return { items, total, limit, offset }
   })
 
