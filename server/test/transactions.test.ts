@@ -195,6 +195,56 @@ describe('GET /api/transactions', () => {
     expect(response.statusCode).toBe(400)
     expect(response.json().error).toBe('validation_error')
   })
+
+  it('filtra por tipo combinado com mês, com total do filtro', async () => {
+    const entries = [
+      { type: 'income', description: 'salário', occurredOn: '2026-08-05' },
+      { type: 'income', description: 'freela', occurredOn: '2026-08-12' },
+      { type: 'expense', description: 'mercado', occurredOn: '2026-08-08' },
+      { type: 'income', description: 'salário de julho', occurredOn: '2026-07-05' },
+    ]
+    for (const entry of entries) {
+      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+    }
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/transactions?month=2026-08&type=income',
+    })
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.total).toBe(2)
+    expect(body.items.map((t: { description: string }) => t.description)).toEqual([
+      'freela',
+      'salário',
+    ])
+  })
+
+  it('combina filtro de tipo com categoria', async () => {
+    const entries = [
+      { type: 'expense', description: 'feira', category: 'alimentação' },
+      { type: 'income', description: 'venda de bolo', category: 'alimentação' },
+      { type: 'expense', description: 'ônibus', category: 'transporte' },
+    ]
+    for (const entry of entries) {
+      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+    }
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/transactions?type=expense&category=${encodeURIComponent('alimentação')}`,
+    })
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.total).toBe(1)
+    expect(body.items[0].description).toBe('feira')
+  })
+
+  it('rejeita tipo desconhecido', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/transactions?type=investimento' })
+    expect(response.statusCode).toBe(400)
+    expect(response.json().error).toBe('validation_error')
+  })
 })
 
 describe('PUT /api/transactions/:id', () => {

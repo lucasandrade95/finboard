@@ -18,6 +18,7 @@ export interface TransactionPage {
 
 export interface ListTransactionsFilters {
   month?: string
+  type?: TransactionType
   category?: string
   limit: number
   offset: number
@@ -91,12 +92,16 @@ export class TransactionsRepository {
     return result.changes > 0
   }
 
-  list({ month, category, limit, offset }: ListTransactionsFilters): TransactionPage {
+  list({ month, type, category, limit, offset }: ListTransactionsFilters): TransactionPage {
     const conditions: string[] = []
     const params: string[] = []
     if (month) {
       conditions.push('occurred_on LIKE ?')
       params.push(`${month}-%`)
+    }
+    if (type) {
+      conditions.push('type = ?')
+      params.push(type)
     }
     if (category) {
       conditions.push('category = ?')

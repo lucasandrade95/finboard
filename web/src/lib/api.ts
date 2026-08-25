@@ -31,6 +31,11 @@ export interface CreateTransactionInput {
   occurredOn: string
 }
 
+export interface TransactionFilters {
+  type?: TransactionType
+  category?: string
+}
+
 export const PAGE_SIZE = 20
 
 const brlFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -63,14 +68,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  listTransactions: (month: string, page: number, category?: string) => {
+  listTransactions: (month: string, page: number, filters: TransactionFilters = {}) => {
     const params = new URLSearchParams({
       month,
       limit: String(PAGE_SIZE),
       offset: String((page - 1) * PAGE_SIZE),
     })
-    if (category) {
-      params.set('category', category)
+    if (filters.type) {
+      params.set('type', filters.type)
+    }
+    if (filters.category) {
+      params.set('category', filters.category)
     }
     return request<TransactionPage>(`/api/transactions?${params.toString()}`)
   },

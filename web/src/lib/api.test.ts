@@ -40,9 +40,25 @@ describe('api.listTransactions', () => {
 
   it('inclui categoria codificada quando informada', async () => {
     vi.stubGlobal('fetch', fetchMock)
-    await api.listTransactions('2026-08', 1, 'alimentação')
+    await api.listTransactions('2026-08', 1, { category: 'alimentação' })
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
       '/api/transactions?month=2026-08&limit=20&offset=0&category=alimenta%C3%A7%C3%A3o',
+    )
+  })
+
+  it('inclui o tipo quando informado', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    await api.listTransactions('2026-08', 1, { type: 'income' })
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      '/api/transactions?month=2026-08&limit=20&offset=0&type=income',
+    )
+  })
+
+  it('combina tipo e categoria na mesma URL', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    await api.listTransactions('2026-08', 1, { type: 'expense', category: 'transporte' })
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      '/api/transactions?month=2026-08&limit=20&offset=0&type=expense&category=transporte',
     )
   })
 })

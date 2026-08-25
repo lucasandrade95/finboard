@@ -3,8 +3,9 @@ import { CategoryFilter } from './components/CategoryFilter'
 import { SummaryCards } from './components/SummaryCards'
 import { TransactionForm } from './components/TransactionForm'
 import { TransactionList } from './components/TransactionList'
+import { TypeFilter } from './components/TypeFilter'
 import { useSummary, useTransactions } from './hooks/use-finance'
-import { PAGE_SIZE } from './lib/api'
+import { PAGE_SIZE, type TransactionType } from './lib/api'
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7)
@@ -14,8 +15,12 @@ export function App() {
   const [month, setMonth] = useState(currentMonth)
   const [page, setPage] = useState(1)
   const [category, setCategory] = useState('')
+  const [type, setType] = useState<TransactionType | ''>('')
   const [categoryOptions, setCategoryOptions] = useState<string[]>([])
-  const transactions = useTransactions(month, page, category || undefined)
+  const transactions = useTransactions(month, page, {
+    type: type || undefined,
+    category: category || undefined,
+  })
   const summary = useSummary(month)
 
   // Excluir o último item de uma página deixa a página além do total: volta para a última válida.
@@ -30,15 +35,15 @@ export function App() {
   }, [total, page])
 
   // Opções do filtro vêm da listagem sem filtro; congela enquanto um filtro está ativo
-  // para o select não colapsar na categoria escolhida. (Endpoint /api/categories no roadmap.)
+  // para o select não colapsar nas categorias do recorte. (Endpoint /api/categories no roadmap.)
   const items = transactions.data?.items
   useEffect(() => {
-    if (category === '' && items) {
+    if (category === '' && type === '' && items) {
       setCategoryOptions(
         [...new Set(items.map((t) => t.category))].sort((a, b) => a.localeCompare(b, 'pt-BR')),
       )
     }
-  }, [category, items])
+  }, [category, type, items])
 
   function handleMonthChange(value: string) {
     setMonth(value)
@@ -47,6 +52,11 @@ export function App() {
 
   function handleCategoryChange(value: string) {
     setCategory(value)
+    setPage(1)
+  }
+
+  function handleTypeChange(value: TransactionType | '') {
+    setType(value)
     setPage(1)
   }
 
@@ -67,6 +77,7 @@ export function App() {
         )}
         <TransactionForm />
         <div className="list-toolbar">
+          <TypeFilter value={type} onChange={handleTypeChange} />
           <CategoryFilter
             value={category}
             options={categoryOptions}

@@ -50,10 +50,13 @@ body {
 
 .list-toolbar {
   display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
   justify-content: flex-end;
   margin-bottom: 0.75rem;
 }
 
+.type-filter,
 .category-filter {
   display: flex;
   align-items: center;
