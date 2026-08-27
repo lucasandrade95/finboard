@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { CategoryFilter } from './components/CategoryFilter'
+import { SearchFilter } from './components/SearchFilter'
 import { SummaryCards } from './components/SummaryCards'
 import { TransactionForm } from './components/TransactionForm'
 import { TransactionList } from './components/TransactionList'
 import { TypeFilter } from './components/TypeFilter'
+import { useDebouncedValue } from './hooks/use-debounced-value'
 import { useSummary, useTransactions } from './hooks/use-finance'
 import { PAGE_SIZE, type TransactionType } from './lib/api'
 
@@ -16,10 +18,14 @@ export function App() {
   const [page, setPage] = useState(1)
   const [category, setCategory] = useState('')
   const [type, setType] = useState<TransactionType | ''>('')
+  const [search, setSearch] = useState('')
   const [categoryOptions, setCategoryOptions] = useState<string[]>([])
+  // Digitar não dispara requisição a cada tecla: a busca só vai para a API após a pausa.
+  const searchTerm = useDebouncedValue(search.trim(), 300)
   const transactions = useTransactions(month, page, {
     type: type || undefined,
     category: category || undefined,
+    q: searchTerm || undefined,
   })
   const summary = useSummary(month)
 
@@ -34,16 +40,21 @@ export function App() {
     }
   }, [total, page])
 
+  // Um novo termo de busca muda o recorte inteiro: volta para a primeira página.
+  useEffect(() => {
+    setPage(1)
+  }, [searchTerm])
+
   // Opções do filtro vêm da listagem sem filtro; congela enquanto um filtro está ativo
   // para o select não colapsar nas categorias do recorte. (Endpoint /api/categories no roadmap.)
   const items = transactions.data?.items
   useEffect(() => {
-    if (category === '' && type === '' && items) {
+    if (category === '' && type === '' && searchTerm === '' && items) {
       setCategoryOptions(
         [...new Set(items.map((t) => t.category))].sort((a, b) => a.localeCompare(b, 'pt-BR')),
       )
     }
-  }, [category, type, items])
+  }, [category, type, searchTerm, items])
 
   function handleMonthChange(value: string) {
     setMonth(value)
@@ -77,6 +88,7 @@ export function App() {
         )}
         <TransactionForm />
         <div className="list-toolbar">
+          <SearchFilter value={search} onChange={setSearch} />
           <TypeFilter value={type} onChange={handleTypeChange} />
           <CategoryFilter
             value={category}

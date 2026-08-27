@@ -34,6 +34,7 @@ export interface CreateTransactionInput {
 export interface TransactionFilters {
   type?: TransactionType
   category?: string
+  q?: string
 }
 
 export const PAGE_SIZE = 20
@@ -79,6 +80,9 @@ export const api = {
     }
     if (filters.category) {
       params.set('category', filters.category)
+    }
+    if (filters.q) {
+      params.set('q', filters.q)
     }
     return request<TransactionPage>(`/api/transactions?${params.toString()}`)
   },

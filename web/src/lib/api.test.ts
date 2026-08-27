@@ -61,4 +61,18 @@ describe('api.listTransactions', () => {
       '/api/transactions?month=2026-08&limit=20&offset=0&type=expense&category=transporte',
     )
   })
+
+  it('inclui a busca codificada quando informada', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    await api.listTransactions('2026-08', 1, { q: 'feira & cia' })
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      '/api/transactions?month=2026-08&limit=20&offset=0&q=feira+%26+cia',
+    )
+  })
+
+  it('omite a busca quando o termo está vazio', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    await api.listTransactions('2026-08', 1, { q: '' })
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/transactions?month=2026-08&limit=20&offset=0')
+  })
 })

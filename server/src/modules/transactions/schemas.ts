@@ -26,6 +26,7 @@ export const monthQuerySchema = z.object({
 export const listTransactionsQuerySchema = monthQuerySchema.extend({
   type: transactionTypeSchema.optional(),
   category: z.string().trim().min(1).max(50).optional(),
+  q: z.string().trim().min(1).max(100).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 })

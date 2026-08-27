@@ -245,6 +245,100 @@ describe('GET /api/transactions', () => {
     expect(response.statusCode).toBe(400)
     expect(response.json().error).toBe('validation_error')
   })
+
+  it('busca por trecho da descrição, ignorando maiúsculas/minúsculas', async () => {
+    const entries = [
+      { description: 'Mercado do bairro', occurredOn: '2026-08-02' },
+      { description: 'supermercado', occurredOn: '2026-08-10' },
+      { description: 'ônibus', occurredOn: '2026-08-05' },
+    ]
+    for (const entry of entries) {
+      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+    }
+
+    const response = await app.inject({ method: 'GET', url: '/api/transactions?q=MERCADO' })
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.total).toBe(2)
+    expect(body.items.map((t: { description: string }) => t.description)).toEqual([
+      'supermercado',
+      'Mercado do bairro',
+    ])
+  })
+
+  it('combina busca com mês, tipo e categoria', async () => {
+    const entries = [
+      {
+        type: 'expense',
+        description: 'feira da rua',
+        category: 'alimentação',
+        occurredOn: '2026-08-02',
+      },
+      {
+        type: 'income',
+        description: 'feira de artesanato',
+        category: 'alimentação',
+        occurredOn: '2026-08-03',
+      },
+      {
+        type: 'expense',
+        description: 'feira de julho',
+        category: 'alimentação',
+        occurredOn: '2026-07-04',
+      },
+      { type: 'expense', description: 'ônibus', category: 'transporte', occurredOn: '2026-08-05' },
+    ]
+    for (const entry of entries) {
+      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+    }
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/transactions?month=2026-08&type=expense&category=${encodeURIComponent('alimentação')}&q=feira`,
+    })
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.total).toBe(1)
+    expect(body.items[0].description).toBe('feira da rua')
+  })
+
+  it('trata curingas do LIKE como texto literal', async () => {
+    const entries = [
+      { description: 'desconto 50%' },
+      { description: 'desconto 50 reais' },
+      { description: 'plano a_b' },
+      { description: 'plano axb' },
+    ]
+    for (const entry of entries) {
+      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+    }
+
+    const percent = await app.inject({ method: 'GET', url: '/api/transactions?q=50%25' })
+    expect(percent.statusCode).toBe(200)
+    expect(percent.json().items.map((t: { description: string }) => t.description)).toEqual([
+      'desconto 50%',
+    ])
+
+    const underscore = await app.inject({ method: 'GET', url: '/api/transactions?q=a_b' })
+    expect(underscore.statusCode).toBe(200)
+    expect(underscore.json().items.map((t: { description: string }) => t.description)).toEqual([
+      'plano a_b',
+    ])
+  })
+
+  it('devolve lista vazia quando a busca não casa com nada', async () => {
+    await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload() })
+
+    const response = await app.inject({ method: 'GET', url: '/api/transactions?q=viagem' })
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({ items: [], total: 0 })
+  })
+
+  it('rejeita busca vazia', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/transactions?q=' })
+    expect(response.statusCode).toBe(400)
+    expect(response.json().error).toBe('validation_error')
+  })
 })
 
 describe('PUT /api/transactions/:id', () => {

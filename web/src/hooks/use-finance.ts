@@ -2,11 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type CreateTransactionInput, type TransactionFilters } from '../lib/api'
 
 export function useTransactions(month: string, page: number, filters: TransactionFilters = {}) {
-  const { type, category } = filters
+  const { type, category, q } = filters
   return useQuery({
     // Chave só com primitivos: o objeto de filtros muda de referência a cada render.
-    queryKey: ['transactions', month, page, type ?? null, category ?? null],
-    queryFn: () => api.listTransactions(month, page, { type, category }),
+    queryKey: ['transactions', month, page, type ?? null, category ?? null, q ?? null],
+    queryFn: () => api.listTransactions(month, page, { type, category, q }),
   })
 }
 

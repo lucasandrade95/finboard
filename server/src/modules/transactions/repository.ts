@@ -20,6 +20,7 @@ export interface ListTransactionsFilters {
   month?: string
   type?: TransactionType
   category?: string
+  q?: string
   limit: number
   offset: number
 }
@@ -38,6 +39,11 @@ interface TransactionRow {
   category: string
   occurred_on: string
   created_at: string
+}
+
+// `%` e `_` são curingas do LIKE: escapa para que a busca trate o texto do usuário como literal.
+function escapeLikeTerm(term: string): string {
+  return term.replace(/[\\%_]/g, (char) => `\\${char}`)
 }
 
 function toRecord(row: TransactionRow): TransactionRecord {
@@ -92,7 +98,7 @@ export class TransactionsRepository {
     return result.changes > 0
   }
 
-  list({ month, type, category, limit, offset }: ListTransactionsFilters): TransactionPage {
+  list({ month, type, category, q, limit, offset }: ListTransactionsFilters): TransactionPage {
     const conditions: string[] = []
     const params: string[] = []
     if (month) {
@@ -106,6 +112,10 @@ export class TransactionsRepository {
     if (category) {
       conditions.push('category = ?')
       params.push(category)
+    }
+    if (q) {
+      conditions.push(`description LIKE ? ESCAPE '\\'`)
+      params.push(`%${escapeLikeTerm(q)}%`)
     }
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
     const rows = this.db
