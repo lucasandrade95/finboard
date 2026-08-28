@@ -129,6 +129,18 @@ export class TransactionsRepository {
     return { items: rows.map(toRecord), total }
   }
 
+  listCategories(month?: string): string[] {
+    const rows = (
+      month
+        ? this.db
+            .prepare('SELECT DISTINCT category FROM transactions WHERE occurred_on LIKE ?')
+            .all(`${month}-%`)
+        : this.db.prepare('SELECT DISTINCT category FROM transactions').all()
+    ) as Array<{ category: string }>
+    // Ordena em JS: o ORDER BY do SQLite compara byte a byte e joga acentuados para o fim.
+    return rows.map((row) => row.category).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  }
+
   summaryByMonth(month?: string): MonthlySummary {
     const rows = (
       month

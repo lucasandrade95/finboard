@@ -50,6 +50,7 @@ npm run verify       # lint + format + testes + build (mesmo gate do CI)
 | POST   | `/api/transactions`        | Cria transação (`amountCents` inteiro > 0)                                                                                         |
 | PUT    | `/api/transactions/:id`    | Atualiza transação (200; 404 se não existe)                                                                                        |
 | DELETE | `/api/transactions/:id`    | Exclui transação (204; 404 se não existe)                                                                                          |
+| GET    | `/api/categories?month=`   | Categorias distintas usadas no período (`{ categories: string[] }`)                                                                |
 | GET    | `/api/summary?month=`      | Receitas, despesas e saldo do período                                                                                              |
 
 ## Roadmap
@@ -62,7 +63,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Filtro por categoria (query param + select na UI)
 - [x] Filtro por tipo (receita/despesa) na UI
 - [x] Busca textual por descrição (`q=`)
-- [ ] Endpoint `/api/categories` (distintas usadas) + datalist no formulário
+- [x] Endpoint `/api/categories` (distintas usadas) + datalist no formulário
 - [ ] Gráfico de despesas por categoria (donut SVG próprio, sem lib)
 - [ ] Gráfico de evolução diária do saldo no mês (linha SVG)
 - [ ] Comparativo mês atual × mês anterior no summary

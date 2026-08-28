@@ -44,6 +44,11 @@ export function registerTransactionRoutes(
     return reply.code(204).send()
   })
 
+  app.get('/api/categories', async (request) => {
+    const { month } = monthQuerySchema.parse(request.query)
+    return { categories: repository.listCategories(month) }
+  })
+
   app.get('/api/summary', async (request) => {
     const { month } = monthQuerySchema.parse(request.query)
     return repository.summaryByMonth(month)

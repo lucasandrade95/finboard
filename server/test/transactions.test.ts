@@ -441,6 +441,50 @@ describe('DELETE /api/transactions/:id', () => {
   })
 })
 
+describe('GET /api/categories', () => {
+  it('devolve categorias distintas em ordem alfabética pt-BR', async () => {
+    const entries = [
+      { category: 'transporte' },
+      { category: 'alimentação' },
+      { category: 'alimentação' },
+      { category: 'água' },
+    ]
+    for (const entry of entries) {
+      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+    }
+
+    const response = await app.inject({ method: 'GET', url: '/api/categories' })
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({ categories: ['água', 'alimentação', 'transporte'] })
+  })
+
+  it('restringe as categorias ao mês informado', async () => {
+    const entries = [
+      { category: 'alimentação', occurredOn: '2026-08-02' },
+      { category: 'transporte', occurredOn: '2026-07-15' },
+    ]
+    for (const entry of entries) {
+      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+    }
+
+    const response = await app.inject({ method: 'GET', url: '/api/categories?month=2026-08' })
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({ categories: ['alimentação'] })
+  })
+
+  it('devolve lista vazia quando não há transações', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/categories' })
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({ categories: [] })
+  })
+
+  it('rejeita mês mal formatado', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/categories?month=agosto' })
+    expect(response.statusCode).toBe(400)
+    expect(response.json().error).toBe('validation_error')
+  })
+})
+
 describe('GET /api/summary', () => {
   it('calcula receitas, despesas e saldo do mês', async () => {
     const entries = [

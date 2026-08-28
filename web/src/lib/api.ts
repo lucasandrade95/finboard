@@ -17,6 +17,10 @@ export interface TransactionPage {
   offset: number
 }
 
+export interface CategoryList {
+  categories: string[]
+}
+
 export interface MonthlySummary {
   incomeCents: number
   expenseCents: number
@@ -86,6 +90,8 @@ export const api = {
     }
     return request<TransactionPage>(`/api/transactions?${params.toString()}`)
   },
+  listCategories: (month: string) =>
+    request<CategoryList>(`/api/categories?month=${month}`).then((data) => data.categories),
   getSummary: (month: string) => request<MonthlySummary>(`/api/summary?month=${month}`),
   createTransaction: (input: CreateTransactionInput) =>
     request<Transaction>('/api/transactions', { method: 'POST', body: JSON.stringify(input) }),

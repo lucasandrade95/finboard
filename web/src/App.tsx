@@ -6,7 +6,7 @@ import { TransactionForm } from './components/TransactionForm'
 import { TransactionList } from './components/TransactionList'
 import { TypeFilter } from './components/TypeFilter'
 import { useDebouncedValue } from './hooks/use-debounced-value'
-import { useSummary, useTransactions } from './hooks/use-finance'
+import { useCategories, useSummary, useTransactions } from './hooks/use-finance'
 import { PAGE_SIZE, type TransactionType } from './lib/api'
 
 function currentMonth(): string {
@@ -19,7 +19,6 @@ export function App() {
   const [category, setCategory] = useState('')
   const [type, setType] = useState<TransactionType | ''>('')
   const [search, setSearch] = useState('')
-  const [categoryOptions, setCategoryOptions] = useState<string[]>([])
   // Digitar não dispara requisição a cada tecla: a busca só vai para a API após a pausa.
   const searchTerm = useDebouncedValue(search.trim(), 300)
   const transactions = useTransactions(month, page, {
@@ -28,6 +27,8 @@ export function App() {
     q: searchTerm || undefined,
   })
   const summary = useSummary(month)
+  const categories = useCategories(month)
+  const categoryOptions = categories.data ?? []
 
   // Excluir o último item de uma página deixa a página além do total: volta para a última válida.
   const total = transactions.data?.total
@@ -44,17 +45,6 @@ export function App() {
   useEffect(() => {
     setPage(1)
   }, [searchTerm])
-
-  // Opções do filtro vêm da listagem sem filtro; congela enquanto um filtro está ativo
-  // para o select não colapsar nas categorias do recorte. (Endpoint /api/categories no roadmap.)
-  const items = transactions.data?.items
-  useEffect(() => {
-    if (category === '' && type === '' && searchTerm === '' && items) {
-      setCategoryOptions(
-        [...new Set(items.map((t) => t.category))].sort((a, b) => a.localeCompare(b, 'pt-BR')),
-      )
-    }
-  }, [category, type, searchTerm, items])
 
   function handleMonthChange(value: string) {
     setMonth(value)
@@ -86,7 +76,7 @@ export function App() {
         {(transactions.isError || summary.isError) && (
           <p className="form-error">Falha ao carregar dados. A API está rodando?</p>
         )}
-        <TransactionForm />
+        <TransactionForm categories={categoryOptions} />
         <div className="list-toolbar">
           <SearchFilter value={search} onChange={setSearch} />
           <TypeFilter value={type} onChange={handleTypeChange} />

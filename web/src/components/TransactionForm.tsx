@@ -6,7 +6,11 @@ function today(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-export function TransactionForm() {
+interface TransactionFormProps {
+  categories?: string[]
+}
+
+export function TransactionForm({ categories = [] }: TransactionFormProps) {
   const [type, setType] = useState<TransactionType>('expense')
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
@@ -83,12 +87,19 @@ export function TransactionForm() {
         </label>
         <label>
           Categoria
+          {/* datalist sugere as categorias já usadas sem impedir digitar uma nova. */}
           <input
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             placeholder="geral"
             maxLength={50}
+            list="category-suggestions"
           />
+          <datalist id="category-suggestions">
+            {categories.map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
         </label>
         <label>
           Data

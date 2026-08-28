@@ -76,3 +76,21 @@ describe('api.listTransactions', () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/transactions?month=2026-08&limit=20&offset=0')
   })
 })
+
+describe('api.listCategories', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('busca as categorias do mês e devolve só a lista', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ categories: ['alimentação', 'transporte'] }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(api.listCategories('2026-08')).resolves.toEqual(['alimentação', 'transporte'])
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/categories?month=2026-08')
+  })
+})

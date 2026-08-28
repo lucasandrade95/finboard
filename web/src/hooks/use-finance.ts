@@ -10,6 +10,15 @@ export function useTransactions(month: string, page: number, filters: Transactio
   })
 }
 
+// Categorias vêm da API (distintas do mês), não do recorte filtrado da lista:
+// assim o select não colapsa nas categorias da página atual.
+export function useCategories(month: string) {
+  return useQuery({
+    queryKey: ['categories', month],
+    queryFn: () => api.listCategories(month),
+  })
+}
+
 export function useSummary(month: string) {
   return useQuery({
     queryKey: ['summary', month],
@@ -24,6 +33,7 @@ export function useCreateTransaction() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] })
       void queryClient.invalidateQueries({ queryKey: ['summary'] })
+      void queryClient.invalidateQueries({ queryKey: ['categories'] })
     },
   })
 }
@@ -36,6 +46,7 @@ export function useUpdateTransaction() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] })
       void queryClient.invalidateQueries({ queryKey: ['summary'] })
+      void queryClient.invalidateQueries({ queryKey: ['categories'] })
     },
   })
 }
@@ -47,6 +58,7 @@ export function useDeleteTransaction() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] })
       void queryClient.invalidateQueries({ queryKey: ['summary'] })
+      void queryClient.invalidateQueries({ queryKey: ['categories'] })
     },
   })
 }
