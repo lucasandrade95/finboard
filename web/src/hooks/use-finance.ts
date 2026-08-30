@@ -19,6 +19,13 @@ export function useCategories(month: string) {
   })
 }
 
+export function useExpensesByCategory(month: string) {
+  return useQuery({
+    queryKey: ['expenses-by-category', month],
+    queryFn: () => api.getExpensesByCategory(month),
+  })
+}
+
 export function useSummary(month: string) {
   return useQuery({
     queryKey: ['summary', month],
@@ -34,6 +41,7 @@ export function useCreateTransaction() {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] })
       void queryClient.invalidateQueries({ queryKey: ['summary'] })
       void queryClient.invalidateQueries({ queryKey: ['categories'] })
+      void queryClient.invalidateQueries({ queryKey: ['expenses-by-category'] })
     },
   })
 }
@@ -47,6 +55,7 @@ export function useUpdateTransaction() {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] })
       void queryClient.invalidateQueries({ queryKey: ['summary'] })
       void queryClient.invalidateQueries({ queryKey: ['categories'] })
+      void queryClient.invalidateQueries({ queryKey: ['expenses-by-category'] })
     },
   })
 }
@@ -59,6 +68,7 @@ export function useDeleteTransaction() {
       void queryClient.invalidateQueries({ queryKey: ['transactions'] })
       void queryClient.invalidateQueries({ queryKey: ['summary'] })
       void queryClient.invalidateQueries({ queryKey: ['categories'] })
+      void queryClient.invalidateQueries({ queryKey: ['expenses-by-category'] })
     },
   })
 }

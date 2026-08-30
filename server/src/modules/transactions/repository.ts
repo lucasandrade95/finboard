@@ -31,6 +31,16 @@ export interface MonthlySummary {
   balanceCents: number
 }
 
+export interface CategoryTotal {
+  category: string
+  totalCents: number
+}
+
+export interface ExpensesByCategory {
+  items: CategoryTotal[]
+  totalCents: number
+}
+
 interface TransactionRow {
   id: number
   type: TransactionType
@@ -139,6 +149,28 @@ export class TransactionsRepository {
     ) as Array<{ category: string }>
     // Ordena em JS: o ORDER BY do SQLite compara byte a byte e joga acentuados para o fim.
     return rows.map((row) => row.category).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  }
+
+  expensesByCategory(month?: string): ExpensesByCategory {
+    const conditions = ["type = 'expense'"]
+    const params: string[] = []
+    if (month) {
+      conditions.push('occurred_on LIKE ?')
+      params.push(`${month}-%`)
+    }
+    const rows = this.db
+      .prepare(
+        `SELECT category, COALESCE(SUM(amount_cents), 0) AS total
+         FROM transactions WHERE ${conditions.join(' AND ')} GROUP BY category`,
+      )
+      .all(...params) as Array<{ category: string; total: number }>
+
+    // Maior gasto primeiro (é o que interessa no gráfico); empate desempata por nome.
+    const items = rows
+      .map((row) => ({ category: row.category, totalCents: row.total }))
+      .sort((a, b) => b.totalCents - a.totalCents || a.category.localeCompare(b.category, 'pt-BR'))
+    const totalCents = items.reduce((sum, item) => sum + item.totalCents, 0)
+    return { items, totalCents }
   }
 
   summaryByMonth(month?: string): MonthlySummary {

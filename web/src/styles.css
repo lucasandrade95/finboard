@@ -110,6 +110,80 @@ body {
   color: var(--negative);
 }
 
+.category-donut {
+  margin-bottom: 1.5rem;
+}
+
+.category-donut h2 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+}
+
+.donut-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.donut {
+  flex: none;
+}
+
+.donut-label,
+.donut-total {
+  text-anchor: middle;
+  fill: var(--text);
+}
+
+.donut-label {
+  font-size: 0.7rem;
+  fill: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.donut-total {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.donut-legend {
+  flex: 1 1 16rem;
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.donut-legend li {
+  display: grid;
+  grid-template-columns: 0.75rem 1fr auto auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.donut-swatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 3px;
+}
+
+.donut-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.donut-percent {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 3.5rem;
+  text-align: right;
+}
+
 .transaction-form {
   background: var(--surface);
   border: 1px solid var(--border);

@@ -21,8 +21,9 @@ finboard/
 └── web/      # SPA — React 19 + Vite
     └── src/
         ├── lib/api.ts                # client tipado + formatBRL/parseReaisToCents
+        ├── lib/donut.ts              # geometria do donut SVG (pura, testável sem render)
         ├── hooks/use-finance.ts      # TanStack Query (cache por mês)
-        └── components/               # SummaryCards, TransactionForm, TransactionList
+        └── components/               # SummaryCards, CategoryDonut, TransactionForm, TransactionList
 ```
 
 Decisões:
@@ -43,15 +44,16 @@ npm run verify       # lint + format + testes + build (mesmo gate do CI)
 
 ## API
 
-| Método | Rota                       | Descrição                                                                                                                          |
-| ------ | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/health`                  | Health check                                                                                                                       |
-| GET    | `/api/transactions?month=` | Lista paginada (`limit`/`offset`, filtros `type=`/`category=`, busca `q=` na descrição, devolve `{ items, total, limit, offset }`) |
-| POST   | `/api/transactions`        | Cria transação (`amountCents` inteiro > 0)                                                                                         |
-| PUT    | `/api/transactions/:id`    | Atualiza transação (200; 404 se não existe)                                                                                        |
-| DELETE | `/api/transactions/:id`    | Exclui transação (204; 404 se não existe)                                                                                          |
-| GET    | `/api/categories?month=`   | Categorias distintas usadas no período (`{ categories: string[] }`)                                                                |
-| GET    | `/api/summary?month=`      | Receitas, despesas e saldo do período                                                                                              |
+| Método | Rota                               | Descrição                                                                                                                          |
+| ------ | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/health`                          | Health check                                                                                                                       |
+| GET    | `/api/transactions?month=`         | Lista paginada (`limit`/`offset`, filtros `type=`/`category=`, busca `q=` na descrição, devolve `{ items, total, limit, offset }`) |
+| POST   | `/api/transactions`                | Cria transação (`amountCents` inteiro > 0)                                                                                         |
+| PUT    | `/api/transactions/:id`            | Atualiza transação (200; 404 se não existe)                                                                                        |
+| DELETE | `/api/transactions/:id`            | Exclui transação (204; 404 se não existe)                                                                                          |
+| GET    | `/api/categories?month=`           | Categorias distintas usadas no período (`{ categories: string[] }`)                                                                |
+| GET    | `/api/summary?month=`              | Receitas, despesas e saldo do período                                                                                              |
+| GET    | `/api/expenses-by-category?month=` | Total de despesas por categoria, maior primeiro (`{ items, totalCents }`)                                                          |
 
 ## Roadmap
 
@@ -64,7 +66,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Filtro por tipo (receita/despesa) na UI
 - [x] Busca textual por descrição (`q=`)
 - [x] Endpoint `/api/categories` (distintas usadas) + datalist no formulário
-- [ ] Gráfico de despesas por categoria (donut SVG próprio, sem lib)
+- [x] Gráfico de despesas por categoria (donut SVG próprio, sem lib)
 - [ ] Gráfico de evolução diária do saldo no mês (linha SVG)
 - [ ] Comparativo mês atual × mês anterior no summary
 - [ ] Transações recorrentes (flag + geração automática no boot)

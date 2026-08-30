@@ -49,6 +49,11 @@ export function registerTransactionRoutes(
     return { categories: repository.listCategories(month) }
   })
 
+  app.get('/api/expenses-by-category', async (request) => {
+    const { month } = monthQuerySchema.parse(request.query)
+    return repository.expensesByCategory(month)
+  })
+
   app.get('/api/summary', async (request) => {
     const { month } = monthQuerySchema.parse(request.query)
     return repository.summaryByMonth(month)

@@ -485,6 +485,88 @@ describe('GET /api/categories', () => {
   })
 })
 
+describe('GET /api/expenses-by-category', () => {
+  it('soma só despesas, agrupa por categoria e ordena do maior para o menor', async () => {
+    const entries = [
+      { type: 'expense', category: 'alimentação', amountCents: 10000 },
+      { type: 'expense', category: 'alimentação', amountCents: 5000 },
+      { type: 'expense', category: 'transporte', amountCents: 20000 },
+      { type: 'income', category: 'trabalho', amountCents: 900000 },
+    ]
+    for (const entry of entries) {
+      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+    }
+
+    const response = await app.inject({ method: 'GET', url: '/api/expenses-by-category' })
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      items: [
+        { category: 'transporte', totalCents: 20000 },
+        { category: 'alimentação', totalCents: 15000 },
+      ],
+      totalCents: 35000,
+    })
+  })
+
+  it('desempata categorias de mesmo total por nome em pt-BR', async () => {
+    const entries = [
+      { type: 'expense', category: 'transporte', amountCents: 5000 },
+      { type: 'expense', category: 'água', amountCents: 5000 },
+      { type: 'expense', category: 'alimentação', amountCents: 5000 },
+    ]
+    for (const entry of entries) {
+      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+    }
+
+    const response = await app.inject({ method: 'GET', url: '/api/expenses-by-category' })
+    expect(response.json().items.map((item: { category: string }) => item.category)).toEqual([
+      'água',
+      'alimentação',
+      'transporte',
+    ])
+  })
+
+  it('restringe ao mês informado', async () => {
+    const entries = [
+      { type: 'expense', category: 'alimentação', amountCents: 10000, occurredOn: '2026-08-02' },
+      { type: 'expense', category: 'transporte', amountCents: 90000, occurredOn: '2026-07-15' },
+    ]
+    for (const entry of entries) {
+      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+    }
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/expenses-by-category?month=2026-08',
+    })
+    expect(response.json()).toEqual({
+      items: [{ category: 'alimentação', totalCents: 10000 }],
+      totalCents: 10000,
+    })
+  })
+
+  it('devolve total zero quando só há receitas', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload({ type: 'income' }),
+    })
+
+    const response = await app.inject({ method: 'GET', url: '/api/expenses-by-category' })
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({ items: [], totalCents: 0 })
+  })
+
+  it('rejeita mês mal formatado', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/expenses-by-category?month=agosto',
+    })
+    expect(response.statusCode).toBe(400)
+    expect(response.json().error).toBe('validation_error')
+  })
+})
+
 describe('GET /api/summary', () => {
   it('calcula receitas, despesas e saldo do mês', async () => {
     const entries = [

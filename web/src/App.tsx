@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CategoryDonut } from './components/CategoryDonut'
 import { CategoryFilter } from './components/CategoryFilter'
 import { SearchFilter } from './components/SearchFilter'
 import { SummaryCards } from './components/SummaryCards'
@@ -6,7 +7,12 @@ import { TransactionForm } from './components/TransactionForm'
 import { TransactionList } from './components/TransactionList'
 import { TypeFilter } from './components/TypeFilter'
 import { useDebouncedValue } from './hooks/use-debounced-value'
-import { useCategories, useSummary, useTransactions } from './hooks/use-finance'
+import {
+  useCategories,
+  useExpensesByCategory,
+  useSummary,
+  useTransactions,
+} from './hooks/use-finance'
 import { PAGE_SIZE, type TransactionType } from './lib/api'
 
 function currentMonth(): string {
@@ -28,6 +34,7 @@ export function App() {
   })
   const summary = useSummary(month)
   const categories = useCategories(month)
+  const expensesByCategory = useExpensesByCategory(month)
   const categoryOptions = categories.data ?? []
 
   // Excluir o último item de uma página deixa a página além do total: volta para a última válida.
@@ -76,6 +83,7 @@ export function App() {
         {(transactions.isError || summary.isError) && (
           <p className="form-error">Falha ao carregar dados. A API está rodando?</p>
         )}
+        <CategoryDonut data={expensesByCategory.data} loading={expensesByCategory.isPending} />
         <TransactionForm categories={categoryOptions} />
         <div className="list-toolbar">
           <SearchFilter value={search} onChange={setSearch} />

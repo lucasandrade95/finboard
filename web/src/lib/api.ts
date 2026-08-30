@@ -27,6 +27,16 @@ export interface MonthlySummary {
   balanceCents: number
 }
 
+export interface CategoryTotal {
+  category: string
+  totalCents: number
+}
+
+export interface ExpensesByCategory {
+  items: CategoryTotal[]
+  totalCents: number
+}
+
 export interface CreateTransactionInput {
   type: TransactionType
   description: string
@@ -93,6 +103,8 @@ export const api = {
   listCategories: (month: string) =>
     request<CategoryList>(`/api/categories?month=${month}`).then((data) => data.categories),
   getSummary: (month: string) => request<MonthlySummary>(`/api/summary?month=${month}`),
+  getExpensesByCategory: (month: string) =>
+    request<ExpensesByCategory>(`/api/expenses-by-category?month=${month}`),
   createTransaction: (input: CreateTransactionInput) =>
     request<Transaction>('/api/transactions', { method: 'POST', body: JSON.stringify(input) }),
   updateTransaction: (id: number, input: CreateTransactionInput) =>
