@@ -5,6 +5,7 @@ import {
   idParamSchema,
   listTransactionsQuerySchema,
   monthQuerySchema,
+  requiredMonthQuerySchema,
   updateTransactionSchema,
 } from './schemas.js'
 
@@ -52,6 +53,11 @@ export function registerTransactionRoutes(
   app.get('/api/expenses-by-category', async (request) => {
     const { month } = monthQuerySchema.parse(request.query)
     return repository.expensesByCategory(month)
+  })
+
+  app.get('/api/daily-balance', async (request) => {
+    const { month } = requiredMonthQuerySchema.parse(request.query)
+    return repository.dailyBalance(month)
   })
 
   app.get('/api/summary', async (request) => {

@@ -592,3 +592,66 @@ describe('GET /api/summary', () => {
     })
   })
 })
+
+describe('GET /api/daily-balance', () => {
+  it('devolve um ponto por dia do mês com saldo acumulado', async () => {
+    const entries = [
+      { type: 'income', amountCents: 500000, occurredOn: '2026-08-01' },
+      { type: 'expense', amountCents: 120000, occurredOn: '2026-08-03' },
+      { type: 'expense', amountCents: 30000, occurredOn: '2026-08-03' },
+      { type: 'income', amountCents: 999900, occurredOn: '2026-07-31' },
+    ]
+    for (const entry of entries) {
+      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+    }
+
+    const response = await app.inject({ method: 'GET', url: '/api/daily-balance?month=2026-08' })
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.month).toBe('2026-08')
+    expect(body.items).toHaveLength(31)
+    expect(body.items[0]).toEqual({
+      date: '2026-08-01',
+      incomeCents: 500000,
+      expenseCents: 0,
+      netCents: 500000,
+      balanceCents: 500000,
+    })
+    // Dia sem movimento carrega o saldo do dia anterior.
+    expect(body.items[1]).toEqual({
+      date: '2026-08-02',
+      incomeCents: 0,
+      expenseCents: 0,
+      netCents: 0,
+      balanceCents: 500000,
+    })
+    // Duas despesas no mesmo dia somam.
+    expect(body.items[2]).toEqual({
+      date: '2026-08-03',
+      incomeCents: 0,
+      expenseCents: 150000,
+      netCents: -150000,
+      balanceCents: 350000,
+    })
+    // O mês anterior não entra no acumulado.
+    expect(body.items[30].balanceCents).toBe(350000)
+  })
+
+  it('respeita o número de dias do mês (fevereiro bissexto)', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/daily-balance?month=2024-02' })
+    expect(response.statusCode).toBe(200)
+    const { items } = response.json()
+    expect(items).toHaveLength(29)
+    expect(items[28].date).toBe('2024-02-29')
+    expect(items.every((item: { balanceCents: number }) => item.balanceCents === 0)).toBe(true)
+  })
+
+  it('exige o mês e rejeita formato inválido', async () => {
+    const semMes = await app.inject({ method: 'GET', url: '/api/daily-balance' })
+    expect(semMes.statusCode).toBe(400)
+    expect(semMes.json().error).toBe('validation_error')
+
+    const invalido = await app.inject({ method: 'GET', url: '/api/daily-balance?month=2026-8' })
+    expect(invalido.statusCode).toBe(400)
+  })
+})

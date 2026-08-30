@@ -23,6 +23,11 @@ export const monthQuerySchema = z.object({
     .optional(),
 })
 
+// A série diária precisa de um intervalo fechado para gerar os dias: mês é obrigatório aqui.
+export const requiredMonthQuerySchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/, 'mês esperado no formato YYYY-MM'),
+})
+
 export const listTransactionsQuerySchema = monthQuerySchema.extend({
   type: transactionTypeSchema.optional(),
   category: z.string().trim().min(1).max(50).optional(),

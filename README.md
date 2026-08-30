@@ -22,8 +22,9 @@ finboard/
     └── src/
         ├── lib/api.ts                # client tipado + formatBRL/parseReaisToCents
         ├── lib/donut.ts              # geometria do donut SVG (pura, testável sem render)
+        ├── lib/balance-line.ts       # geometria da linha de saldo (pura, testável sem render)
         ├── hooks/use-finance.ts      # TanStack Query (cache por mês)
-        └── components/               # SummaryCards, CategoryDonut, TransactionForm, TransactionList
+        └── components/               # SummaryCards, BalanceLineChart, CategoryDonut, TransactionForm, TransactionList
 ```
 
 Decisões:
@@ -52,6 +53,7 @@ npm run verify       # lint + format + testes + build (mesmo gate do CI)
 | PUT    | `/api/transactions/:id`            | Atualiza transação (200; 404 se não existe)                                                                                        |
 | DELETE | `/api/transactions/:id`            | Exclui transação (204; 404 se não existe)                                                                                          |
 | GET    | `/api/categories?month=`           | Categorias distintas usadas no período (`{ categories: string[] }`)                                                                |
+| GET    | `/api/daily-balance?month=`        | Saldo acumulado dia a dia do mês (`month` obrigatório; um ponto por dia, inclusive dias sem movimento)                             |
 | GET    | `/api/summary?month=`              | Receitas, despesas e saldo do período                                                                                              |
 | GET    | `/api/expenses-by-category?month=` | Total de despesas por categoria, maior primeiro (`{ items, totalCents }`)                                                          |
 
@@ -67,7 +69,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Busca textual por descrição (`q=`)
 - [x] Endpoint `/api/categories` (distintas usadas) + datalist no formulário
 - [x] Gráfico de despesas por categoria (donut SVG próprio, sem lib)
-- [ ] Gráfico de evolução diária do saldo no mês (linha SVG)
+- [x] Gráfico de evolução diária do saldo no mês (linha SVG)
 - [ ] Comparativo mês atual × mês anterior no summary
 - [ ] Transações recorrentes (flag + geração automática no boot)
 - [ ] Orçamento mensal por categoria + barra de progresso na UI

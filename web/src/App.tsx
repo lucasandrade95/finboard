@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { BalanceLineChart } from './components/BalanceLineChart'
 import { CategoryDonut } from './components/CategoryDonut'
 import { CategoryFilter } from './components/CategoryFilter'
 import { SearchFilter } from './components/SearchFilter'
@@ -9,6 +10,7 @@ import { TypeFilter } from './components/TypeFilter'
 import { useDebouncedValue } from './hooks/use-debounced-value'
 import {
   useCategories,
+  useDailyBalance,
   useExpensesByCategory,
   useSummary,
   useTransactions,
@@ -35,6 +37,7 @@ export function App() {
   const summary = useSummary(month)
   const categories = useCategories(month)
   const expensesByCategory = useExpensesByCategory(month)
+  const dailyBalance = useDailyBalance(month)
   const categoryOptions = categories.data ?? []
 
   // Excluir o último item de uma página deixa a página além do total: volta para a última válida.
@@ -83,6 +86,7 @@ export function App() {
         {(transactions.isError || summary.isError) && (
           <p className="form-error">Falha ao carregar dados. A API está rodando?</p>
         )}
+        <BalanceLineChart data={dailyBalance.data} loading={dailyBalance.isPending} />
         <CategoryDonut data={expensesByCategory.data} loading={expensesByCategory.isPending} />
         <TransactionForm categories={categoryOptions} />
         <div className="list-toolbar">

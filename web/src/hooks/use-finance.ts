@@ -26,6 +26,13 @@ export function useExpensesByCategory(month: string) {
   })
 }
 
+export function useDailyBalance(month: string) {
+  return useQuery({
+    queryKey: ['daily-balance', month],
+    queryFn: () => api.getDailyBalance(month),
+  })
+}
+
 export function useSummary(month: string) {
   return useQuery({
     queryKey: ['summary', month],
@@ -42,6 +49,7 @@ export function useCreateTransaction() {
       void queryClient.invalidateQueries({ queryKey: ['summary'] })
       void queryClient.invalidateQueries({ queryKey: ['categories'] })
       void queryClient.invalidateQueries({ queryKey: ['expenses-by-category'] })
+      void queryClient.invalidateQueries({ queryKey: ['daily-balance'] })
     },
   })
 }
@@ -56,6 +64,7 @@ export function useUpdateTransaction() {
       void queryClient.invalidateQueries({ queryKey: ['summary'] })
       void queryClient.invalidateQueries({ queryKey: ['categories'] })
       void queryClient.invalidateQueries({ queryKey: ['expenses-by-category'] })
+      void queryClient.invalidateQueries({ queryKey: ['daily-balance'] })
     },
   })
 }
@@ -69,6 +78,7 @@ export function useDeleteTransaction() {
       void queryClient.invalidateQueries({ queryKey: ['summary'] })
       void queryClient.invalidateQueries({ queryKey: ['categories'] })
       void queryClient.invalidateQueries({ queryKey: ['expenses-by-category'] })
+      void queryClient.invalidateQueries({ queryKey: ['daily-balance'] })
     },
   })
 }

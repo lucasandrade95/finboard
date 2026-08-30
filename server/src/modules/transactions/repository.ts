@@ -41,6 +41,21 @@ export interface ExpensesByCategory {
   totalCents: number
 }
 
+export interface DailyBalancePoint {
+  date: string
+  incomeCents: number
+  expenseCents: number
+  /** Resultado do próprio dia (receitas − despesas). */
+  netCents: number
+  /** Saldo acumulado do primeiro dia do mês até este. */
+  balanceCents: number
+}
+
+export interface DailyBalance {
+  month: string
+  items: DailyBalancePoint[]
+}
+
 interface TransactionRow {
   id: number
   type: TransactionType
@@ -54,6 +69,16 @@ interface TransactionRow {
 // `%` e `_` são curingas do LIKE: escapa para que a busca trate o texto do usuário como literal.
 function escapeLikeTerm(term: string): string {
   return term.replace(/[\\%_]/g, (char) => `\\${char}`)
+}
+
+// Dia 0 do mês seguinte é o último dia do mês pedido — cobre ano bissexto sem tabela de dias.
+function daysInMonth(month: string): number {
+  const [year, monthNumber] = month.split('-').map(Number)
+  return new Date(Date.UTC(year ?? 0, monthNumber ?? 1, 0)).getUTCDate()
+}
+
+function dayKey(month: string, day: number): string {
+  return `${month}-${String(day).padStart(2, '0')}`
 }
 
 function toRecord(row: TransactionRow): TransactionRecord {
@@ -171,6 +196,42 @@ export class TransactionsRepository {
       .sort((a, b) => b.totalCents - a.totalCents || a.category.localeCompare(b.category, 'pt-BR'))
     const totalCents = items.reduce((sum, item) => sum + item.totalCents, 0)
     return { items, totalCents }
+  }
+
+  /**
+   * Série com um ponto por dia do mês (inclusive dias sem movimento) e o saldo acumulado
+   * desde o dia 1. Preencher os dias vazios aqui deixa o gráfico de linha proporcional ao
+   * tempo — sem isso, dois lançamentos distantes viraram pontos vizinhos na linha.
+   */
+  dailyBalance(month: string): DailyBalance {
+    const rows = this.db
+      .prepare(
+        `SELECT occurred_on AS date, type, COALESCE(SUM(amount_cents), 0) AS total
+         FROM transactions WHERE occurred_on LIKE ? GROUP BY occurred_on, type`,
+      )
+      .all(`${month}-%`) as Array<{ date: string; type: TransactionType; total: number }>
+
+    const byDay = new Map<string, { incomeCents: number; expenseCents: number }>()
+    for (const row of rows) {
+      const day = byDay.get(row.date) ?? { incomeCents: 0, expenseCents: 0 }
+      if (row.type === 'income') {
+        day.incomeCents = row.total
+      } else {
+        day.expenseCents = row.total
+      }
+      byDay.set(row.date, day)
+    }
+
+    let balanceCents = 0
+    const items: DailyBalancePoint[] = []
+    for (let day = 1; day <= daysInMonth(month); day += 1) {
+      const date = dayKey(month, day)
+      const { incomeCents, expenseCents } = byDay.get(date) ?? { incomeCents: 0, expenseCents: 0 }
+      const netCents = incomeCents - expenseCents
+      balanceCents += netCents
+      items.push({ date, incomeCents, expenseCents, netCents, balanceCents })
+    }
+    return { month, items }
   }
 
   summaryByMonth(month?: string): MonthlySummary {

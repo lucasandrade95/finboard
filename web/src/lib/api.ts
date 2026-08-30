@@ -37,6 +37,19 @@ export interface ExpensesByCategory {
   totalCents: number
 }
 
+export interface DailyBalancePoint {
+  date: string
+  incomeCents: number
+  expenseCents: number
+  netCents: number
+  balanceCents: number
+}
+
+export interface DailyBalance {
+  month: string
+  items: DailyBalancePoint[]
+}
+
 export interface CreateTransactionInput {
   type: TransactionType
   description: string
@@ -105,6 +118,7 @@ export const api = {
   getSummary: (month: string) => request<MonthlySummary>(`/api/summary?month=${month}`),
   getExpensesByCategory: (month: string) =>
     request<ExpensesByCategory>(`/api/expenses-by-category?month=${month}`),
+  getDailyBalance: (month: string) => request<DailyBalance>(`/api/daily-balance?month=${month}`),
   createTransaction: (input: CreateTransactionInput) =>
     request<Transaction>('/api/transactions', { method: 'POST', body: JSON.stringify(input) }),
   updateTransaction: (id: number, input: CreateTransactionInput) =>
