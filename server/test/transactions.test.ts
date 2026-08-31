@@ -377,6 +377,7 @@ describe('PUT /api/transactions/:id', () => {
       incomeCents: 500000,
       expenseCents: 0,
       balanceCents: 500000,
+      previous: { month: '2026-07', incomeCents: 0, expenseCents: 0, balanceCents: 0 },
     })
   })
 
@@ -589,6 +590,41 @@ describe('GET /api/summary', () => {
       incomeCents: 500000,
       expenseCents: 150000,
       balanceCents: 350000,
+      previous: { month: '2026-07', incomeCents: 999900, expenseCents: 0, balanceCents: 999900 },
+    })
+  })
+
+  it('compara janeiro com dezembro do ano anterior', async () => {
+    const entries = [
+      { type: 'income', amountCents: 100000, occurredOn: '2026-01-10' },
+      { type: 'expense', amountCents: 40000, occurredOn: '2025-12-20' },
+    ]
+    for (const entry of entries) {
+      await app.inject({
+        method: 'POST',
+        url: '/api/transactions',
+        payload: validPayload(entry),
+      })
+    }
+
+    const response = await app.inject({ method: 'GET', url: '/api/summary?month=2026-01' })
+    expect(response.json()).toEqual({
+      incomeCents: 100000,
+      expenseCents: 0,
+      balanceCents: 100000,
+      previous: { month: '2025-12', incomeCents: 0, expenseCents: 40000, balanceCents: -40000 },
+    })
+  })
+
+  it('sem mês devolve o resumo geral sem comparativo', async () => {
+    await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload() })
+
+    const response = await app.inject({ method: 'GET', url: '/api/summary' })
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      incomeCents: 0,
+      expenseCents: 15990,
+      balanceCents: -15990,
     })
   })
 })

@@ -25,6 +25,14 @@ export interface MonthlySummary {
   incomeCents: number
   expenseCents: number
   balanceCents: number
+  previous?: PreviousMonthSummary
+}
+
+export interface PreviousMonthSummary {
+  month: string
+  incomeCents: number
+  expenseCents: number
+  balanceCents: number
 }
 
 export interface CategoryTotal {

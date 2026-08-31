@@ -31,6 +31,15 @@ export interface MonthlySummary {
   balanceCents: number
 }
 
+export interface PreviousMonthSummary extends MonthlySummary {
+  month: string
+}
+
+export interface SummaryWithComparison extends MonthlySummary {
+  /** Presente apenas quando o resumo é de um mês específico. */
+  previous?: PreviousMonthSummary
+}
+
 export interface CategoryTotal {
   category: string
   totalCents: number
@@ -75,6 +84,14 @@ function escapeLikeTerm(term: string): string {
 function daysInMonth(month: string): number {
   const [year, monthNumber] = month.split('-').map(Number)
   return new Date(Date.UTC(year ?? 0, monthNumber ?? 1, 0)).getUTCDate()
+}
+
+// Aritmética direta em vez de Date: sem fuso/UTC para errar. Janeiro volta para dezembro.
+export function previousMonth(month: string): string {
+  const [year, monthNumber] = month.split('-').map(Number)
+  return monthNumber === 1
+    ? `${(year ?? 0) - 1}-12`
+    : `${year}-${String((monthNumber ?? 1) - 1).padStart(2, '0')}`
 }
 
 function dayKey(month: string, day: number): string {
@@ -254,5 +271,18 @@ export class TransactionsRepository {
     const incomeCents = rows.find((row) => row.type === 'income')?.total ?? 0
     const expenseCents = rows.find((row) => row.type === 'expense')?.total ?? 0
     return { incomeCents, expenseCents, balanceCents: incomeCents - expenseCents }
+  }
+
+  /**
+   * Resumo do mês com o mês anterior anexado para comparação na UI.
+   * Sem mês não há "anterior" definido: devolve só o resumo geral.
+   */
+  summaryWithComparison(month?: string): SummaryWithComparison {
+    const current = this.summaryByMonth(month)
+    if (!month) {
+      return current
+    }
+    const reference = previousMonth(month)
+    return { ...current, previous: { month: reference, ...this.summaryByMonth(reference) } }
   }
 }

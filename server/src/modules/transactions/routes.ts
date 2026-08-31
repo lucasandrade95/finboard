@@ -62,6 +62,6 @@ export function registerTransactionRoutes(
 
   app.get('/api/summary', async (request) => {
     const { month } = monthQuerySchema.parse(request.query)
-    return repository.summaryByMonth(month)
+    return repository.summaryWithComparison(month)
   })
 }

@@ -110,6 +110,21 @@ body {
   color: var(--negative);
 }
 
+.card-delta {
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.card-delta.positive {
+  color: var(--positive);
+}
+
+.card-delta.negative {
+  color: var(--negative);
+}
+
 .balance-line,
 .category-donut {
   margin-bottom: 1.5rem;
