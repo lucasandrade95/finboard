@@ -8,6 +8,7 @@ export interface TransactionRecord {
   amountCents: number
   category: string
   occurredOn: string
+  recurring: boolean
   createdAt: string
 }
 
@@ -72,6 +73,7 @@ interface TransactionRow {
   amount_cents: number
   category: string
   occurred_on: string
+  recurring: 0 | 1
   created_at: string
 }
 
@@ -106,6 +108,7 @@ function toRecord(row: TransactionRow): TransactionRecord {
     amountCents: row.amount_cents,
     category: row.category,
     occurredOn: row.occurred_on,
+    recurring: row.recurring === 1,
     createdAt: row.created_at,
   }
 }
@@ -116,10 +119,11 @@ export class TransactionsRepository {
   create(input: CreateTransactionInput): TransactionRecord {
     const result = this.db
       .prepare(
-        `INSERT INTO transactions (type, description, amount_cents, category, occurred_on)
-         VALUES (@type, @description, @amountCents, @category, @occurredOn)`,
+        `INSERT INTO transactions (type, description, amount_cents, category, occurred_on, recurring)
+         VALUES (@type, @description, @amountCents, @category, @occurredOn, @recurring)`,
       )
-      .run(input)
+      // better-sqlite3 não aceita boolean como parâmetro: converte para 0/1.
+      .run({ ...input, recurring: input.recurring ? 1 : 0 })
     const created = this.findById(Number(result.lastInsertRowid))
     if (!created) {
       throw new Error('transação recém-criada não encontrada')
@@ -138,10 +142,10 @@ export class TransactionsRepository {
       .prepare(
         `UPDATE transactions
          SET type = @type, description = @description, amount_cents = @amountCents,
-             category = @category, occurred_on = @occurredOn
+             category = @category, occurred_on = @occurredOn, recurring = @recurring
          WHERE id = @id`,
       )
-      .run({ ...input, id })
+      .run({ ...input, id, recurring: input.recurring ? 1 : 0 })
     return result.changes > 0 ? this.findById(id) : undefined
   }
 
@@ -284,5 +288,52 @@ export class TransactionsRepository {
     }
     const reference = previousMonth(month)
     return { ...current, previous: { month: reference, ...this.summaryByMonth(reference) } }
+  }
+
+  /**
+   * Gera as transações recorrentes do mês: para cada série (tipo + descrição + categoria)
+   * com flag `recurring`, copia a ocorrência mais recente anterior ao mês — assim uma
+   * edição de valor vale a partir do mês seguinte. Idempotente: série que já tem
+   * lançamento recorrente no mês não gera de novo. Dia clampado ao tamanho do mês
+   * (aluguel do dia 31 cai no dia 28/29 em fevereiro).
+   */
+  generateRecurringForMonth(month: string): TransactionRecord[] {
+    const generate = this.db.transaction((): TransactionRecord[] => {
+      const templates = this.db
+        .prepare(
+          `SELECT * FROM transactions WHERE recurring = 1 AND occurred_on < ?
+           ORDER BY occurred_on DESC, id DESC`,
+        )
+        .all(`${month}-01`) as TransactionRow[]
+      const existing = this.db
+        .prepare(
+          `SELECT DISTINCT type || '|' || description || '|' || category AS key
+           FROM transactions WHERE recurring = 1 AND occurred_on LIKE ?`,
+        )
+        .all(`${month}-%`) as Array<{ key: string }>
+
+      const done = new Set(existing.map((row) => row.key))
+      const created: TransactionRecord[] = []
+      for (const template of templates) {
+        const key = `${template.type}|${template.description}|${template.category}`
+        if (done.has(key)) {
+          continue
+        }
+        done.add(key)
+        const day = Math.min(Number(template.occurred_on.slice(8, 10)), daysInMonth(month))
+        created.push(
+          this.create({
+            type: template.type,
+            description: template.description,
+            amountCents: template.amount_cents,
+            category: template.category,
+            occurredOn: dayKey(month, day),
+            recurring: true,
+          }),
+        )
+      }
+      return created
+    })
+    return generate()
   }
 }

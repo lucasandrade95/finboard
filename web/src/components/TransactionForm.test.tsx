@@ -37,4 +37,11 @@ describe('TransactionForm', () => {
     expect(input.tagName).toBe('INPUT')
     expect(input.value).toBe('')
   })
+
+  it('oferece o checkbox de recorrência desmarcado por padrão', () => {
+    renderForm([])
+
+    const checkbox = screen.getByRole('checkbox', { name: 'Repetir todo mês' }) as HTMLInputElement
+    expect(checkbox.checked).toBe(false)
+  })
 })

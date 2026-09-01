@@ -12,6 +12,7 @@ const transaction: Transaction = {
   amountCents: 15990,
   category: 'alimentação',
   occurredOn: '2026-08-20',
+  recurring: false,
   createdAt: '2026-08-20 12:00:00',
 }
 
@@ -40,6 +41,25 @@ describe('TransactionList', () => {
     expect(screen.getByLabelText('Categoria')).toHaveProperty('value', 'alimentação')
     expect(screen.getByLabelText('Data')).toHaveProperty('value', '2026-08-20')
     expect(screen.getByLabelText('Tipo')).toHaveProperty('value', 'expense')
+  })
+
+  it('marca transações recorrentes com a etiqueta mensal', () => {
+    renderList([
+      { ...transaction, recurring: true },
+      { ...transaction, id: 2, description: 'Avulsa' },
+    ])
+
+    expect(screen.getByText('↻ mensal')).toBeTruthy()
+    expect(screen.getAllByText('↻ mensal')).toHaveLength(1)
+  })
+
+  it('preenche o checkbox de recorrência na edição conforme a transação', () => {
+    renderList([{ ...transaction, recurring: true }])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Mercado' }))
+
+    const checkbox = screen.getByRole('checkbox', { name: 'Repetir todo mês' }) as HTMLInputElement
+    expect(checkbox.checked).toBe(true)
   })
 
   it('fecha edição sem salvar ao clicar em Cancelar', () => {

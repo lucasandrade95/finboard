@@ -7,6 +7,7 @@ export interface Transaction {
   amountCents: number
   category: string
   occurredOn: string
+  recurring: boolean
   createdAt: string
 }
 
@@ -64,6 +65,7 @@ export interface CreateTransactionInput {
   amountCents: number
   category?: string
   occurredOn: string
+  recurring?: boolean
 }
 
 export interface TransactionFilters {

@@ -49,7 +49,7 @@ npm run verify       # lint + format + testes + build (mesmo gate do CI)
 | ------ | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | GET    | `/health`                          | Health check                                                                                                                       |
 | GET    | `/api/transactions?month=`         | Lista paginada (`limit`/`offset`, filtros `type=`/`category=`, busca `q=` na descrição, devolve `{ items, total, limit, offset }`) |
-| POST   | `/api/transactions`                | Cria transação (`amountCents` inteiro > 0)                                                                                         |
+| POST   | `/api/transactions`                | Cria transação (`amountCents` inteiro > 0; `recurring` marca a série para gerar cópia mensal no boot)                              |
 | PUT    | `/api/transactions/:id`            | Atualiza transação (200; 404 se não existe)                                                                                        |
 | DELETE | `/api/transactions/:id`            | Exclui transação (204; 404 se não existe)                                                                                          |
 | GET    | `/api/categories?month=`           | Categorias distintas usadas no período (`{ categories: string[] }`)                                                                |
@@ -71,7 +71,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Gráfico de despesas por categoria (donut SVG próprio, sem lib)
 - [x] Gráfico de evolução diária do saldo no mês (linha SVG)
 - [x] Comparativo mês atual × mês anterior no summary
-- [ ] Transações recorrentes (flag + geração automática no boot)
+- [x] Transações recorrentes (flag + geração automática no boot)
 - [ ] Orçamento mensal por categoria + barra de progresso na UI
 - [ ] Alerta visual quando orçamento estoura (>100%)
 - [ ] Metas de economia (tabela goals + CRUD + card na UI)

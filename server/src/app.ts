@@ -8,6 +8,14 @@ import { registerTransactionRoutes } from './modules/transactions/routes.js'
 export interface BuildAppOptions {
   dbPath: string
   logger?: boolean
+  /** Mês alvo da geração de recorrentes no boot (YYYY-MM); default: mês atual. Testes injetam. */
+  recurringMonth?: string
+}
+
+// Mês local, não UTC: a virada de mês deve seguir o relógio do usuário.
+function currentMonth(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
 export async function buildApp(options: BuildAppOptions): Promise<FastifyInstance> {
@@ -41,6 +49,11 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   const repository = new TransactionsRepository(db)
   registerTransactionRoutes(app, repository)
+
+  const generated = repository.generateRecurringForMonth(options.recurringMonth ?? currentMonth())
+  if (generated.length > 0) {
+    app.log.info({ count: generated.length }, 'transações recorrentes geradas para o mês')
+  }
 
   app.addHook('onClose', () => {
     db.close()

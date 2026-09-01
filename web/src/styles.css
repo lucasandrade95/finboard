@@ -385,6 +385,31 @@ button[type='submit']:disabled {
   color: var(--muted);
 }
 
+.recurring-tag {
+  margin-left: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.checkbox-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.checkbox-label input[type='checkbox'] {
+  width: auto;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
 .list-empty {
   color: var(--muted);
   text-align: center;

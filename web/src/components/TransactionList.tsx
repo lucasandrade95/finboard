@@ -31,6 +31,7 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
   const [amount, setAmount] = useState(centsToReaisInput(transaction.amountCents))
   const [category, setCategory] = useState(transaction.category)
   const [occurredOn, setOccurredOn] = useState(transaction.occurredOn)
+  const [recurring, setRecurring] = useState(transaction.recurring)
   const [error, setError] = useState<string | null>(null)
   const updateTransaction = useUpdateTransaction()
 
@@ -59,6 +60,7 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
           amountCents,
           category: category.trim() || undefined,
           occurredOn,
+          recurring,
         },
       },
       {
@@ -92,6 +94,15 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
             maxLength={200}
           />
         </form>
+        <label className="checkbox-label">
+          <input
+            form={formId}
+            type="checkbox"
+            checked={recurring}
+            onChange={(e) => setRecurring(e.target.checked)}
+          />
+          Repetir todo mês
+        </label>
         {error && <p className="form-error">{error}</p>}
       </td>
       <td>
@@ -191,7 +202,14 @@ export function TransactionList({
             ) : (
               <tr key={transaction.id}>
                 <td>{transaction.occurredOn.split('-').reverse().join('/')}</td>
-                <td>{transaction.description}</td>
+                <td>
+                  {transaction.description}
+                  {transaction.recurring && (
+                    <span className="recurring-tag" title="Gerada todo mês automaticamente">
+                      ↻ mensal
+                    </span>
+                  )}
+                </td>
                 <td>
                   <span className="category-tag">{transaction.category}</span>
                 </td>

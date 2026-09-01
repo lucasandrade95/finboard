@@ -8,6 +8,7 @@ export const createTransactionSchema = z.object({
   amountCents: z.number().int().positive(),
   category: z.string().trim().min(1).max(50).default('geral'),
   occurredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'data esperada no formato YYYY-MM-DD'),
+  recurring: z.boolean().default(false),
 })
 
 export const updateTransactionSchema = createTransactionSchema

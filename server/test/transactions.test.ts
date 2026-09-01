@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildApp } from '../src/app.js'
@@ -369,6 +372,7 @@ describe('PUT /api/transactions/:id', () => {
       amountCents: 500000,
       category: 'trabalho',
       occurredOn: '2026-08-05',
+      recurring: false,
       createdAt,
     })
 
@@ -689,5 +693,165 @@ describe('GET /api/daily-balance', () => {
 
     const invalido = await app.inject({ method: 'GET', url: '/api/daily-balance?month=2026-8' })
     expect(invalido.statusCode).toBe(400)
+  })
+})
+
+describe('transações recorrentes', () => {
+  // Geração acontece no boot: precisa de banco em arquivo para sobreviver ao close/reopen.
+  let dir: string
+  let dbPath: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'finboard-test-'))
+    dbPath = join(dir, 'test.db')
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  async function bootApp(recurringMonth: string): Promise<FastifyInstance> {
+    const instance = await buildApp({ dbPath, recurringMonth })
+    await instance.ready()
+    return instance
+  }
+
+  it('cria transação com a flag e devolve recurring no registro', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload({ recurring: true }),
+    })
+    expect(response.statusCode).toBe(201)
+    expect(response.json().recurring).toBe(true)
+
+    const semFlag = await app.inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload(),
+    })
+    expect(semFlag.json().recurring).toBe(false)
+  })
+
+  it('gera cópia no boot para o mês seguinte, só das recorrentes', async () => {
+    const first = await bootApp('2026-08')
+    await first.inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload({ description: 'Aluguel', occurredOn: '2026-08-05', recurring: true }),
+    })
+    await first.inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload({ description: 'Mercado', occurredOn: '2026-08-10' }),
+    })
+    await first.close()
+
+    const second = await bootApp('2026-09')
+    const response = await second.inject({
+      method: 'GET',
+      url: '/api/transactions?month=2026-09',
+    })
+    await second.close()
+
+    const body = response.json()
+    expect(body.total).toBe(1)
+    expect(body.items[0]).toMatchObject({
+      description: 'Aluguel',
+      amountCents: 15990,
+      occurredOn: '2026-09-05',
+      recurring: true,
+    })
+  })
+
+  it('não duplica quando o boot roda de novo no mesmo mês', async () => {
+    const first = await bootApp('2026-08')
+    await first.inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload({ description: 'Aluguel', occurredOn: '2026-08-05', recurring: true }),
+    })
+    await first.close()
+
+    for (let boot = 0; boot < 2; boot += 1) {
+      const instance = await bootApp('2026-09')
+      await instance.close()
+    }
+
+    const check = await bootApp('2026-09')
+    const response = await check.inject({ method: 'GET', url: '/api/transactions?month=2026-09' })
+    await check.close()
+    expect(response.json().total).toBe(1)
+  })
+
+  it('usa a ocorrência mais recente da série como modelo (edição vale dali em diante)', async () => {
+    const first = await bootApp('2026-08')
+    for (const [amountCents, occurredOn] of [
+      [100000, '2026-07-05'],
+      [120000, '2026-08-05'],
+    ] as const) {
+      await first.inject({
+        method: 'POST',
+        url: '/api/transactions',
+        payload: validPayload({ description: 'Aluguel', amountCents, occurredOn, recurring: true }),
+      })
+    }
+    await first.close()
+
+    const second = await bootApp('2026-09')
+    const response = await second.inject({
+      method: 'GET',
+      url: '/api/transactions?month=2026-09',
+    })
+    await second.close()
+
+    const body = response.json()
+    expect(body.total).toBe(1)
+    expect(body.items[0]).toMatchObject({ amountCents: 120000, occurredOn: '2026-09-05' })
+  })
+
+  it('clampa o dia ao tamanho do mês (dia 31 vira 28 em fevereiro)', async () => {
+    const first = await bootApp('2026-01')
+    await first.inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload({ description: 'Fatura', occurredOn: '2026-01-31', recurring: true }),
+    })
+    await first.close()
+
+    const second = await bootApp('2026-02')
+    const response = await second.inject({
+      method: 'GET',
+      url: '/api/transactions?month=2026-02',
+    })
+    await second.close()
+
+    expect(response.json().items[0].occurredOn).toBe('2026-02-28')
+  })
+
+  it('gera mesmo com mês sem boot no meio (última ocorrência pode ser antiga)', async () => {
+    const first = await bootApp('2026-07')
+    await first.inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload({
+        description: 'Assinatura',
+        occurredOn: '2026-07-12',
+        recurring: true,
+      }),
+    })
+    await first.close()
+
+    // Pula agosto: o boot de setembro ainda encontra a série pela ocorrência de julho.
+    const second = await bootApp('2026-09')
+    const response = await second.inject({
+      method: 'GET',
+      url: '/api/transactions?month=2026-09',
+    })
+    await second.close()
+
+    const body = response.json()
+    expect(body.total).toBe(1)
+    expect(body.items[0]).toMatchObject({ description: 'Assinatura', occurredOn: '2026-09-12' })
   })
 })

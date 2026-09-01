@@ -16,6 +16,7 @@ export function TransactionForm({ categories = [] }: TransactionFormProps) {
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState('')
   const [occurredOn, setOccurredOn] = useState(today)
+  const [recurring, setRecurring] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const createTransaction = useCreateTransaction()
 
@@ -42,12 +43,14 @@ export function TransactionForm({ categories = [] }: TransactionFormProps) {
         amountCents,
         category: category.trim() || undefined,
         occurredOn,
+        recurring,
       },
       {
         onSuccess: () => {
           setDescription('')
           setAmount('')
           setCategory('')
+          setRecurring(false)
         },
         onError: (mutationError) => setError(mutationError.message),
       },
@@ -109,6 +112,14 @@ export function TransactionForm({ categories = [] }: TransactionFormProps) {
             onChange={(e) => setOccurredOn(e.target.value)}
             required
           />
+        </label>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={recurring}
+            onChange={(e) => setRecurring(e.target.checked)}
+          />
+          Repetir todo mês
         </label>
       </div>
       {error && <p className="form-error">{error}</p>}
