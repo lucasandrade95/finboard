@@ -126,12 +126,14 @@ body {
 }
 
 .balance-line,
-.category-donut {
+.category-donut,
+.budget-panel {
   margin-bottom: 1.5rem;
 }
 
 .balance-line h2,
-.category-donut h2 {
+.category-donut h2,
+.budget-panel h2 {
   font-size: 0.8rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -263,6 +265,52 @@ body {
   font-variant-numeric: tabular-nums;
   min-width: 3.5rem;
   text-align: right;
+}
+
+.budget-list {
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.budget-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.budget-category {
+  font-weight: 600;
+}
+
+.budget-values {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.budget-percent {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 3rem;
+  text-align: right;
+}
+
+.budget-bar {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.budget-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
 }
 
 .transaction-form {

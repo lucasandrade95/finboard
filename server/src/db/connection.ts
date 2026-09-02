@@ -28,6 +28,11 @@ function migrate(db: AppDatabase): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_transactions_occurred_on ON transactions (occurred_on);
+    CREATE TABLE IF NOT EXISTS budgets (
+      category TEXT PRIMARY KEY,
+      amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `)
   // Bancos criados antes da flag de recorrência não têm a coluna: ALTER guardado
   // pelo pragma mantém a migração idempotente até existirem migrações versionadas.

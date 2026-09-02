@@ -16,7 +16,7 @@ finboard/
 │   │   ├── server.ts                 # entrypoint (listen)
 │   │   ├── config.ts                 # config via env (PORT, DB_PATH)
 │   │   ├── db/connection.ts          # abre SQLite + migração idempotente
-│   │   └── modules/transactions/     # rotas → repositório, schemas Zod
+│   │   └── modules/                  # transactions, budgets — rotas → repositório, schemas Zod
 │   └── test/                         # Vitest + app.inject (sem rede)
 └── web/      # SPA — React 19 + Vite
     └── src/
@@ -24,7 +24,7 @@ finboard/
         ├── lib/donut.ts              # geometria do donut SVG (pura, testável sem render)
         ├── lib/balance-line.ts       # geometria da linha de saldo (pura, testável sem render)
         ├── hooks/use-finance.ts      # TanStack Query (cache por mês)
-        └── components/               # SummaryCards, BalanceLineChart, CategoryDonut, TransactionForm, TransactionList
+        └── components/               # SummaryCards, BalanceLineChart, CategoryDonut, BudgetPanel, TransactionForm, TransactionList
 ```
 
 Decisões:
@@ -56,6 +56,9 @@ npm run verify       # lint + format + testes + build (mesmo gate do CI)
 | GET    | `/api/daily-balance?month=`        | Saldo acumulado dia a dia do mês (`month` obrigatório; um ponto por dia, inclusive dias sem movimento)                             |
 | GET    | `/api/summary?month=`              | Receitas, despesas e saldo do período (com `month`, inclui `previous` com o resumo do mês anterior)                                |
 | GET    | `/api/expenses-by-category?month=` | Total de despesas por categoria, maior primeiro (`{ items, totalCents }`)                                                          |
+| GET    | `/api/budgets?month=`              | Orçamentos com gasto do mês por categoria (`month` obrigatório; `{ month, items: [{ category, budgetCents, spentCents }] }`)       |
+| PUT    | `/api/budgets/:category`           | Define/atualiza orçamento mensal da categoria (upsert; `{ amountCents }` inteiro > 0)                                              |
+| DELETE | `/api/budgets/:category`           | Remove orçamento da categoria (204; 404 se não existe)                                                                             |
 
 ## Roadmap
 
@@ -72,7 +75,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Gráfico de evolução diária do saldo no mês (linha SVG)
 - [x] Comparativo mês atual × mês anterior no summary
 - [x] Transações recorrentes (flag + geração automática no boot)
-- [ ] Orçamento mensal por categoria + barra de progresso na UI
+- [x] Orçamento mensal por categoria + barra de progresso na UI
 - [ ] Alerta visual quando orçamento estoura (>100%)
 - [ ] Metas de economia (tabela goals + CRUD + card na UI)
 - [ ] Export CSV das transações do mês

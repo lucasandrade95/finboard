@@ -33,6 +33,13 @@ export function useDailyBalance(month: string) {
   })
 }
 
+export function useBudgets(month: string) {
+  return useQuery({
+    queryKey: ['budgets', month],
+    queryFn: () => api.listBudgets(month),
+  })
+}
+
 export function useSummary(month: string) {
   return useQuery({
     queryKey: ['summary', month],
@@ -40,6 +47,7 @@ export function useSummary(month: string) {
   })
 }
 
+// Toda mutação de transação mexe no gasto por categoria: orçamentos entram na invalidação.
 export function useCreateTransaction() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -50,6 +58,7 @@ export function useCreateTransaction() {
       void queryClient.invalidateQueries({ queryKey: ['categories'] })
       void queryClient.invalidateQueries({ queryKey: ['expenses-by-category'] })
       void queryClient.invalidateQueries({ queryKey: ['daily-balance'] })
+      void queryClient.invalidateQueries({ queryKey: ['budgets'] })
     },
   })
 }
@@ -65,6 +74,7 @@ export function useUpdateTransaction() {
       void queryClient.invalidateQueries({ queryKey: ['categories'] })
       void queryClient.invalidateQueries({ queryKey: ['expenses-by-category'] })
       void queryClient.invalidateQueries({ queryKey: ['daily-balance'] })
+      void queryClient.invalidateQueries({ queryKey: ['budgets'] })
     },
   })
 }
@@ -79,6 +89,28 @@ export function useDeleteTransaction() {
       void queryClient.invalidateQueries({ queryKey: ['categories'] })
       void queryClient.invalidateQueries({ queryKey: ['expenses-by-category'] })
       void queryClient.invalidateQueries({ queryKey: ['daily-balance'] })
+      void queryClient.invalidateQueries({ queryKey: ['budgets'] })
+    },
+  })
+}
+
+export function useUpsertBudget() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ category, amountCents }: { category: string; amountCents: number }) =>
+      api.upsertBudget(category, amountCents),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['budgets'] })
+    },
+  })
+}
+
+export function useDeleteBudget() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (category: string) => api.deleteBudget(category),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['budgets'] })
     },
   })
 }

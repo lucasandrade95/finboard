@@ -59,6 +59,22 @@ export interface DailyBalance {
   items: DailyBalancePoint[]
 }
 
+export interface BudgetProgress {
+  category: string
+  budgetCents: number
+  spentCents: number
+}
+
+export interface BudgetProgressList {
+  month: string
+  items: BudgetProgress[]
+}
+
+export interface Budget {
+  category: string
+  amountCents: number
+}
+
 export interface CreateTransactionInput {
   type: TransactionType
   description: string
@@ -137,4 +153,12 @@ export const api = {
       body: JSON.stringify(input),
     }),
   deleteTransaction: (id: number) => request<void>(`/api/transactions/${id}`, { method: 'DELETE' }),
+  listBudgets: (month: string) => request<BudgetProgressList>(`/api/budgets?month=${month}`),
+  upsertBudget: (category: string, amountCents: number) =>
+    request<Budget>(`/api/budgets/${encodeURIComponent(category)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ amountCents }),
+    }),
+  deleteBudget: (category: string) =>
+    request<void>(`/api/budgets/${encodeURIComponent(category)}`, { method: 'DELETE' }),
 }

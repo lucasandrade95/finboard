@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BalanceLineChart } from './components/BalanceLineChart'
+import { BudgetPanel } from './components/BudgetPanel'
 import { CategoryDonut } from './components/CategoryDonut'
 import { CategoryFilter } from './components/CategoryFilter'
 import { SearchFilter } from './components/SearchFilter'
@@ -9,6 +10,7 @@ import { TransactionList } from './components/TransactionList'
 import { TypeFilter } from './components/TypeFilter'
 import { useDebouncedValue } from './hooks/use-debounced-value'
 import {
+  useBudgets,
   useCategories,
   useDailyBalance,
   useExpensesByCategory,
@@ -38,6 +40,7 @@ export function App() {
   const categories = useCategories(month)
   const expensesByCategory = useExpensesByCategory(month)
   const dailyBalance = useDailyBalance(month)
+  const budgets = useBudgets(month)
   const categoryOptions = categories.data ?? []
 
   // Excluir o último item de uma página deixa a página além do total: volta para a última válida.
@@ -88,6 +91,7 @@ export function App() {
         )}
         <BalanceLineChart data={dailyBalance.data} loading={dailyBalance.isPending} />
         <CategoryDonut data={expensesByCategory.data} loading={expensesByCategory.isPending} />
+        <BudgetPanel data={budgets.data} loading={budgets.isPending} categories={categoryOptions} />
         <TransactionForm categories={categoryOptions} />
         <div className="list-toolbar">
           <SearchFilter value={search} onChange={setSearch} />
