@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useDeleteBudget, useUpsertBudget } from '../hooks/use-finance'
 import { formatBRL, parseReaisToCents, type BudgetProgressList } from '../lib/api'
+import { budgetStatus } from '../lib/budget-status'
 
 interface BudgetPanelProps {
   data: BudgetProgressList | undefined
@@ -15,6 +16,9 @@ export function BudgetPanel({ data, loading, categories = [] }: BudgetPanelProps
   const upsertBudget = useUpsertBudget()
   const deleteBudget = useDeleteBudget()
   const items = data?.items ?? []
+  const overCount = items.filter(
+    (item) => budgetStatus(item.spentCents, item.budgetCents).level === 'over',
+  ).length
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -47,6 +51,13 @@ export function BudgetPanel({ data, loading, categories = [] }: BudgetPanelProps
   return (
     <section className="budget-panel card" aria-busy={loading}>
       <h2>Orçamento por categoria</h2>
+      {overCount > 0 && (
+        <p className="budget-alert" role="alert">
+          {overCount === 1
+            ? '1 orçamento estourou este mês.'
+            : `${overCount} orçamentos estouraram este mês.`}
+        </p>
+      )}
       {loading ? (
         <p className="list-empty">Carregando…</p>
       ) : items.length === 0 ? (
@@ -54,15 +65,25 @@ export function BudgetPanel({ data, loading, categories = [] }: BudgetPanelProps
       ) : (
         <ul className="budget-list">
           {items.map((item) => {
-            const percent = Math.round((item.spentCents / item.budgetCents) * 100)
+            const status = budgetStatus(item.spentCents, item.budgetCents)
             return (
-              <li key={item.category}>
+              <li key={item.category} className={`budget-item ${status.level}`}>
                 <div className="budget-row">
-                  <span className="budget-category">{item.category}</span>
+                  <span className="budget-category">
+                    {item.category}
+                    {status.level === 'over' && (
+                      <span className="budget-badge">
+                        Estourou em {formatBRL(status.overCents)}
+                      </span>
+                    )}
+                    {status.level === 'warning' && (
+                      <span className="budget-badge">Perto do limite</span>
+                    )}
+                  </span>
                   <span className="budget-values">
                     {formatBRL(item.spentCents)} de {formatBRL(item.budgetCents)}
                   </span>
-                  <span className="budget-percent">{percent}%</span>
+                  <span className="budget-percent">{status.percent}%</span>
                   <button
                     type="button"
                     className="delete-button"
@@ -76,15 +97,12 @@ export function BudgetPanel({ data, loading, categories = [] }: BudgetPanelProps
                   className="budget-bar"
                   role="progressbar"
                   aria-label={`Orçamento de ${item.category}`}
-                  aria-valuenow={percent}
+                  aria-valuenow={status.percent}
                   aria-valuemin={0}
                   aria-valuemax={100}
                 >
-                  {/* Barra satura em 100%; o percentual em texto segue além (estouro é o próximo passo do roadmap). */}
-                  <div
-                    className="budget-bar-fill"
-                    style={{ width: `${Math.min(100, percent)}%` }}
-                  />
+                  {/* Barra satura em 100%; o percentual real fica no texto e o estouro na cor + etiqueta. */}
+                  <div className="budget-bar-fill" style={{ width: `${status.barPercent}%` }} />
                 </div>
               </li>
             )

@@ -313,6 +313,53 @@ body {
   background: var(--accent);
 }
 
+.budget-alert {
+  margin: -0.25rem 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: var(--negative);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.budget-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.budget-item.warning .budget-badge {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.budget-item.warning .budget-bar-fill {
+  background: #d97706;
+}
+
+.budget-item.over .budget-badge {
+  background: #fee2e2;
+  color: var(--negative);
+}
+
+.budget-item.over .budget-percent {
+  color: var(--negative);
+}
+
+.budget-item.over .budget-bar {
+  border-color: var(--negative);
+}
+
+.budget-item.over .budget-bar-fill {
+  background: var(--negative);
+}
+
 .transaction-form {
   background: var(--surface);
   border: 1px solid var(--border);

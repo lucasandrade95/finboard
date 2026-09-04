@@ -76,7 +76,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Comparativo mês atual × mês anterior no summary
 - [x] Transações recorrentes (flag + geração automática no boot)
 - [x] Orçamento mensal por categoria + barra de progresso na UI
-- [ ] Alerta visual quando orçamento estoura (>100%)
+- [x] Alerta visual quando orçamento estoura (>100%)
 - [ ] Metas de economia (tabela goals + CRUD + card na UI)
 - [ ] Export CSV das transações do mês
 - [ ] Import CSV (upload + validação linha a linha + relatório de erros)
