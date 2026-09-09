@@ -4,6 +4,8 @@ import { ZodError } from 'zod'
 import { openDatabase } from './db/connection.js'
 import { BudgetsRepository } from './modules/budgets/repository.js'
 import { registerBudgetRoutes } from './modules/budgets/routes.js'
+import { GoalsRepository } from './modules/goals/repository.js'
+import { registerGoalRoutes } from './modules/goals/routes.js'
 import { TransactionsRepository } from './modules/transactions/repository.js'
 import { registerTransactionRoutes } from './modules/transactions/routes.js'
 
@@ -52,6 +54,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   const repository = new TransactionsRepository(db)
   registerTransactionRoutes(app, repository)
   registerBudgetRoutes(app, new BudgetsRepository(db))
+  registerGoalRoutes(app, new GoalsRepository(db))
 
   const generated = repository.generateRecurringForMonth(options.recurringMonth ?? currentMonth())
   if (generated.length > 0) {

@@ -127,13 +127,15 @@ body {
 
 .balance-line,
 .category-donut,
-.budget-panel {
+.budget-panel,
+.goals-panel {
   margin-bottom: 1.5rem;
 }
 
 .balance-line h2,
 .category-donut h2,
-.budget-panel h2 {
+.budget-panel h2,
+.goals-panel h2 {
   font-size: 0.8rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -358,6 +360,120 @@ body {
 
 .budget-item.over .budget-bar-fill {
   background: var(--negative);
+}
+
+.goal-list {
+  list-style: none;
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.goal-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.goal-name {
+  font-weight: 600;
+}
+
+.goal-deadline {
+  margin-left: 0.5rem;
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.goal-values {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.goal-percent {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 3rem;
+  text-align: right;
+}
+
+.goal-bar {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.goal-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.goal-hint {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.goal-item.done .goal-bar-fill {
+  background: var(--positive);
+}
+
+.goal-item.done .goal-percent,
+.goal-item.done .goal-hint {
+  color: var(--positive);
+}
+
+.goal-item.overdue .goal-bar {
+  border-color: var(--negative);
+}
+
+.goal-item.overdue .goal-bar-fill {
+  background: var(--negative);
+}
+
+.goal-item.overdue .goal-hint,
+.goal-item.overdue .goal-deadline {
+  color: var(--negative);
+}
+
+.goal-contribute {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.goal-contribute input {
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  background: var(--surface);
+  color: var(--text);
+  width: 11rem;
+}
+
+.goal-contribute input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.goal-contribute button[type='submit'] {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+}
+
+.goal-contribute .form-error {
+  margin: 0;
+  flex-basis: 100%;
 }
 
 .transaction-form {

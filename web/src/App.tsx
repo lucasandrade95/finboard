@@ -3,6 +3,7 @@ import { BalanceLineChart } from './components/BalanceLineChart'
 import { BudgetPanel } from './components/BudgetPanel'
 import { CategoryDonut } from './components/CategoryDonut'
 import { CategoryFilter } from './components/CategoryFilter'
+import { GoalsPanel } from './components/GoalsPanel'
 import { SearchFilter } from './components/SearchFilter'
 import { SummaryCards } from './components/SummaryCards'
 import { TransactionForm } from './components/TransactionForm'
@@ -14,6 +15,7 @@ import {
   useCategories,
   useDailyBalance,
   useExpensesByCategory,
+  useGoals,
   useSummary,
   useTransactions,
 } from './hooks/use-finance'
@@ -41,6 +43,7 @@ export function App() {
   const expensesByCategory = useExpensesByCategory(month)
   const dailyBalance = useDailyBalance(month)
   const budgets = useBudgets(month)
+  const goals = useGoals()
   const categoryOptions = categories.data ?? []
 
   // Excluir o último item de uma página deixa a página além do total: volta para a última válida.
@@ -92,6 +95,7 @@ export function App() {
         <BalanceLineChart data={dailyBalance.data} loading={dailyBalance.isPending} />
         <CategoryDonut data={expensesByCategory.data} loading={expensesByCategory.isPending} />
         <BudgetPanel data={budgets.data} loading={budgets.isPending} categories={categoryOptions} />
+        <GoalsPanel goals={goals.data} loading={goals.isPending} />
         <TransactionForm categories={categoryOptions} />
         <div className="list-toolbar">
           <SearchFilter value={search} onChange={setSearch} />

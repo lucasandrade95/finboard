@@ -75,6 +75,26 @@ export interface Budget {
   amountCents: number
 }
 
+export interface Goal {
+  id: number
+  name: string
+  targetCents: number
+  savedCents: number
+  deadline: string | null
+  createdAt: string
+}
+
+export interface GoalList {
+  items: Goal[]
+}
+
+export interface CreateGoalInput {
+  name: string
+  targetCents: number
+  savedCents?: number
+  deadline?: string | null
+}
+
 export interface CreateTransactionInput {
   type: TransactionType
   description: string
@@ -161,4 +181,13 @@ export const api = {
     }),
   deleteBudget: (category: string) =>
     request<void>(`/api/budgets/${encodeURIComponent(category)}`, { method: 'DELETE' }),
+  listGoals: () => request<GoalList>('/api/goals').then((data) => data.items),
+  createGoal: (input: CreateGoalInput) =>
+    request<Goal>('/api/goals', { method: 'POST', body: JSON.stringify(input) }),
+  contributeToGoal: (id: number, amountCents: number) =>
+    request<Goal>(`/api/goals/${id}/contributions`, {
+      method: 'POST',
+      body: JSON.stringify({ amountCents }),
+    }),
+  deleteGoal: (id: number) => request<void>(`/api/goals/${id}`, { method: 'DELETE' }),
 }

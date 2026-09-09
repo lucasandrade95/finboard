@@ -59,6 +59,11 @@ npm run verify       # lint + format + testes + build (mesmo gate do CI)
 | GET    | `/api/budgets?month=`              | Orçamentos com gasto do mês por categoria (`month` obrigatório; `{ month, items: [{ category, budgetCents, spentCents }] }`)       |
 | PUT    | `/api/budgets/:category`           | Define/atualiza orçamento mensal da categoria (upsert; `{ amountCents }` inteiro > 0)                                              |
 | DELETE | `/api/budgets/:category`           | Remove orçamento da categoria (204; 404 se não existe)                                                                             |
+| GET    | `/api/goals`                       | Metas de economia (`{ items }`), prazo mais próximo primeiro e sem prazo por último                                                |
+| POST   | `/api/goals`                       | Cria meta (`name`, `targetCents` > 0, `savedCents` ≥ 0 opcional, `deadline` YYYY-MM-DD ou null)                                    |
+| PUT    | `/api/goals/:id`                   | Atualiza meta (200; 404 se não existe)                                                                                             |
+| POST   | `/api/goals/:id/contributions`     | Registra aporte (`{ amountCents }` > 0) somando ao guardado no banco; devolve a meta atualizada                                    |
+| DELETE | `/api/goals/:id`                   | Remove meta (204; 404 se não existe)                                                                                               |
 
 ## Roadmap
 
@@ -77,7 +82,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Transações recorrentes (flag + geração automática no boot)
 - [x] Orçamento mensal por categoria + barra de progresso na UI
 - [x] Alerta visual quando orçamento estoura (>100%)
-- [ ] Metas de economia (tabela goals + CRUD + card na UI)
+- [x] Metas de economia (tabela goals + CRUD + card na UI)
 - [ ] Export CSV das transações do mês
 - [ ] Import CSV (upload + validação linha a linha + relatório de erros)
 - [ ] Migrações versionadas (tabela schema_migrations + runner próprio)

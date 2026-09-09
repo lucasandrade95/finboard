@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, type CreateTransactionInput, type TransactionFilters } from '../lib/api'
+import {
+  api,
+  type CreateGoalInput,
+  type CreateTransactionInput,
+  type TransactionFilters,
+} from '../lib/api'
 
 export function useTransactions(month: string, page: number, filters: TransactionFilters = {}) {
   const { type, category, q } = filters
@@ -111,6 +116,45 @@ export function useDeleteBudget() {
     mutationFn: (category: string) => api.deleteBudget(category),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['budgets'] })
+    },
+  })
+}
+
+// Metas não dependem do mês nem das transações: chave fixa, invalidada só pelas próprias mutações.
+export function useGoals() {
+  return useQuery({
+    queryKey: ['goals'],
+    queryFn: () => api.listGoals(),
+  })
+}
+
+export function useCreateGoal() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CreateGoalInput) => api.createGoal(input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['goals'] })
+    },
+  })
+}
+
+export function useContributeToGoal() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, amountCents }: { id: number; amountCents: number }) =>
+      api.contributeToGoal(id, amountCents),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['goals'] })
+    },
+  })
+}
+
+export function useDeleteGoal() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.deleteGoal(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['goals'] })
     },
   })
 }

@@ -33,6 +33,14 @@ function migrate(db: AppDatabase): void {
       amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+    CREATE TABLE IF NOT EXISTS goals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      target_cents INTEGER NOT NULL CHECK (target_cents > 0),
+      saved_cents INTEGER NOT NULL DEFAULT 0 CHECK (saved_cents >= 0),
+      deadline TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `)
   // Bancos criados antes da flag de recorrência não têm a coluna: ALTER guardado
   // pelo pragma mantém a migração idempotente até existirem migrações versionadas.
