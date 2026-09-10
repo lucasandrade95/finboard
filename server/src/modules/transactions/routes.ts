@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify'
+import { transactionsToCsv } from './csv.js'
 import type { TransactionsRepository } from './repository.js'
 import {
   createTransactionSchema,
@@ -19,6 +20,18 @@ export function registerTransactionRoutes(
     )
     const { items, total } = repository.list({ month, type, category, q, limit, offset })
     return { items, total, limit, offset }
+  })
+
+  app.get('/api/transactions/export.csv', async (request, reply) => {
+    const { month } = requiredMonthQuerySchema.parse(request.query)
+    const csv = transactionsToCsv(repository.listByMonth(month))
+    return (
+      reply
+        .header('content-type', 'text/csv; charset=utf-8')
+        .header('content-disposition', `attachment; filename="transacoes-${month}.csv"`)
+        // BOM: sem ele o Excel no Windows assume ANSI e quebra a acentuação do UTF-8.
+        .send(`\ufeff${csv}`)
+    )
   })
 
   app.post('/api/transactions', async (request, reply) => {

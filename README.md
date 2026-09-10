@@ -52,6 +52,7 @@ npm run verify       # lint + format + testes + build (mesmo gate do CI)
 | POST   | `/api/transactions`                | Cria transação (`amountCents` inteiro > 0; `recurring` marca a série para gerar cópia mensal no boot)                              |
 | PUT    | `/api/transactions/:id`            | Atualiza transação (200; 404 se não existe)                                                                                        |
 | DELETE | `/api/transactions/:id`            | Exclui transação (204; 404 se não existe)                                                                                          |
+| GET    | `/api/transactions/export.csv`     | Exporta as transações do mês em CSV (`month` obrigatório; `;` + vírgula decimal + BOM, abre direto no Excel pt-BR)                 |
 | GET    | `/api/categories?month=`           | Categorias distintas usadas no período (`{ categories: string[] }`)                                                                |
 | GET    | `/api/daily-balance?month=`        | Saldo acumulado dia a dia do mês (`month` obrigatório; um ponto por dia, inclusive dias sem movimento)                             |
 | GET    | `/api/summary?month=`              | Receitas, despesas e saldo do período (com `month`, inclui `previous` com o resumo do mês anterior)                                |
@@ -83,7 +84,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Orçamento mensal por categoria + barra de progresso na UI
 - [x] Alerta visual quando orçamento estoura (>100%)
 - [x] Metas de economia (tabela goals + CRUD + card na UI)
-- [ ] Export CSV das transações do mês
+- [x] Export CSV das transações do mês
 - [ ] Import CSV (upload + validação linha a linha + relatório de erros)
 - [ ] Migrações versionadas (tabela schema_migrations + runner próprio)
 - [ ] Autenticação: registro/login com JWT (argon2)

@@ -3,6 +3,7 @@ import { BalanceLineChart } from './components/BalanceLineChart'
 import { BudgetPanel } from './components/BudgetPanel'
 import { CategoryDonut } from './components/CategoryDonut'
 import { CategoryFilter } from './components/CategoryFilter'
+import { ExportCsvLink } from './components/ExportCsvLink'
 import { GoalsPanel } from './components/GoalsPanel'
 import { SearchFilter } from './components/SearchFilter'
 import { SummaryCards } from './components/SummaryCards'
@@ -105,6 +106,7 @@ export function App() {
             options={categoryOptions}
             onChange={handleCategoryChange}
           />
+          <ExportCsvLink month={month} />
         </div>
         <TransactionList
           transactions={transactions.data?.items}

@@ -185,6 +185,14 @@ export class TransactionsRepository {
     return { items: rows.map(toRecord), total }
   }
 
+  /** Mês inteiro sem paginação, do dia 1 ao último: é a ordem natural de leitura num export. */
+  listByMonth(month: string): TransactionRecord[] {
+    const rows = this.db
+      .prepare('SELECT * FROM transactions WHERE occurred_on LIKE ? ORDER BY occurred_on, id')
+      .all(`${month}-%`) as TransactionRow[]
+    return rows.map(toRecord)
+  }
+
   listCategories(month?: string): string[] {
     const rows = (
       month

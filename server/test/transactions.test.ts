@@ -855,3 +855,85 @@ describe('transações recorrentes', () => {
     expect(body.items[0]).toMatchObject({ description: 'Assinatura', occurredOn: '2026-09-12' })
   })
 })
+
+describe('GET /api/transactions/export.csv', () => {
+  it('exporta o mês em CSV ordenado por data, com cabeçalho e valores em vírgula decimal', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload({ description: 'Mercado', occurredOn: '2026-08-20' }),
+    })
+    await app.inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload({
+        type: 'income',
+        description: 'Salário',
+        amountCents: 500000,
+        category: 'renda',
+        occurredOn: '2026-08-05',
+        recurring: true,
+      }),
+    })
+    // Fora do mês pedido: não pode aparecer no arquivo.
+    await app.inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload({ occurredOn: '2026-07-31' }),
+    })
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/transactions/export.csv?month=2026-08',
+    })
+    expect(response.statusCode).toBe(200)
+    expect(response.headers['content-type']).toBe('text/csv; charset=utf-8')
+    expect(response.headers['content-disposition']).toBe(
+      'attachment; filename="transacoes-2026-08.csv"',
+    )
+    expect(response.body).toBe(
+      '\ufeff' +
+        'data;tipo;descricao;categoria;valor;recorrente\r\n' +
+        '2026-08-05;receita;Salário;renda;5000,00;sim\r\n' +
+        '2026-08-20;despesa;Mercado;alimentação;159,90;não\r\n',
+    )
+  })
+
+  it('escapa campo com separador, aspas e quebra de linha', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload({ description: 'Feira; "orgânicos"\nsemanal', amountCents: 4205 }),
+    })
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/transactions/export.csv?month=2026-08',
+    })
+    const lines = response.body.split('\r\n')
+    expect(lines[1]).toBe(
+      '2026-08-20;despesa;"Feira; ""orgânicos""\nsemanal";alimentação;42,05;não',
+    )
+  })
+
+  it('mês sem transações devolve só o cabeçalho', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/transactions/export.csv?month=2026-01',
+    })
+    expect(response.statusCode).toBe(200)
+    expect(response.body).toBe('\ufeffdata;tipo;descricao;categoria;valor;recorrente\r\n')
+  })
+
+  it('exige month e rejeita formato inválido com 400', async () => {
+    const missing = await app.inject({ method: 'GET', url: '/api/transactions/export.csv' })
+    expect(missing.statusCode).toBe(400)
+
+    const invalid = await app.inject({
+      method: 'GET',
+      url: '/api/transactions/export.csv?month=08-2026',
+    })
+    expect(invalid.statusCode).toBe(400)
+    expect(invalid.json().error).toBe('validation_error')
+  })
+})

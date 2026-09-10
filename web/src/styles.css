@@ -74,6 +74,20 @@ body {
   min-width: 14rem;
 }
 
+.export-csv {
+  align-self: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.export-csv:hover {
+  border-color: var(--accent);
+}
+
 .summary-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
