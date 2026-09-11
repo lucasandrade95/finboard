@@ -1,14 +1,18 @@
 import type { FastifyInstance } from 'fastify'
-import { transactionsToCsv } from './csv.js'
+import { parseTransactionsCsv, transactionsToCsv } from './csv.js'
 import type { TransactionsRepository } from './repository.js'
 import {
   createTransactionSchema,
   idParamSchema,
+  importCsvBodySchema,
   listTransactionsQuerySchema,
   monthQuerySchema,
   requiredMonthQuerySchema,
   updateTransactionSchema,
 } from './schemas.js'
+
+// Um arquivo inteiro errado geraria milhares de linhas no relatório: a UI mostra as primeiras.
+const MAX_REPORTED_ERRORS = 50
 
 export function registerTransactionRoutes(
   app: FastifyInstance,
@@ -32,6 +36,26 @@ export function registerTransactionRoutes(
         // BOM: sem ele o Excel no Windows assume ANSI e quebra a acentuação do UTF-8.
         .send(`\ufeff${csv}`)
     )
+  })
+
+  // Upload como corpo text/csv (o front lê o arquivo e envia o texto): sem multipart,
+  // sem arquivo temporário em disco. O limite de corpo do Fastify (1 MB) segura o tamanho.
+  app.addContentTypeParser('text/csv', { parseAs: 'string' }, (_request, body, done) => {
+    done(null, body)
+  })
+
+  app.post('/api/transactions/import', async (request, reply) => {
+    const csv = importCsvBodySchema.parse(request.body)
+    const { rows, errors } = parseTransactionsCsv(csv)
+    // Arquivo com qualquer erro não importa nada: corrigir e reenviar não duplica linhas.
+    if (errors.length > 0) {
+      return reply.code(400).send({
+        error: 'invalid_csv',
+        errorCount: errors.length,
+        errors: errors.slice(0, MAX_REPORTED_ERRORS),
+      })
+    }
+    return reply.code(201).send({ imported: repository.createMany(rows) })
   })
 
   app.post('/api/transactions', async (request, reply) => {

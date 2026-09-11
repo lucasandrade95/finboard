@@ -24,7 +24,7 @@ finboard/
         ├── lib/donut.ts              # geometria do donut SVG (pura, testável sem render)
         ├── lib/balance-line.ts       # geometria da linha de saldo (pura, testável sem render)
         ├── hooks/use-finance.ts      # TanStack Query (cache por mês)
-        └── components/               # SummaryCards, BalanceLineChart, CategoryDonut, BudgetPanel, TransactionForm, TransactionList
+        └── components/               # SummaryCards, BalanceLineChart, CategoryDonut, BudgetPanel, TransactionForm, TransactionList, ImportCsvButton
 ```
 
 Decisões:
@@ -45,26 +45,27 @@ npm run verify       # lint + format + testes + build (mesmo gate do CI)
 
 ## API
 
-| Método | Rota                               | Descrição                                                                                                                          |
-| ------ | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/health`                          | Health check                                                                                                                       |
-| GET    | `/api/transactions?month=`         | Lista paginada (`limit`/`offset`, filtros `type=`/`category=`, busca `q=` na descrição, devolve `{ items, total, limit, offset }`) |
-| POST   | `/api/transactions`                | Cria transação (`amountCents` inteiro > 0; `recurring` marca a série para gerar cópia mensal no boot)                              |
-| PUT    | `/api/transactions/:id`            | Atualiza transação (200; 404 se não existe)                                                                                        |
-| DELETE | `/api/transactions/:id`            | Exclui transação (204; 404 se não existe)                                                                                          |
-| GET    | `/api/transactions/export.csv`     | Exporta as transações do mês em CSV (`month` obrigatório; `;` + vírgula decimal + BOM, abre direto no Excel pt-BR)                 |
-| GET    | `/api/categories?month=`           | Categorias distintas usadas no período (`{ categories: string[] }`)                                                                |
-| GET    | `/api/daily-balance?month=`        | Saldo acumulado dia a dia do mês (`month` obrigatório; um ponto por dia, inclusive dias sem movimento)                             |
-| GET    | `/api/summary?month=`              | Receitas, despesas e saldo do período (com `month`, inclui `previous` com o resumo do mês anterior)                                |
-| GET    | `/api/expenses-by-category?month=` | Total de despesas por categoria, maior primeiro (`{ items, totalCents }`)                                                          |
-| GET    | `/api/budgets?month=`              | Orçamentos com gasto do mês por categoria (`month` obrigatório; `{ month, items: [{ category, budgetCents, spentCents }] }`)       |
-| PUT    | `/api/budgets/:category`           | Define/atualiza orçamento mensal da categoria (upsert; `{ amountCents }` inteiro > 0)                                              |
-| DELETE | `/api/budgets/:category`           | Remove orçamento da categoria (204; 404 se não existe)                                                                             |
-| GET    | `/api/goals`                       | Metas de economia (`{ items }`), prazo mais próximo primeiro e sem prazo por último                                                |
-| POST   | `/api/goals`                       | Cria meta (`name`, `targetCents` > 0, `savedCents` ≥ 0 opcional, `deadline` YYYY-MM-DD ou null)                                    |
-| PUT    | `/api/goals/:id`                   | Atualiza meta (200; 404 se não existe)                                                                                             |
-| POST   | `/api/goals/:id/contributions`     | Registra aporte (`{ amountCents }` > 0) somando ao guardado no banco; devolve a meta atualizada                                    |
-| DELETE | `/api/goals/:id`                   | Remove meta (204; 404 se não existe)                                                                                               |
+| Método | Rota                               | Descrição                                                                                                                            |
+| ------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/health`                          | Health check                                                                                                                         |
+| GET    | `/api/transactions?month=`         | Lista paginada (`limit`/`offset`, filtros `type=`/`category=`, busca `q=` na descrição, devolve `{ items, total, limit, offset }`)   |
+| POST   | `/api/transactions`                | Cria transação (`amountCents` inteiro > 0; `recurring` marca a série para gerar cópia mensal no boot)                                |
+| PUT    | `/api/transactions/:id`            | Atualiza transação (200; 404 se não existe)                                                                                          |
+| DELETE | `/api/transactions/:id`            | Exclui transação (204; 404 se não existe)                                                                                            |
+| GET    | `/api/transactions/export.csv`     | Exporta as transações do mês em CSV (`month` obrigatório; `;` + vírgula decimal + BOM, abre direto no Excel pt-BR)                   |
+| POST   | `/api/transactions/import`         | Importa CSV no formato do export (corpo `text/csv`; 201 `{ imported }`; tudo ou nada — 400 `invalid_csv` com erros por linha/coluna) |
+| GET    | `/api/categories?month=`           | Categorias distintas usadas no período (`{ categories: string[] }`)                                                                  |
+| GET    | `/api/daily-balance?month=`        | Saldo acumulado dia a dia do mês (`month` obrigatório; um ponto por dia, inclusive dias sem movimento)                               |
+| GET    | `/api/summary?month=`              | Receitas, despesas e saldo do período (com `month`, inclui `previous` com o resumo do mês anterior)                                  |
+| GET    | `/api/expenses-by-category?month=` | Total de despesas por categoria, maior primeiro (`{ items, totalCents }`)                                                            |
+| GET    | `/api/budgets?month=`              | Orçamentos com gasto do mês por categoria (`month` obrigatório; `{ month, items: [{ category, budgetCents, spentCents }] }`)         |
+| PUT    | `/api/budgets/:category`           | Define/atualiza orçamento mensal da categoria (upsert; `{ amountCents }` inteiro > 0)                                                |
+| DELETE | `/api/budgets/:category`           | Remove orçamento da categoria (204; 404 se não existe)                                                                               |
+| GET    | `/api/goals`                       | Metas de economia (`{ items }`), prazo mais próximo primeiro e sem prazo por último                                                  |
+| POST   | `/api/goals`                       | Cria meta (`name`, `targetCents` > 0, `savedCents` ≥ 0 opcional, `deadline` YYYY-MM-DD ou null)                                      |
+| PUT    | `/api/goals/:id`                   | Atualiza meta (200; 404 se não existe)                                                                                               |
+| POST   | `/api/goals/:id/contributions`     | Registra aporte (`{ amountCents }` > 0) somando ao guardado no banco; devolve a meta atualizada                                      |
+| DELETE | `/api/goals/:id`                   | Remove meta (204; 404 se não existe)                                                                                                 |
 
 ## Roadmap
 
@@ -85,7 +86,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Alerta visual quando orçamento estoura (>100%)
 - [x] Metas de economia (tabela goals + CRUD + card na UI)
 - [x] Export CSV das transações do mês
-- [ ] Import CSV (upload + validação linha a linha + relatório de erros)
+- [x] Import CSV (upload + validação linha a linha + relatório de erros)
 - [ ] Migrações versionadas (tabela schema_migrations + runner próprio)
 - [ ] Autenticação: registro/login com JWT (argon2)
 - [ ] Multiusuário: escopo de transações por usuário

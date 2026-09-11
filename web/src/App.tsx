@@ -5,6 +5,7 @@ import { CategoryDonut } from './components/CategoryDonut'
 import { CategoryFilter } from './components/CategoryFilter'
 import { ExportCsvLink } from './components/ExportCsvLink'
 import { GoalsPanel } from './components/GoalsPanel'
+import { ImportCsvButton } from './components/ImportCsvButton'
 import { SearchFilter } from './components/SearchFilter'
 import { SummaryCards } from './components/SummaryCards'
 import { TransactionForm } from './components/TransactionForm'
@@ -107,6 +108,7 @@ export function App() {
             onChange={handleCategoryChange}
           />
           <ExportCsvLink month={month} />
+          <ImportCsvButton />
         </div>
         <TransactionList
           transactions={transactions.data?.items}

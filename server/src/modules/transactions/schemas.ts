@@ -37,6 +37,9 @@ export const listTransactionsQuerySchema = monthQuerySchema.extend({
   offset: z.coerce.number().int().min(0).default(0),
 })
 
+// Corpo text/csv chega como string; JSON ou corpo vazio caem aqui com 400.
+export const importCsvBodySchema = z.string({ message: 'envie o arquivo como text/csv' }).min(1)
+
 export type TransactionType = z.infer<typeof transactionTypeSchema>
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>
 export type UpdateTransactionInput = z.infer<typeof updateTransactionSchema>

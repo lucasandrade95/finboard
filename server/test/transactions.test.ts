@@ -937,3 +937,143 @@ describe('GET /api/transactions/export.csv', () => {
     expect(invalid.json().error).toBe('validation_error')
   })
 })
+
+describe('POST /api/transactions/import', () => {
+  const HEADER = 'data;tipo;descricao;categoria;valor;recorrente'
+
+  function importCsv(body: string, contentType = 'text/csv') {
+    return app.inject({
+      method: 'POST',
+      url: '/api/transactions/import',
+      headers: { 'content-type': contentType },
+      payload: body,
+    })
+  }
+
+  it('importa as linhas válidas e elas aparecem na listagem e no resumo', async () => {
+    const response = await importCsv(
+      `${HEADER}\r\n` +
+        '2026-08-05;receita;Salário;renda;5.000,00;sim\r\n' +
+        '2026-08-20;despesa;Mercado;alimentação;159,9;não\r\n' +
+        '2026-08-21;despesa;Padaria;;12;\r\n',
+    )
+    expect(response.statusCode).toBe(201)
+    expect(response.json()).toEqual({ imported: 3 })
+
+    const list = await app.inject({ method: 'GET', url: '/api/transactions?month=2026-08' })
+    const items = list.json().items as Array<Record<string, unknown>>
+    expect(items.map((item) => [item.description, item.amountCents, item.category])).toEqual([
+      ['Padaria', 1200, 'geral'],
+      ['Mercado', 15990, 'alimentação'],
+      ['Salário', 500000, 'renda'],
+    ])
+    expect(items.find((item) => item.description === 'Salário')?.recurring).toBe(true)
+
+    const summary = await app.inject({ method: 'GET', url: '/api/summary?month=2026-08' })
+    expect(summary.json()).toMatchObject({ incomeCents: 500000, expenseCents: 17190 })
+  })
+
+  it('aceita de volta o próprio export (BOM, aspas e quebra de linha)', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload({ description: 'Feira; "orgânicos"\nsemanal', amountCents: 4205 }),
+    })
+    const exported = await app.inject({
+      method: 'GET',
+      url: '/api/transactions/export.csv?month=2026-08',
+    })
+    await app.inject({ method: 'DELETE', url: '/api/transactions/1' })
+
+    const response = await importCsv(exported.body)
+    expect(response.statusCode).toBe(201)
+
+    const list = await app.inject({ method: 'GET', url: '/api/transactions?month=2026-08' })
+    expect(list.json().items[0]).toMatchObject({
+      description: 'Feira; "orgânicos"\nsemanal',
+      amountCents: 4205,
+      category: 'alimentação',
+      recurring: false,
+    })
+  })
+
+  it('relata todos os erros com linha e coluna e não importa nada', async () => {
+    const response = await importCsv(
+      `${HEADER}\n` +
+        '2026-08-05;receita;Salário;renda;5000,00;sim\n' +
+        '2026-08-20;transferência;Mercado;alimentação;12,345;talvez\n' +
+        '20/08/2026;despesa;;alimentação;0,00;não\n' +
+        '2026-08-21;despesa;Padaria\n',
+    )
+    expect(response.statusCode).toBe(400)
+    const body = response.json()
+    expect(body.error).toBe('invalid_csv')
+    expect(body.errorCount).toBe(7)
+    expect(
+      body.errors.map((error: { line: number; column?: string }) => [error.line, error.column]),
+    ).toEqual([
+      [3, 'tipo'],
+      [3, 'valor'],
+      [3, 'recorrente'],
+      [4, 'descricao'],
+      [4, 'valor'],
+      [4, 'data'],
+      [5, undefined],
+    ])
+    expect(body.errors[6].message).toBe('esperadas 6 colunas, encontradas 3')
+
+    // A linha 2 era válida, mas o arquivo com erro é rejeitado inteiro.
+    const list = await app.inject({ method: 'GET', url: '/api/transactions' })
+    expect(list.json().total).toBe(0)
+  })
+
+  it('conta linhas físicas quando um campo entre aspas tem quebra de linha', async () => {
+    const response = await importCsv(
+      `${HEADER}\n` +
+        '2026-08-05;despesa;"linha 1\nlinha 2";casa;10,00;não\n' +
+        '2026-08-06;x;a;b;1;não\n',
+    )
+    expect(response.statusCode).toBe(400)
+    expect(response.json().errors).toEqual([
+      { line: 4, column: 'tipo', message: 'use "receita" ou "despesa"' },
+    ])
+  })
+
+  it('rejeita cabeçalho diferente, arquivo sem linhas e aspas não fechadas', async () => {
+    const wrongHeader = await importCsv('date,type,amount\n2026-08-05,expense,10\n')
+    expect(wrongHeader.statusCode).toBe(400)
+    expect(wrongHeader.json().errors[0]).toEqual({
+      line: 1,
+      message: `cabeçalho esperado: ${HEADER}`,
+    })
+
+    const onlyHeader = await importCsv(`${HEADER}\r\n`)
+    expect(onlyHeader.statusCode).toBe(400)
+    expect(onlyHeader.json().errors[0].message).toBe('arquivo sem transações')
+
+    const openQuote = await importCsv(`${HEADER}\n2026-08-05;despesa;"sem fim;casa;1;não\n`)
+    expect(openQuote.statusCode).toBe(400)
+    expect(openQuote.json().errors[0].message).toBe('aspas abertas na linha 2 não foram fechadas')
+  })
+
+  it('limita o relatório a 50 erros mas informa o total', async () => {
+    const lines = Array.from({ length: 60 }, () => '2026-08-05;x;a;b;1;não')
+    const response = await importCsv([HEADER, ...lines].join('\n'))
+    expect(response.statusCode).toBe(400)
+    expect(response.json().errorCount).toBe(60)
+    expect(response.json().errors).toHaveLength(50)
+  })
+
+  it('exige corpo text/csv', async () => {
+    const json = await app.inject({
+      method: 'POST',
+      url: '/api/transactions/import',
+      payload: { csv: HEADER },
+    })
+    expect(json.statusCode).toBe(400)
+    expect(json.json().error).toBe('validation_error')
+
+    const unsupported = await importCsv(HEADER, 'application/xml')
+    expect(unsupported.statusCode).toBe(415)
+  })
+})

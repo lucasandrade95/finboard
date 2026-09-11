@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   api,
   type CreateGoalInput,
@@ -53,18 +53,24 @@ export function useSummary(month: string) {
 }
 
 // Toda mutação de transação mexe no gasto por categoria: orçamentos entram na invalidação.
+function invalidateTransactionQueries(queryClient: QueryClient): void {
+  for (const key of [
+    'transactions',
+    'summary',
+    'categories',
+    'expenses-by-category',
+    'daily-balance',
+    'budgets',
+  ]) {
+    void queryClient.invalidateQueries({ queryKey: [key] })
+  }
+}
+
 export function useCreateTransaction() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: CreateTransactionInput) => api.createTransaction(input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      void queryClient.invalidateQueries({ queryKey: ['summary'] })
-      void queryClient.invalidateQueries({ queryKey: ['categories'] })
-      void queryClient.invalidateQueries({ queryKey: ['expenses-by-category'] })
-      void queryClient.invalidateQueries({ queryKey: ['daily-balance'] })
-      void queryClient.invalidateQueries({ queryKey: ['budgets'] })
-    },
+    onSuccess: () => invalidateTransactionQueries(queryClient),
   })
 }
 
@@ -73,14 +79,7 @@ export function useUpdateTransaction() {
   return useMutation({
     mutationFn: ({ id, input }: { id: number; input: CreateTransactionInput }) =>
       api.updateTransaction(id, input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      void queryClient.invalidateQueries({ queryKey: ['summary'] })
-      void queryClient.invalidateQueries({ queryKey: ['categories'] })
-      void queryClient.invalidateQueries({ queryKey: ['expenses-by-category'] })
-      void queryClient.invalidateQueries({ queryKey: ['daily-balance'] })
-      void queryClient.invalidateQueries({ queryKey: ['budgets'] })
-    },
+    onSuccess: () => invalidateTransactionQueries(queryClient),
   })
 }
 
@@ -88,14 +87,15 @@ export function useDeleteTransaction() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => api.deleteTransaction(id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      void queryClient.invalidateQueries({ queryKey: ['summary'] })
-      void queryClient.invalidateQueries({ queryKey: ['categories'] })
-      void queryClient.invalidateQueries({ queryKey: ['expenses-by-category'] })
-      void queryClient.invalidateQueries({ queryKey: ['daily-balance'] })
-      void queryClient.invalidateQueries({ queryKey: ['budgets'] })
-    },
+    onSuccess: () => invalidateTransactionQueries(queryClient),
+  })
+}
+
+export function useImportTransactions() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (csv: string) => api.importTransactionsCsv(csv),
+    onSuccess: () => invalidateTransactionQueries(queryClient),
   })
 }
 

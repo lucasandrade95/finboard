@@ -110,6 +110,27 @@ export interface TransactionFilters {
   q?: string
 }
 
+export interface CsvImportRowError {
+  line: number
+  column?: string
+  message: string
+}
+
+export interface CsvImportResult {
+  imported: number
+}
+
+/** Arquivo rejeitado pela API: carrega o relatório linha a linha para a UI mostrar. */
+export class CsvImportError extends Error {
+  constructor(
+    readonly errors: CsvImportRowError[],
+    readonly errorCount: number,
+  ) {
+    super(`CSV com ${errorCount} erro(s)`)
+    this.name = 'CsvImportError'
+  }
+}
+
 export const PAGE_SIZE = 20
 
 const brlFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -139,6 +160,30 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     return undefined as T
   }
   return response.json() as Promise<T>
+}
+
+// Fora do `request`: o 400 aqui não é falha genérica, é o relatório de erros do arquivo.
+async function importTransactionsCsv(csv: string): Promise<CsvImportResult> {
+  const response = await fetch('/api/transactions/import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/csv' },
+    body: csv,
+  })
+  if (response.status === 400) {
+    const body = (await response.json()) as {
+      error?: string
+      errors?: CsvImportRowError[]
+      errorCount?: number
+    }
+    if (body.error === 'invalid_csv' && body.errors) {
+      throw new CsvImportError(body.errors, body.errorCount ?? body.errors.length)
+    }
+    throw new Error(`API 400: ${JSON.stringify(body)}`)
+  }
+  if (!response.ok) {
+    throw new Error(`API ${response.status}: ${await response.text()}`)
+  }
+  return response.json() as Promise<CsvImportResult>
 }
 
 export const api = {
@@ -173,6 +218,7 @@ export const api = {
       body: JSON.stringify(input),
     }),
   deleteTransaction: (id: number) => request<void>(`/api/transactions/${id}`, { method: 'DELETE' }),
+  importTransactionsCsv,
   listBudgets: (month: string) => request<BudgetProgressList>(`/api/budgets?month=${month}`),
   upsertBudget: (category: string, amountCents: number) =>
     request<Budget>(`/api/budgets/${encodeURIComponent(category)}`, {

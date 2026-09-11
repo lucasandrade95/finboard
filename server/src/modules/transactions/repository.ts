@@ -131,6 +131,17 @@ export class TransactionsRepository {
     return created
   }
 
+  /** Tudo ou nada: numa transação do SQLite, uma falha no meio desfaz as linhas já inseridas. */
+  createMany(inputs: CreateTransactionInput[]): number {
+    const insertAll = this.db.transaction((items: CreateTransactionInput[]) => {
+      for (const item of items) {
+        this.create(item)
+      }
+      return items.length
+    })
+    return insertAll(inputs)
+  }
+
   findById(id: number): TransactionRecord | undefined {
     const row = this.db.prepare('SELECT * FROM transactions WHERE id = ?').get(id) as
       TransactionRow | undefined
