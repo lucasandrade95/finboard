@@ -24,7 +24,13 @@ function currentMonth(): string {
 
 export async function buildApp(options: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: options.logger ?? false })
-  const db = openDatabase(options.dbPath)
+  const db = openDatabase(options.dbPath, {
+    onMigrated: (applied) => {
+      if (applied.length > 0) {
+        app.log.info({ migrations: applied }, 'migrações aplicadas')
+      }
+    },
+  })
 
   await app.register(cors, { origin: true })
 

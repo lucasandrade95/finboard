@@ -15,7 +15,8 @@ finboard/
 │   │   ├── app.ts                    # buildApp(): instância Fastify testável (injeta dbPath)
 │   │   ├── server.ts                 # entrypoint (listen)
 │   │   ├── config.ts                 # config via env (PORT, DB_PATH)
-│   │   ├── db/connection.ts          # abre SQLite + migração idempotente
+│   │   ├── db/connection.ts          # abre SQLite + roda o runner de migrações
+│   │   ├── db/migrations.ts          # lista versionada + runner (schema_migrations)
 │   │   └── modules/                  # transactions, budgets — rotas → repositório, schemas Zod
 │   └── test/                         # Vitest + app.inject (sem rede)
 └── web/      # SPA — React 19 + Vite
@@ -32,7 +33,7 @@ Decisões:
 - **Dinheiro em centavos (inteiro)** — nunca float. Formatação BRL só na borda (UI).
 - **`buildApp()` separado do `listen`** — testes usam `app.inject()` com banco `:memory:`, zero rede.
 - **Validação Zod na borda** — handler faz `schema.parse`; error handler central converte `ZodError` em 400 com detalhes por campo.
-- **Migração idempotente no boot** — `CREATE TABLE IF NOT EXISTS`; trocar por migrações versionadas quando o schema crescer (item do roadmap).
+- **Migrações versionadas no boot** — cada passo tem id fixo e é registrado em `schema_migrations`; roda uma vez só, dentro de uma transação (falhou, nada entra). Bancos antigos, sem a tabela de controle, são adotados na primeira subida porque os passos continuam idempotentes.
 
 ## Rodando
 
@@ -87,7 +88,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Metas de economia (tabela goals + CRUD + card na UI)
 - [x] Export CSV das transações do mês
 - [x] Import CSV (upload + validação linha a linha + relatório de erros)
-- [ ] Migrações versionadas (tabela schema_migrations + runner próprio)
+- [x] Migrações versionadas (tabela schema_migrations + runner próprio)
 - [ ] Autenticação: registro/login com JWT (argon2)
 - [ ] Multiusuário: escopo de transações por usuário
 - [ ] Rate limiting (@fastify/rate-limit) e helmet
