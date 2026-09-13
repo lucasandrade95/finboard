@@ -1,7 +1,11 @@
 import cors from '@fastify/cors'
+import jwt from '@fastify/jwt'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { ZodError } from 'zod'
+import { DEV_JWT_SECRET } from './config.js'
 import { openDatabase } from './db/connection.js'
+import { UsersRepository } from './modules/auth/repository.js'
+import { registerAuthRoutes } from './modules/auth/routes.js'
 import { BudgetsRepository } from './modules/budgets/repository.js'
 import { registerBudgetRoutes } from './modules/budgets/routes.js'
 import { GoalsRepository } from './modules/goals/repository.js'
@@ -14,6 +18,8 @@ export interface BuildAppOptions {
   logger?: boolean
   /** Mês alvo da geração de recorrentes no boot (YYYY-MM); default: mês atual. Testes injetam. */
   recurringMonth?: string
+  /** Segredo HMAC dos JWTs; default só para dev/testes (o server.ts passa o do env). */
+  jwtSecret?: string
 }
 
 // Mês local, não UTC: a virada de mês deve seguir o relógio do usuário.
@@ -33,6 +39,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   })
 
   await app.register(cors, { origin: true })
+  await app.register(jwt, {
+    secret: options.jwtSecret ?? DEV_JWT_SECRET,
+    sign: { expiresIn: '7d' },
+  })
 
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof ZodError) {
@@ -58,6 +68,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   app.get('/health', async () => ({ status: 'ok' }))
 
   const repository = new TransactionsRepository(db)
+  registerAuthRoutes(app, new UsersRepository(db))
   registerTransactionRoutes(app, repository)
   registerBudgetRoutes(app, new BudgetsRepository(db))
   registerGoalRoutes(app, new GoalsRepository(db))

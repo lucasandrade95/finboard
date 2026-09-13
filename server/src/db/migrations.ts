@@ -75,6 +75,22 @@ export const MIGRATIONS: readonly Migration[] = [
       `)
     },
   },
+  {
+    id: 5,
+    name: 'create_users',
+    up: (db) => {
+      // E-mail já chega normalizado (trim + minúsculas) pelo Zod; o COLLATE NOCASE
+      // é a segunda linha de defesa para o UNIQUE não aceitar variação de caixa.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+          password_hash TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `)
+    },
+  },
 ]
 
 /**

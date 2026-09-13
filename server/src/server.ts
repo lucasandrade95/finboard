@@ -2,7 +2,7 @@ import { buildApp } from './app.js'
 import { loadConfig } from './config.js'
 
 const config = loadConfig()
-const app = await buildApp({ dbPath: config.dbPath, logger: true })
+const app = await buildApp({ dbPath: config.dbPath, jwtSecret: config.jwtSecret, logger: true })
 
 try {
   await app.listen({ port: config.port, host: '0.0.0.0' })

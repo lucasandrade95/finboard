@@ -14,10 +14,10 @@ finboard/
 │   ├── src/
 │   │   ├── app.ts                    # buildApp(): instância Fastify testável (injeta dbPath)
 │   │   ├── server.ts                 # entrypoint (listen)
-│   │   ├── config.ts                 # config via env (PORT, DB_PATH)
+│   │   ├── config.ts                 # config via env (PORT, DB_PATH, JWT_SECRET)
 │   │   ├── db/connection.ts          # abre SQLite + roda o runner de migrações
 │   │   ├── db/migrations.ts          # lista versionada + runner (schema_migrations)
-│   │   └── modules/                  # transactions, budgets — rotas → repositório, schemas Zod
+│   │   └── modules/                  # auth, transactions, budgets, goals — rotas → repositório, schemas Zod
 │   └── test/                         # Vitest + app.inject (sem rede)
 └── web/      # SPA — React 19 + Vite
     └── src/
@@ -34,12 +34,13 @@ Decisões:
 - **`buildApp()` separado do `listen`** — testes usam `app.inject()` com banco `:memory:`, zero rede.
 - **Validação Zod na borda** — handler faz `schema.parse`; error handler central converte `ZodError` em 400 com detalhes por campo.
 - **Migrações versionadas no boot** — cada passo tem id fixo e é registrado em `schema_migrations`; roda uma vez só, dentro de uma transação (falhou, nada entra). Bancos antigos, sem a tabela de controle, são adotados na primeira subida porque os passos continuam idempotentes.
+- **Auth com argon2id + JWT stateless** — senha só existe como hash argon2id; login devolve JWT HS256 (7 dias) e rotas protegidas usam o preHandler `authenticate`. Senha errada e e-mail inexistente respondem o mesmo 401, com o mesmo custo de hash.
 
 ## Rodando
 
 ```bash
 npm install
-npm run dev:server   # API em http://localhost:3000
+JWT_SECRET=... npm run dev:server   # API em http://localhost:3000 (sem JWT_SECRET usa segredo de dev; em produção é obrigatório)
 npm run dev:web      # SPA em http://localhost:5173 (proxy /api → 3000)
 npm run verify       # lint + format + testes + build (mesmo gate do CI)
 ```
@@ -49,6 +50,9 @@ npm run verify       # lint + format + testes + build (mesmo gate do CI)
 | Método | Rota                               | Descrição                                                                                                                            |
 | ------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | GET    | `/health`                          | Health check                                                                                                                         |
+| POST   | `/api/auth/register`               | Cria conta (`email`, `password` 8–128) e devolve `{ user, token }` (201; 409 `email_taken`)                                          |
+| POST   | `/api/auth/login`                  | Troca e-mail/senha por `{ user, token }` (401 `invalid_credentials`, igual para e-mail inexistente e senha errada)                   |
+| GET    | `/api/auth/me`                     | Usuário do token (`Authorization: Bearer <token>`; 401 sem token ou token inválido)                                                  |
 | GET    | `/api/transactions?month=`         | Lista paginada (`limit`/`offset`, filtros `type=`/`category=`, busca `q=` na descrição, devolve `{ items, total, limit, offset }`)   |
 | POST   | `/api/transactions`                | Cria transação (`amountCents` inteiro > 0; `recurring` marca a série para gerar cópia mensal no boot)                                |
 | PUT    | `/api/transactions/:id`            | Atualiza transação (200; 404 se não existe)                                                                                          |
@@ -89,7 +93,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Export CSV das transações do mês
 - [x] Import CSV (upload + validação linha a linha + relatório de erros)
 - [x] Migrações versionadas (tabela schema_migrations + runner próprio)
-- [ ] Autenticação: registro/login com JWT (argon2)
+- [x] Autenticação: registro/login com JWT (argon2)
 - [ ] Multiusuário: escopo de transações por usuário
 - [ ] Rate limiting (@fastify/rate-limit) e helmet
 - [ ] OpenAPI via @fastify/swagger + UI
