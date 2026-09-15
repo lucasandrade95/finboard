@@ -22,10 +22,12 @@ finboard/
 └── web/      # SPA — React 19 + Vite
     └── src/
         ├── lib/api.ts                # client tipado + formatBRL/parseReaisToCents
+        ├── lib/auth.ts               # store do token (memória + localStorage + listeners)
         ├── lib/donut.ts              # geometria do donut SVG (pura, testável sem render)
         ├── lib/balance-line.ts       # geometria da linha de saldo (pura, testável sem render)
+        ├── hooks/use-auth.ts         # token atual via useSyncExternalStore
         ├── hooks/use-finance.ts      # TanStack Query (cache por mês)
-        └── components/               # SummaryCards, BalanceLineChart, CategoryDonut, BudgetPanel, TransactionForm, TransactionList, ImportCsvButton
+        └── components/               # AuthScreen, SummaryCards, BalanceLineChart, CategoryDonut, BudgetPanel, TransactionForm, TransactionList, Export/ImportCsvButton
 ```
 
 Decisões:
@@ -35,6 +37,7 @@ Decisões:
 - **Validação Zod na borda** — handler faz `schema.parse`; error handler central converte `ZodError` em 400 com detalhes por campo.
 - **Migrações versionadas no boot** — cada passo tem id fixo e é registrado em `schema_migrations`; roda uma vez só, dentro de uma transação (falhou, nada entra). Bancos antigos, sem a tabela de controle, são adotados na primeira subida porque os passos continuam idempotentes.
 - **Auth com argon2id + JWT stateless** — senha só existe como hash argon2id; login devolve JWT HS256 (7 dias) e rotas protegidas usam o preHandler `authenticate`. Senha errada e e-mail inexistente respondem o mesmo 401, com o mesmo custo de hash.
+- **Transações escopadas por usuário** — `transactions.user_id` entra no `WHERE` de toda consulta do repositório, inclusive nas de escrita: id de outra conta responde 404 (e não 403, que confirmaria a existência). O token guardado no SPA é o que libera as rotas; 401 derruba a sessão e devolve a tela de login. Orçamentos e metas ainda são globais — é a próxima fatia do roadmap.
 
 ## Rodando
 
@@ -46,6 +49,8 @@ npm run verify       # lint + format + testes + build (mesmo gate do CI)
 ```
 
 ## API
+
+Tudo abaixo de `/api/transactions`, `/api/categories`, `/api/expenses-by-category`, `/api/daily-balance` e `/api/summary` exige `Authorization: Bearer <token>` e responde só com os dados da conta do token (401 sem token válido).
 
 | Método | Rota                               | Descrição                                                                                                                            |
 | ------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -94,7 +99,8 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Import CSV (upload + validação linha a linha + relatório de erros)
 - [x] Migrações versionadas (tabela schema_migrations + runner próprio)
 - [x] Autenticação: registro/login com JWT (argon2)
-- [ ] Multiusuário: escopo de transações por usuário
+- [x] Multiusuário: escopo de transações por usuário
+- [ ] Multiusuário: escopo de orçamentos e metas por usuário
 - [ ] Rate limiting (@fastify/rate-limit) e helmet
 - [ ] OpenAPI via @fastify/swagger + UI
 - [ ] Dark mode (prefers-color-scheme + toggle persistido)

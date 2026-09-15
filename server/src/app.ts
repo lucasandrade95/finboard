@@ -73,9 +73,16 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   registerBudgetRoutes(app, new BudgetsRepository(db))
   registerGoalRoutes(app, new GoalsRepository(db))
 
-  const generated = repository.generateRecurringForMonth(options.recurringMonth ?? currentMonth())
-  if (generated.length > 0) {
-    app.log.info({ count: generated.length }, 'transações recorrentes geradas para o mês')
+  // Uma passada por dono: cada conta tem as próprias séries recorrentes.
+  const month = options.recurringMonth ?? currentMonth()
+  const generated = repository
+    .listOwnersWithRecurring()
+    .reduce(
+      (count, userId) => count + repository.generateRecurringForMonth(userId, month).length,
+      0,
+    )
+  if (generated > 0) {
+    app.log.info({ count: generated }, 'transações recorrentes geradas para o mês')
   }
 
   app.addHook('onClose', () => {

@@ -91,6 +91,32 @@ export const MIGRATIONS: readonly Migration[] = [
       `)
     },
   },
+  {
+    id: 6,
+    name: 'add_transactions_user_id',
+    up: (db) => {
+      const columns = db.prepare('PRAGMA table_info(transactions)').all() as Array<{ name: string }>
+      if (!columns.some((column) => column.name === 'user_id')) {
+        // Anulável de propósito: o ALTER TABLE do SQLite não aceita NOT NULL sem
+        // default, e qualquer default aqui apontaria para um usuário inventado.
+        db.exec('ALTER TABLE transactions ADD COLUMN user_id INTEGER REFERENCES users(id)')
+      }
+      // Todo filtro passa a começar por user_id; o mês continua no índice para o
+      // recorte do período não virar varredura da conta inteira.
+      db.exec(
+        'CREATE INDEX IF NOT EXISTS idx_transactions_user_occurred_on ON transactions (user_id, occurred_on)',
+      )
+      // Banco que rodava single-user: com exatamente um usuário cadastrado ele é,
+      // sem ambiguidade, o dono do histórico anterior ao escopo. Com zero ou vários
+      // não há escolha segura — as linhas ficam sem dono (nada é apagado) e param
+      // de aparecer na API até alguém reatribuir.
+      const users = db.prepare('SELECT id FROM users LIMIT 2').all() as Array<{ id: number }>
+      const soleOwner = users.length === 1 ? users[0] : undefined
+      if (soleOwner) {
+        db.prepare('UPDATE transactions SET user_id = ? WHERE user_id IS NULL').run(soleOwner.id)
+      }
+    },
+  },
 ]
 
 /**

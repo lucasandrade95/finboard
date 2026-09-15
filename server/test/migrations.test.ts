@@ -80,6 +80,44 @@ describe('runMigrations', () => {
     db.close()
   })
 
+  it('atribui o histórico sem dono ao único usuário do banco', () => {
+    const db = new Database(':memory:')
+    // Estado de um banco single-user: schema anterior ao escopo por usuário.
+    runMigrations(
+      db,
+      MIGRATIONS.filter((migration) => migration.name !== 'add_transactions_user_id'),
+    )
+    db.exec(`
+      INSERT INTO users (email, password_hash) VALUES ('lucas@example.com', 'hash');
+      INSERT INTO transactions (type, description, amount_cents, category, occurred_on)
+      VALUES ('expense', 'mercado', 12345, 'mercado', '2026-08-10');
+    `)
+
+    expect(runMigrations(db)).toEqual(['add_transactions_user_id'])
+    expect(db.prepare('SELECT user_id FROM transactions').get()).toEqual({ user_id: 1 })
+    db.close()
+  })
+
+  it('não chuta um dono quando o banco legado tem mais de um usuário', () => {
+    const db = new Database(':memory:')
+    runMigrations(
+      db,
+      MIGRATIONS.filter((migration) => migration.name !== 'add_transactions_user_id'),
+    )
+    db.exec(`
+      INSERT INTO users (email, password_hash) VALUES ('lucas@example.com', 'hash');
+      INSERT INTO users (email, password_hash) VALUES ('maria@example.com', 'hash');
+      INSERT INTO transactions (type, description, amount_cents, category, occurred_on)
+      VALUES ('expense', 'mercado', 12345, 'mercado', '2026-08-10');
+    `)
+
+    runMigrations(db)
+
+    // A linha continua no banco (nada é apagado), só deixa de ter dono.
+    expect(db.prepare('SELECT user_id FROM transactions').get()).toEqual({ user_id: null })
+    db.close()
+  })
+
   it('deixa o banco intacto quando uma migração falha no meio', () => {
     const db = new Database(':memory:')
     const broken: Migration[] = [

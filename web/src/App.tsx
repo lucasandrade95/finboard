@@ -1,9 +1,11 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { AuthScreen } from './components/AuthScreen'
 import { BalanceLineChart } from './components/BalanceLineChart'
 import { BudgetPanel } from './components/BudgetPanel'
 import { CategoryDonut } from './components/CategoryDonut'
 import { CategoryFilter } from './components/CategoryFilter'
-import { ExportCsvLink } from './components/ExportCsvLink'
+import { ExportCsvButton } from './components/ExportCsvButton'
 import { GoalsPanel } from './components/GoalsPanel'
 import { ImportCsvButton } from './components/ImportCsvButton'
 import { SearchFilter } from './components/SearchFilter'
@@ -11,6 +13,7 @@ import { SummaryCards } from './components/SummaryCards'
 import { TransactionForm } from './components/TransactionForm'
 import { TransactionList } from './components/TransactionList'
 import { TypeFilter } from './components/TypeFilter'
+import { useToken } from './hooks/use-auth'
 import { useDebouncedValue } from './hooks/use-debounced-value'
 import {
   useBudgets,
@@ -22,12 +25,32 @@ import {
   useTransactions,
 } from './hooks/use-finance'
 import { PAGE_SIZE, type TransactionType } from './lib/api'
+import { setToken } from './lib/auth'
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7)
 }
 
+/**
+ * Porteiro da aplicação. O dashboard só monta com token — assim nenhuma query
+ * sai antes da sessão existir e o 401 leva de volta para o login sozinho.
+ */
 export function App() {
+  const token = useToken()
+  const queryClient = useQueryClient()
+
+  // Fim de sessão (logout ou 401 da API): o cache do usuário anterior não pode
+  // reaparecer para quem entrar depois nesta mesma aba.
+  useEffect(() => {
+    if (!token) {
+      queryClient.clear()
+    }
+  }, [token, queryClient])
+
+  return token ? <Dashboard /> : <AuthScreen />
+}
+
+function Dashboard() {
   const [month, setMonth] = useState(currentMonth)
   const [page, setPage] = useState(1)
   const [category, setCategory] = useState('')
@@ -87,6 +110,9 @@ export function App() {
           Mês
           <input type="month" value={month} onChange={(e) => handleMonthChange(e.target.value)} />
         </label>
+        <button type="button" className="logout" onClick={() => setToken(null)}>
+          Sair
+        </button>
       </header>
 
       <main>
@@ -107,7 +133,7 @@ export function App() {
             options={categoryOptions}
             onChange={handleCategoryChange}
           />
-          <ExportCsvLink month={month} />
+          <ExportCsvButton month={month} />
           <ImportCsvButton />
         </div>
         <TransactionList

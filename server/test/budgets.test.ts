@@ -3,10 +3,17 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildApp } from '../src/app.js'
 
 let app: FastifyInstance
+let auth: string
 
 beforeEach(async () => {
   app = await buildApp({ dbPath: ':memory:' })
   await app.ready()
+  const registered = await app.inject({
+    method: 'POST',
+    url: '/api/auth/register',
+    payload: { email: 'lucas@example.com', password: 'senha-forte-123' },
+  })
+  auth = `Bearer ${registered.json().token}`
 })
 
 afterEach(async () => {
@@ -21,10 +28,12 @@ async function setBudget(category: string, amountCents: number) {
   })
 }
 
+// Orçamento ainda é global, mas a transação que alimenta o gasto já pertence a um dono.
 async function addExpense(category: string, amountCents: number, occurredOn: string) {
   return app.inject({
     method: 'POST',
     url: '/api/transactions',
+    headers: { authorization: auth },
     payload: { type: 'expense', description: 'gasto', amountCents, category, occurredOn },
   })
 }
@@ -70,6 +79,7 @@ describe('GET /api/budgets', () => {
     await app.inject({
       method: 'POST',
       url: '/api/transactions',
+      headers: { authorization: auth },
       payload: {
         type: 'income',
         description: 'reembolso',

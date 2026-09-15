@@ -1,15 +1,41 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, InjectOptions } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildApp } from '../src/app.js'
 
+const OWNER = { email: 'lucas@example.com', password: 'senha-forte-123' }
+const OTHER = { email: 'maria@example.com', password: 'outra-senha-456' }
+
 let app: FastifyInstance
+let ownerAuth: string
+
+/** Cria a conta e devolve o header pronto: toda rota de transação exige token. */
+async function registerAndAuthorize(
+  instance: FastifyInstance,
+  credentials = OWNER,
+): Promise<string> {
+  const response = await instance.inject({
+    method: 'POST',
+    url: '/api/auth/register',
+    payload: credentials,
+  })
+  return `Bearer ${response.json().token}`
+}
+
+/** `app.inject` já autenticado como o dono padrão dos testes. */
+async function inject(options: InjectOptions) {
+  return app.inject({
+    ...options,
+    headers: { authorization: ownerAuth, ...options.headers },
+  })
+}
 
 beforeEach(async () => {
   app = await buildApp({ dbPath: ':memory:' })
   await app.ready()
+  ownerAuth = await registerAndAuthorize(app)
 })
 
 afterEach(async () => {
@@ -29,7 +55,7 @@ function validPayload(overrides: Record<string, unknown> = {}) {
 
 describe('GET /health', () => {
   it('responde ok', async () => {
-    const response = await app.inject({ method: 'GET', url: '/health' })
+    const response = await inject({ method: 'GET', url: '/health' })
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({ status: 'ok' })
   })
@@ -37,7 +63,7 @@ describe('GET /health', () => {
 
 describe('POST /api/transactions', () => {
   it('cria transação e devolve o registro com id', async () => {
-    const response = await app.inject({
+    const response = await inject({
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload(),
@@ -58,13 +84,13 @@ describe('POST /api/transactions', () => {
   it('aplica categoria padrão quando omitida', async () => {
     const payload = validPayload()
     delete (payload as Record<string, unknown>).category
-    const response = await app.inject({ method: 'POST', url: '/api/transactions', payload })
+    const response = await inject({ method: 'POST', url: '/api/transactions', payload })
     expect(response.statusCode).toBe(201)
     expect(response.json().category).toBe('geral')
   })
 
   it('rejeita payload inválido com 400 e detalhes', async () => {
-    const response = await app.inject({
+    const response = await inject({
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload({ amountCents: -5, occurredOn: '20/08/2026' }),
@@ -85,14 +111,14 @@ describe('GET /api/transactions', () => {
       ['agosto cedo', '2026-08-01'],
       ['agosto tarde', '2026-08-15'],
     ] as const) {
-      await app.inject({
+      await inject({
         method: 'POST',
         url: '/api/transactions',
         payload: validPayload({ description, occurredOn }),
       })
     }
 
-    const response = await app.inject({ method: 'GET', url: '/api/transactions?month=2026-08' })
+    const response = await inject({ method: 'GET', url: '/api/transactions?month=2026-08' })
     expect(response.statusCode).toBe(200)
     const body = response.json()
     expect(body.total).toBe(2)
@@ -105,13 +131,13 @@ describe('GET /api/transactions', () => {
   })
 
   it('rejeita mês mal formatado', async () => {
-    const response = await app.inject({ method: 'GET', url: '/api/transactions?month=agosto' })
+    const response = await inject({ method: 'GET', url: '/api/transactions?month=agosto' })
     expect(response.statusCode).toBe(400)
   })
 
   it('pagina com limit/offset mantendo o total do filtro', async () => {
     for (let day = 1; day <= 5; day += 1) {
-      await app.inject({
+      await inject({
         method: 'POST',
         url: '/api/transactions',
         payload: validPayload({
@@ -121,7 +147,7 @@ describe('GET /api/transactions', () => {
       })
     }
 
-    const response = await app.inject({
+    const response = await inject({
       method: 'GET',
       url: '/api/transactions?month=2026-08&limit=2&offset=2',
     })
@@ -135,9 +161,9 @@ describe('GET /api/transactions', () => {
   })
 
   it('devolve página vazia quando offset passa do total, sem perder o total', async () => {
-    await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload() })
+    await inject({ method: 'POST', url: '/api/transactions', payload: validPayload() })
 
-    const response = await app.inject({
+    const response = await inject({
       method: 'GET',
       url: '/api/transactions?month=2026-08&limit=10&offset=50',
     })
@@ -147,7 +173,7 @@ describe('GET /api/transactions', () => {
 
   it('rejeita limit fora do intervalo 1..100', async () => {
     for (const limit of ['0', '101', 'abc']) {
-      const response = await app.inject({
+      const response = await inject({
         method: 'GET',
         url: `/api/transactions?limit=${limit}`,
       })
@@ -157,7 +183,7 @@ describe('GET /api/transactions', () => {
   })
 
   it('rejeita offset negativo', async () => {
-    const response = await app.inject({ method: 'GET', url: '/api/transactions?offset=-1' })
+    const response = await inject({ method: 'GET', url: '/api/transactions?offset=-1' })
     expect(response.statusCode).toBe(400)
   })
 
@@ -169,10 +195,10 @@ describe('GET /api/transactions', () => {
       { description: 'feira de julho', category: 'alimentação', occurredOn: '2026-07-15' },
     ]
     for (const entry of entries) {
-      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+      await inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
     }
 
-    const response = await app.inject({
+    const response = await inject({
       method: 'GET',
       url: `/api/transactions?month=2026-08&category=${encodeURIComponent('alimentação')}`,
     })
@@ -186,15 +212,15 @@ describe('GET /api/transactions', () => {
   })
 
   it('devolve lista vazia quando a categoria não tem transações', async () => {
-    await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload() })
+    await inject({ method: 'POST', url: '/api/transactions', payload: validPayload() })
 
-    const response = await app.inject({ method: 'GET', url: '/api/transactions?category=viagem' })
+    const response = await inject({ method: 'GET', url: '/api/transactions?category=viagem' })
     expect(response.statusCode).toBe(200)
     expect(response.json()).toMatchObject({ items: [], total: 0 })
   })
 
   it('rejeita categoria vazia', async () => {
-    const response = await app.inject({ method: 'GET', url: '/api/transactions?category=' })
+    const response = await inject({ method: 'GET', url: '/api/transactions?category=' })
     expect(response.statusCode).toBe(400)
     expect(response.json().error).toBe('validation_error')
   })
@@ -207,10 +233,10 @@ describe('GET /api/transactions', () => {
       { type: 'income', description: 'salário de julho', occurredOn: '2026-07-05' },
     ]
     for (const entry of entries) {
-      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+      await inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
     }
 
-    const response = await app.inject({
+    const response = await inject({
       method: 'GET',
       url: '/api/transactions?month=2026-08&type=income',
     })
@@ -230,10 +256,10 @@ describe('GET /api/transactions', () => {
       { type: 'expense', description: 'ônibus', category: 'transporte' },
     ]
     for (const entry of entries) {
-      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+      await inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
     }
 
-    const response = await app.inject({
+    const response = await inject({
       method: 'GET',
       url: `/api/transactions?type=expense&category=${encodeURIComponent('alimentação')}`,
     })
@@ -244,7 +270,7 @@ describe('GET /api/transactions', () => {
   })
 
   it('rejeita tipo desconhecido', async () => {
-    const response = await app.inject({ method: 'GET', url: '/api/transactions?type=investimento' })
+    const response = await inject({ method: 'GET', url: '/api/transactions?type=investimento' })
     expect(response.statusCode).toBe(400)
     expect(response.json().error).toBe('validation_error')
   })
@@ -256,10 +282,10 @@ describe('GET /api/transactions', () => {
       { description: 'ônibus', occurredOn: '2026-08-05' },
     ]
     for (const entry of entries) {
-      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+      await inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
     }
 
-    const response = await app.inject({ method: 'GET', url: '/api/transactions?q=MERCADO' })
+    const response = await inject({ method: 'GET', url: '/api/transactions?q=MERCADO' })
     expect(response.statusCode).toBe(200)
     const body = response.json()
     expect(body.total).toBe(2)
@@ -292,10 +318,10 @@ describe('GET /api/transactions', () => {
       { type: 'expense', description: 'ônibus', category: 'transporte', occurredOn: '2026-08-05' },
     ]
     for (const entry of entries) {
-      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+      await inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
     }
 
-    const response = await app.inject({
+    const response = await inject({
       method: 'GET',
       url: `/api/transactions?month=2026-08&type=expense&category=${encodeURIComponent('alimentação')}&q=feira`,
     })
@@ -313,16 +339,16 @@ describe('GET /api/transactions', () => {
       { description: 'plano axb' },
     ]
     for (const entry of entries) {
-      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+      await inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
     }
 
-    const percent = await app.inject({ method: 'GET', url: '/api/transactions?q=50%25' })
+    const percent = await inject({ method: 'GET', url: '/api/transactions?q=50%25' })
     expect(percent.statusCode).toBe(200)
     expect(percent.json().items.map((t: { description: string }) => t.description)).toEqual([
       'desconto 50%',
     ])
 
-    const underscore = await app.inject({ method: 'GET', url: '/api/transactions?q=a_b' })
+    const underscore = await inject({ method: 'GET', url: '/api/transactions?q=a_b' })
     expect(underscore.statusCode).toBe(200)
     expect(underscore.json().items.map((t: { description: string }) => t.description)).toEqual([
       'plano a_b',
@@ -330,15 +356,15 @@ describe('GET /api/transactions', () => {
   })
 
   it('devolve lista vazia quando a busca não casa com nada', async () => {
-    await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload() })
+    await inject({ method: 'POST', url: '/api/transactions', payload: validPayload() })
 
-    const response = await app.inject({ method: 'GET', url: '/api/transactions?q=viagem' })
+    const response = await inject({ method: 'GET', url: '/api/transactions?q=viagem' })
     expect(response.statusCode).toBe(200)
     expect(response.json()).toMatchObject({ items: [], total: 0 })
   })
 
   it('rejeita busca vazia', async () => {
-    const response = await app.inject({ method: 'GET', url: '/api/transactions?q=' })
+    const response = await inject({ method: 'GET', url: '/api/transactions?q=' })
     expect(response.statusCode).toBe(400)
     expect(response.json().error).toBe('validation_error')
   })
@@ -346,14 +372,14 @@ describe('GET /api/transactions', () => {
 
 describe('PUT /api/transactions/:id', () => {
   it('atualiza todos os campos e devolve o registro atualizado', async () => {
-    const created = await app.inject({
+    const created = await inject({
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload(),
     })
     const { id, createdAt } = created.json()
 
-    const response = await app.inject({
+    const response = await inject({
       method: 'PUT',
       url: `/api/transactions/${id}`,
       payload: validPayload({
@@ -376,7 +402,7 @@ describe('PUT /api/transactions/:id', () => {
       createdAt,
     })
 
-    const summary = await app.inject({ method: 'GET', url: '/api/summary?month=2026-08' })
+    const summary = await inject({ method: 'GET', url: '/api/summary?month=2026-08' })
     expect(summary.json()).toEqual({
       incomeCents: 500000,
       expenseCents: 0,
@@ -386,7 +412,7 @@ describe('PUT /api/transactions/:id', () => {
   })
 
   it('devolve 404 quando o id não existe', async () => {
-    const response = await app.inject({
+    const response = await inject({
       method: 'PUT',
       url: '/api/transactions/999',
       payload: validPayload(),
@@ -396,14 +422,14 @@ describe('PUT /api/transactions/:id', () => {
   })
 
   it('rejeita payload inválido com 400 sem alterar o registro', async () => {
-    const created = await app.inject({
+    const created = await inject({
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload(),
     })
     const { id } = created.json()
 
-    const response = await app.inject({
+    const response = await inject({
       method: 'PUT',
       url: `/api/transactions/${id}`,
       payload: validPayload({ amountCents: 0 }),
@@ -411,36 +437,36 @@ describe('PUT /api/transactions/:id', () => {
     expect(response.statusCode).toBe(400)
     expect(response.json().error).toBe('validation_error')
 
-    const list = await app.inject({ method: 'GET', url: '/api/transactions?month=2026-08' })
+    const list = await inject({ method: 'GET', url: '/api/transactions?month=2026-08' })
     expect(list.json().items[0].amountCents).toBe(15990)
   })
 })
 
 describe('DELETE /api/transactions/:id', () => {
   it('exclui transação existente e devolve 204', async () => {
-    const created = await app.inject({
+    const created = await inject({
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload(),
     })
     const { id } = created.json()
 
-    const response = await app.inject({ method: 'DELETE', url: `/api/transactions/${id}` })
+    const response = await inject({ method: 'DELETE', url: `/api/transactions/${id}` })
     expect(response.statusCode).toBe(204)
     expect(response.body).toBe('')
 
-    const list = await app.inject({ method: 'GET', url: '/api/transactions' })
+    const list = await inject({ method: 'GET', url: '/api/transactions' })
     expect(list.json()).toMatchObject({ items: [], total: 0 })
   })
 
   it('devolve 404 quando o id não existe', async () => {
-    const response = await app.inject({ method: 'DELETE', url: '/api/transactions/999' })
+    const response = await inject({ method: 'DELETE', url: '/api/transactions/999' })
     expect(response.statusCode).toBe(404)
     expect(response.json()).toEqual({ error: 'not_found' })
   })
 
   it('rejeita id não numérico com 400', async () => {
-    const response = await app.inject({ method: 'DELETE', url: '/api/transactions/abc' })
+    const response = await inject({ method: 'DELETE', url: '/api/transactions/abc' })
     expect(response.statusCode).toBe(400)
     expect(response.json().error).toBe('validation_error')
   })
@@ -455,10 +481,10 @@ describe('GET /api/categories', () => {
       { category: 'água' },
     ]
     for (const entry of entries) {
-      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+      await inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
     }
 
-    const response = await app.inject({ method: 'GET', url: '/api/categories' })
+    const response = await inject({ method: 'GET', url: '/api/categories' })
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({ categories: ['água', 'alimentação', 'transporte'] })
   })
@@ -469,22 +495,22 @@ describe('GET /api/categories', () => {
       { category: 'transporte', occurredOn: '2026-07-15' },
     ]
     for (const entry of entries) {
-      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+      await inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
     }
 
-    const response = await app.inject({ method: 'GET', url: '/api/categories?month=2026-08' })
+    const response = await inject({ method: 'GET', url: '/api/categories?month=2026-08' })
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({ categories: ['alimentação'] })
   })
 
   it('devolve lista vazia quando não há transações', async () => {
-    const response = await app.inject({ method: 'GET', url: '/api/categories' })
+    const response = await inject({ method: 'GET', url: '/api/categories' })
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({ categories: [] })
   })
 
   it('rejeita mês mal formatado', async () => {
-    const response = await app.inject({ method: 'GET', url: '/api/categories?month=agosto' })
+    const response = await inject({ method: 'GET', url: '/api/categories?month=agosto' })
     expect(response.statusCode).toBe(400)
     expect(response.json().error).toBe('validation_error')
   })
@@ -499,10 +525,10 @@ describe('GET /api/expenses-by-category', () => {
       { type: 'income', category: 'trabalho', amountCents: 900000 },
     ]
     for (const entry of entries) {
-      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+      await inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
     }
 
-    const response = await app.inject({ method: 'GET', url: '/api/expenses-by-category' })
+    const response = await inject({ method: 'GET', url: '/api/expenses-by-category' })
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({
       items: [
@@ -520,10 +546,10 @@ describe('GET /api/expenses-by-category', () => {
       { type: 'expense', category: 'alimentação', amountCents: 5000 },
     ]
     for (const entry of entries) {
-      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+      await inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
     }
 
-    const response = await app.inject({ method: 'GET', url: '/api/expenses-by-category' })
+    const response = await inject({ method: 'GET', url: '/api/expenses-by-category' })
     expect(response.json().items.map((item: { category: string }) => item.category)).toEqual([
       'água',
       'alimentação',
@@ -537,10 +563,10 @@ describe('GET /api/expenses-by-category', () => {
       { type: 'expense', category: 'transporte', amountCents: 90000, occurredOn: '2026-07-15' },
     ]
     for (const entry of entries) {
-      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+      await inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
     }
 
-    const response = await app.inject({
+    const response = await inject({
       method: 'GET',
       url: '/api/expenses-by-category?month=2026-08',
     })
@@ -551,19 +577,19 @@ describe('GET /api/expenses-by-category', () => {
   })
 
   it('devolve total zero quando só há receitas', async () => {
-    await app.inject({
+    await inject({
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload({ type: 'income' }),
     })
 
-    const response = await app.inject({ method: 'GET', url: '/api/expenses-by-category' })
+    const response = await inject({ method: 'GET', url: '/api/expenses-by-category' })
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({ items: [], totalCents: 0 })
   })
 
   it('rejeita mês mal formatado', async () => {
-    const response = await app.inject({
+    const response = await inject({
       method: 'GET',
       url: '/api/expenses-by-category?month=agosto',
     })
@@ -581,14 +607,14 @@ describe('GET /api/summary', () => {
       { type: 'income', amountCents: 999900, occurredOn: '2026-07-01' },
     ]
     for (const entry of entries) {
-      await app.inject({
+      await inject({
         method: 'POST',
         url: '/api/transactions',
         payload: validPayload(entry),
       })
     }
 
-    const response = await app.inject({ method: 'GET', url: '/api/summary?month=2026-08' })
+    const response = await inject({ method: 'GET', url: '/api/summary?month=2026-08' })
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({
       incomeCents: 500000,
@@ -604,14 +630,14 @@ describe('GET /api/summary', () => {
       { type: 'expense', amountCents: 40000, occurredOn: '2025-12-20' },
     ]
     for (const entry of entries) {
-      await app.inject({
+      await inject({
         method: 'POST',
         url: '/api/transactions',
         payload: validPayload(entry),
       })
     }
 
-    const response = await app.inject({ method: 'GET', url: '/api/summary?month=2026-01' })
+    const response = await inject({ method: 'GET', url: '/api/summary?month=2026-01' })
     expect(response.json()).toEqual({
       incomeCents: 100000,
       expenseCents: 0,
@@ -621,9 +647,9 @@ describe('GET /api/summary', () => {
   })
 
   it('sem mês devolve o resumo geral sem comparativo', async () => {
-    await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload() })
+    await inject({ method: 'POST', url: '/api/transactions', payload: validPayload() })
 
-    const response = await app.inject({ method: 'GET', url: '/api/summary' })
+    const response = await inject({ method: 'GET', url: '/api/summary' })
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({
       incomeCents: 0,
@@ -642,10 +668,10 @@ describe('GET /api/daily-balance', () => {
       { type: 'income', amountCents: 999900, occurredOn: '2026-07-31' },
     ]
     for (const entry of entries) {
-      await app.inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+      await inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
     }
 
-    const response = await app.inject({ method: 'GET', url: '/api/daily-balance?month=2026-08' })
+    const response = await inject({ method: 'GET', url: '/api/daily-balance?month=2026-08' })
     expect(response.statusCode).toBe(200)
     const body = response.json()
     expect(body.month).toBe('2026-08')
@@ -678,7 +704,7 @@ describe('GET /api/daily-balance', () => {
   })
 
   it('respeita o número de dias do mês (fevereiro bissexto)', async () => {
-    const response = await app.inject({ method: 'GET', url: '/api/daily-balance?month=2024-02' })
+    const response = await inject({ method: 'GET', url: '/api/daily-balance?month=2024-02' })
     expect(response.statusCode).toBe(200)
     const { items } = response.json()
     expect(items).toHaveLength(29)
@@ -687,11 +713,11 @@ describe('GET /api/daily-balance', () => {
   })
 
   it('exige o mês e rejeita formato inválido', async () => {
-    const semMes = await app.inject({ method: 'GET', url: '/api/daily-balance' })
+    const semMes = await inject({ method: 'GET', url: '/api/daily-balance' })
     expect(semMes.statusCode).toBe(400)
     expect(semMes.json().error).toBe('validation_error')
 
-    const invalido = await app.inject({ method: 'GET', url: '/api/daily-balance?month=2026-8' })
+    const invalido = await inject({ method: 'GET', url: '/api/daily-balance?month=2026-8' })
     expect(invalido.statusCode).toBe(400)
   })
 })
@@ -700,24 +726,35 @@ describe('transações recorrentes', () => {
   // Geração acontece no boot: precisa de banco em arquivo para sobreviver ao close/reopen.
   let dir: string
   let dbPath: string
+  let fileAuth: string
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'finboard-test-'))
     dbPath = join(dir, 'test.db')
+    fileAuth = ''
   })
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
   })
 
+  // O dono é criado no primeiro boot. Como o segredo dos JWTs é o mesmo em todas as
+  // instâncias, o token emitido ali continua valendo nos boots seguintes do arquivo.
   async function bootApp(recurringMonth: string): Promise<FastifyInstance> {
     const instance = await buildApp({ dbPath, recurringMonth })
     await instance.ready()
+    if (!fileAuth) {
+      fileAuth = await registerAndAuthorize(instance)
+    }
     return instance
   }
 
+  async function injectAs(instance: FastifyInstance, options: InjectOptions) {
+    return instance.inject({ ...options, headers: { authorization: fileAuth } })
+  }
+
   it('cria transação com a flag e devolve recurring no registro', async () => {
-    const response = await app.inject({
+    const response = await inject({
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload({ recurring: true }),
@@ -725,7 +762,7 @@ describe('transações recorrentes', () => {
     expect(response.statusCode).toBe(201)
     expect(response.json().recurring).toBe(true)
 
-    const semFlag = await app.inject({
+    const semFlag = await inject({
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload(),
@@ -735,12 +772,12 @@ describe('transações recorrentes', () => {
 
   it('gera cópia no boot para o mês seguinte, só das recorrentes', async () => {
     const first = await bootApp('2026-08')
-    await first.inject({
+    await injectAs(first, {
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload({ description: 'Aluguel', occurredOn: '2026-08-05', recurring: true }),
     })
-    await first.inject({
+    await injectAs(first, {
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload({ description: 'Mercado', occurredOn: '2026-08-10' }),
@@ -748,7 +785,7 @@ describe('transações recorrentes', () => {
     await first.close()
 
     const second = await bootApp('2026-09')
-    const response = await second.inject({
+    const response = await injectAs(second, {
       method: 'GET',
       url: '/api/transactions?month=2026-09',
     })
@@ -766,7 +803,7 @@ describe('transações recorrentes', () => {
 
   it('não duplica quando o boot roda de novo no mesmo mês', async () => {
     const first = await bootApp('2026-08')
-    await first.inject({
+    await injectAs(first, {
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload({ description: 'Aluguel', occurredOn: '2026-08-05', recurring: true }),
@@ -779,7 +816,10 @@ describe('transações recorrentes', () => {
     }
 
     const check = await bootApp('2026-09')
-    const response = await check.inject({ method: 'GET', url: '/api/transactions?month=2026-09' })
+    const response = await injectAs(check, {
+      method: 'GET',
+      url: '/api/transactions?month=2026-09',
+    })
     await check.close()
     expect(response.json().total).toBe(1)
   })
@@ -790,7 +830,7 @@ describe('transações recorrentes', () => {
       [100000, '2026-07-05'],
       [120000, '2026-08-05'],
     ] as const) {
-      await first.inject({
+      await injectAs(first, {
         method: 'POST',
         url: '/api/transactions',
         payload: validPayload({ description: 'Aluguel', amountCents, occurredOn, recurring: true }),
@@ -799,7 +839,7 @@ describe('transações recorrentes', () => {
     await first.close()
 
     const second = await bootApp('2026-09')
-    const response = await second.inject({
+    const response = await injectAs(second, {
       method: 'GET',
       url: '/api/transactions?month=2026-09',
     })
@@ -812,7 +852,7 @@ describe('transações recorrentes', () => {
 
   it('clampa o dia ao tamanho do mês (dia 31 vira 28 em fevereiro)', async () => {
     const first = await bootApp('2026-01')
-    await first.inject({
+    await injectAs(first, {
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload({ description: 'Fatura', occurredOn: '2026-01-31', recurring: true }),
@@ -820,7 +860,7 @@ describe('transações recorrentes', () => {
     await first.close()
 
     const second = await bootApp('2026-02')
-    const response = await second.inject({
+    const response = await injectAs(second, {
       method: 'GET',
       url: '/api/transactions?month=2026-02',
     })
@@ -831,7 +871,7 @@ describe('transações recorrentes', () => {
 
   it('gera mesmo com mês sem boot no meio (última ocorrência pode ser antiga)', async () => {
     const first = await bootApp('2026-07')
-    await first.inject({
+    await injectAs(first, {
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload({
@@ -844,7 +884,7 @@ describe('transações recorrentes', () => {
 
     // Pula agosto: o boot de setembro ainda encontra a série pela ocorrência de julho.
     const second = await bootApp('2026-09')
-    const response = await second.inject({
+    const response = await injectAs(second, {
       method: 'GET',
       url: '/api/transactions?month=2026-09',
     })
@@ -858,12 +898,12 @@ describe('transações recorrentes', () => {
 
 describe('GET /api/transactions/export.csv', () => {
   it('exporta o mês em CSV ordenado por data, com cabeçalho e valores em vírgula decimal', async () => {
-    await app.inject({
+    await inject({
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload({ description: 'Mercado', occurredOn: '2026-08-20' }),
     })
-    await app.inject({
+    await inject({
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload({
@@ -876,13 +916,13 @@ describe('GET /api/transactions/export.csv', () => {
       }),
     })
     // Fora do mês pedido: não pode aparecer no arquivo.
-    await app.inject({
+    await inject({
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload({ occurredOn: '2026-07-31' }),
     })
 
-    const response = await app.inject({
+    const response = await inject({
       method: 'GET',
       url: '/api/transactions/export.csv?month=2026-08',
     })
@@ -900,13 +940,13 @@ describe('GET /api/transactions/export.csv', () => {
   })
 
   it('escapa campo com separador, aspas e quebra de linha', async () => {
-    await app.inject({
+    await inject({
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload({ description: 'Feira; "orgânicos"\nsemanal', amountCents: 4205 }),
     })
 
-    const response = await app.inject({
+    const response = await inject({
       method: 'GET',
       url: '/api/transactions/export.csv?month=2026-08',
     })
@@ -917,7 +957,7 @@ describe('GET /api/transactions/export.csv', () => {
   })
 
   it('mês sem transações devolve só o cabeçalho', async () => {
-    const response = await app.inject({
+    const response = await inject({
       method: 'GET',
       url: '/api/transactions/export.csv?month=2026-01',
     })
@@ -926,10 +966,10 @@ describe('GET /api/transactions/export.csv', () => {
   })
 
   it('exige month e rejeita formato inválido com 400', async () => {
-    const missing = await app.inject({ method: 'GET', url: '/api/transactions/export.csv' })
+    const missing = await inject({ method: 'GET', url: '/api/transactions/export.csv' })
     expect(missing.statusCode).toBe(400)
 
-    const invalid = await app.inject({
+    const invalid = await inject({
       method: 'GET',
       url: '/api/transactions/export.csv?month=08-2026',
     })
@@ -942,7 +982,7 @@ describe('POST /api/transactions/import', () => {
   const HEADER = 'data;tipo;descricao;categoria;valor;recorrente'
 
   function importCsv(body: string, contentType = 'text/csv') {
-    return app.inject({
+    return inject({
       method: 'POST',
       url: '/api/transactions/import',
       headers: { 'content-type': contentType },
@@ -960,7 +1000,7 @@ describe('POST /api/transactions/import', () => {
     expect(response.statusCode).toBe(201)
     expect(response.json()).toEqual({ imported: 3 })
 
-    const list = await app.inject({ method: 'GET', url: '/api/transactions?month=2026-08' })
+    const list = await inject({ method: 'GET', url: '/api/transactions?month=2026-08' })
     const items = list.json().items as Array<Record<string, unknown>>
     expect(items.map((item) => [item.description, item.amountCents, item.category])).toEqual([
       ['Padaria', 1200, 'geral'],
@@ -969,26 +1009,26 @@ describe('POST /api/transactions/import', () => {
     ])
     expect(items.find((item) => item.description === 'Salário')?.recurring).toBe(true)
 
-    const summary = await app.inject({ method: 'GET', url: '/api/summary?month=2026-08' })
+    const summary = await inject({ method: 'GET', url: '/api/summary?month=2026-08' })
     expect(summary.json()).toMatchObject({ incomeCents: 500000, expenseCents: 17190 })
   })
 
   it('aceita de volta o próprio export (BOM, aspas e quebra de linha)', async () => {
-    await app.inject({
+    await inject({
       method: 'POST',
       url: '/api/transactions',
       payload: validPayload({ description: 'Feira; "orgânicos"\nsemanal', amountCents: 4205 }),
     })
-    const exported = await app.inject({
+    const exported = await inject({
       method: 'GET',
       url: '/api/transactions/export.csv?month=2026-08',
     })
-    await app.inject({ method: 'DELETE', url: '/api/transactions/1' })
+    await inject({ method: 'DELETE', url: '/api/transactions/1' })
 
     const response = await importCsv(exported.body)
     expect(response.statusCode).toBe(201)
 
-    const list = await app.inject({ method: 'GET', url: '/api/transactions?month=2026-08' })
+    const list = await inject({ method: 'GET', url: '/api/transactions?month=2026-08' })
     expect(list.json().items[0]).toMatchObject({
       description: 'Feira; "orgânicos"\nsemanal',
       amountCents: 4205,
@@ -1023,7 +1063,7 @@ describe('POST /api/transactions/import', () => {
     expect(body.errors[6].message).toBe('esperadas 6 colunas, encontradas 3')
 
     // A linha 2 era válida, mas o arquivo com erro é rejeitado inteiro.
-    const list = await app.inject({ method: 'GET', url: '/api/transactions' })
+    const list = await inject({ method: 'GET', url: '/api/transactions' })
     expect(list.json().total).toBe(0)
   })
 
@@ -1065,7 +1105,7 @@ describe('POST /api/transactions/import', () => {
   })
 
   it('exige corpo text/csv', async () => {
-    const json = await app.inject({
+    const json = await inject({
       method: 'POST',
       url: '/api/transactions/import',
       payload: { csv: HEADER },
@@ -1075,5 +1115,128 @@ describe('POST /api/transactions/import', () => {
 
     const unsupported = await importCsv(HEADER, 'application/xml')
     expect(unsupported.statusCode).toBe(415)
+  })
+})
+
+describe('escopo por usuário', () => {
+  let otherAuth: string
+
+  beforeEach(async () => {
+    otherAuth = await registerAndAuthorize(app, OTHER)
+  })
+
+  function injectAsOther(options: InjectOptions) {
+    return app.inject({ ...options, headers: { authorization: otherAuth, ...options.headers } })
+  }
+
+  async function createForOwner(overrides: Record<string, unknown> = {}) {
+    const response = await inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload(overrides),
+    })
+    return response.json().id as number
+  }
+
+  it('cada conta só enxerga as próprias transações na listagem', async () => {
+    await createForOwner({ description: 'Mercado do Lucas' })
+    await injectAsOther({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload({ description: 'Mercado da Maria' }),
+    })
+
+    const owner = await inject({ method: 'GET', url: '/api/transactions?month=2026-08' })
+    const other = await injectAsOther({ method: 'GET', url: '/api/transactions?month=2026-08' })
+
+    expect(owner.json().total).toBe(1)
+    expect(owner.json().items[0].description).toBe('Mercado do Lucas')
+    expect(other.json().total).toBe(1)
+    expect(other.json().items[0].description).toBe('Mercado da Maria')
+  })
+
+  it('não permite editar nem excluir transação de outra conta', async () => {
+    const id = await createForOwner()
+
+    const update = await injectAsOther({
+      method: 'PUT',
+      url: `/api/transactions/${id}`,
+      payload: validPayload({ description: 'sequestrada' }),
+    })
+    const remove = await injectAsOther({ method: 'DELETE', url: `/api/transactions/${id}` })
+
+    // 404 e não 403: o id de outra conta não existe do ponto de vista de quem pergunta.
+    expect(update.statusCode).toBe(404)
+    expect(remove.statusCode).toBe(404)
+
+    const still = await inject({ method: 'GET', url: `/api/transactions?month=2026-08` })
+    expect(still.json().items[0]).toMatchObject({ id, description: 'Mercado' })
+  })
+
+  it('resumo, categorias, despesas por categoria e saldo diário ignoram a outra conta', async () => {
+    await createForOwner({ type: 'expense', amountCents: 10000, category: 'alimentação' })
+    await injectAsOther({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload({ type: 'expense', amountCents: 999900, category: 'viagem' }),
+    })
+
+    const summary = await inject({ method: 'GET', url: '/api/summary?month=2026-08' })
+    expect(summary.json().expenseCents).toBe(10000)
+
+    const categories = await inject({ method: 'GET', url: '/api/categories?month=2026-08' })
+    expect(categories.json().categories).toEqual(['alimentação'])
+
+    const byCategory = await inject({
+      method: 'GET',
+      url: '/api/expenses-by-category?month=2026-08',
+    })
+    expect(byCategory.json().totalCents).toBe(10000)
+
+    const daily = await inject({ method: 'GET', url: '/api/daily-balance?month=2026-08' })
+    expect(daily.json().items.at(-1).balanceCents).toBe(-10000)
+  })
+
+  it('export e import ficam restritos à conta autenticada', async () => {
+    await createForOwner({ description: 'Só do Lucas' })
+
+    const exported = await injectAsOther({
+      method: 'GET',
+      url: '/api/transactions/export.csv?month=2026-08',
+    })
+    expect(exported.body).not.toContain('Só do Lucas')
+
+    await injectAsOther({
+      method: 'POST',
+      url: '/api/transactions/import',
+      headers: { 'content-type': 'text/csv' },
+      payload:
+        'data;tipo;descricao;categoria;valor;recorrente\r\n2026-08-09;despesa;Importada;geral;10,00;não\r\n',
+    })
+
+    const owner = await inject({ method: 'GET', url: '/api/transactions?month=2026-08' })
+    expect(owner.json().items.map((t: { description: string }) => t.description)).toEqual([
+      'Só do Lucas',
+    ])
+  })
+
+  it('recusa com 401 toda rota de transação sem token válido', async () => {
+    const routes: InjectOptions[] = [
+      { method: 'GET', url: '/api/transactions' },
+      { method: 'POST', url: '/api/transactions', payload: validPayload() },
+      { method: 'PUT', url: '/api/transactions/1', payload: validPayload() },
+      { method: 'DELETE', url: '/api/transactions/1' },
+      { method: 'GET', url: '/api/transactions/export.csv?month=2026-08' },
+      { method: 'GET', url: '/api/categories' },
+      { method: 'GET', url: '/api/expenses-by-category' },
+      { method: 'GET', url: '/api/daily-balance?month=2026-08' },
+      { method: 'GET', url: '/api/summary' },
+    ]
+
+    for (const route of routes) {
+      const response = await app.inject(route)
+      expect(response.statusCode, `${route.method} ${route.url}`).toBe(401)
+      expect(response.json()).toEqual({ error: 'unauthorized' })
+    }
   })
 })

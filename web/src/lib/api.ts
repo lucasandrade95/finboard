@@ -1,4 +1,16 @@
+import { getToken, setToken } from './auth'
+
 export type TransactionType = 'income' | 'expense'
+
+export interface AuthUser {
+  id: number
+  email: string
+}
+
+export interface AuthSession {
+  user: AuthUser
+  token: string
+}
 
 export interface Transaction {
   id: number
@@ -148,11 +160,39 @@ export function parseReaisToCents(value: string): number {
   return Math.round(reais * 100)
 }
 
+/** Sessão inválida (token expirado, adulterado ou de outro segredo). */
+export class UnauthorizedError extends Error {
+  constructor() {
+    super('sessão expirada')
+    this.name = 'UnauthorizedError'
+  }
+}
+
+function authHeaders(contentType: string): Record<string, string> {
+  const token = getToken()
+  return token
+    ? { 'Content-Type': contentType, Authorization: `Bearer ${token}` }
+    : { 'Content-Type': contentType }
+}
+
+/**
+ * 401 numa rota de dados significa sessão morta: descarta o token guardado, o
+ * que faz a UI voltar sozinha para a tela de login em vez de insistir em pedir
+ * dados que nunca vão vir.
+ */
+function failIfUnauthorized(response: Response): void {
+  if (response.status === 401) {
+    setToken(null)
+    throw new UnauthorizedError()
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders('application/json'),
     ...init,
   })
+  failIfUnauthorized(response)
   if (!response.ok) {
     throw new Error(`API ${response.status}: ${await response.text()}`)
   }
@@ -162,13 +202,63 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
+/**
+ * Login e registro não passam pelo `request`: aqui o 401 é credencial errada, não
+ * sessão expirada, e a mensagem precisa ser legível na tela em vez de `API 401`.
+ */
+async function authenticate(path: string, email: string, password: string): Promise<AuthSession> {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  if (response.ok) {
+    return response.json() as Promise<AuthSession>
+  }
+  if (response.status === 401) {
+    throw new Error('E-mail ou senha inválidos.')
+  }
+  if (response.status === 409) {
+    throw new Error('Já existe uma conta com esse e-mail.')
+  }
+  if (response.status === 400) {
+    throw new Error('Informe um e-mail válido e uma senha de 8 a 128 caracteres.')
+  }
+  throw new Error(`API ${response.status}: ${await response.text()}`)
+}
+
+export interface CsvExport {
+  blob: Blob
+  filename: string
+}
+
+/**
+ * O export virou rota autenticada, então não dá mais para apontar uma âncora
+ * direto para a URL: o arquivo é buscado com o header e entregue como blob para
+ * o componente disparar o download.
+ */
+async function exportTransactionsCsv(month: string): Promise<CsvExport> {
+  const response = await fetch(`/api/transactions/export.csv?month=${month}`, {
+    headers: authHeaders('application/json'),
+  })
+  failIfUnauthorized(response)
+  if (!response.ok) {
+    throw new Error(`API ${response.status}: ${await response.text()}`)
+  }
+  // Nome vindo do Content-Disposition do server; o fallback cobre proxy que corta o header.
+  const disposition = response.headers.get('content-disposition') ?? ''
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? `transacoes-${month}.csv`
+  return { blob: await response.blob(), filename }
+}
+
 // Fora do `request`: o 400 aqui não é falha genérica, é o relatório de erros do arquivo.
 async function importTransactionsCsv(csv: string): Promise<CsvImportResult> {
   const response = await fetch('/api/transactions/import', {
     method: 'POST',
-    headers: { 'Content-Type': 'text/csv' },
+    headers: authHeaders('text/csv'),
     body: csv,
   })
+  failIfUnauthorized(response)
   if (response.status === 400) {
     const body = (await response.json()) as {
       error?: string
@@ -187,6 +277,9 @@ async function importTransactionsCsv(csv: string): Promise<CsvImportResult> {
 }
 
 export const api = {
+  register: (email: string, password: string) =>
+    authenticate('/api/auth/register', email, password),
+  login: (email: string, password: string) => authenticate('/api/auth/login', email, password),
   listTransactions: (month: string, page: number, filters: TransactionFilters = {}) => {
     const params = new URLSearchParams({
       month,
@@ -218,6 +311,7 @@ export const api = {
       body: JSON.stringify(input),
     }),
   deleteTransaction: (id: number) => request<void>(`/api/transactions/${id}`, { method: 'DELETE' }),
+  exportTransactionsCsv,
   importTransactionsCsv,
   listBudgets: (month: string) => request<BudgetProgressList>(`/api/budgets?month=${month}`),
   upsertBudget: (category: string, amountCents: number) =>

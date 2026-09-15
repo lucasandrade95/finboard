@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { api, formatBRL, parseReaisToCents } from './api'
+import { api, formatBRL, parseReaisToCents, UnauthorizedError } from './api'
+import { getToken, setToken } from './auth'
 
 describe('formatBRL', () => {
   it('formata centavos como moeda brasileira', () => {
@@ -109,5 +110,87 @@ describe('api.getExpensesByCategory', () => {
 
     await expect(api.getExpensesByCategory('2026-08')).resolves.toEqual(payload)
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/expenses-by-category?month=2026-08')
+  })
+})
+
+describe('autorização das rotas de dados', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    setToken(null)
+  })
+
+  function stubOk(payload: unknown) {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, status: 200, json: async () => payload })
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  it('envia o Bearer do token guardado', async () => {
+    const fetchMock = stubOk({ categories: [] })
+    setToken('token-123')
+
+    await api.listCategories('2026-08')
+
+    expect(fetchMock.mock.calls[0]?.[1].headers).toMatchObject({
+      Authorization: 'Bearer token-123',
+    })
+  })
+
+  it('não inventa header de autorização quando não há sessão', async () => {
+    const fetchMock = stubOk({ categories: [] })
+
+    await api.listCategories('2026-08')
+
+    expect(fetchMock.mock.calls[0]?.[1].headers).not.toHaveProperty('Authorization')
+  })
+
+  it('401 descarta a sessão guardada para a UI voltar ao login', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => '' })
+    vi.stubGlobal('fetch', fetchMock)
+    setToken('token-expirado')
+
+    await expect(api.getSummary('2026-08')).rejects.toBeInstanceOf(UnauthorizedError)
+    expect(getToken()).toBeNull()
+  })
+})
+
+describe('api.login e api.register', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    setToken(null)
+  })
+
+  it('devolve a sessão em caso de sucesso', async () => {
+    const session = { user: { id: 1, email: 'lucas@example.com' }, token: 'token-123' }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, status: 200, json: async () => session })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(api.login('lucas@example.com', 'senha-forte-123')).resolves.toEqual(session)
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/auth/login')
+  })
+
+  it('traduz 401 em mensagem de credencial e mantém a sessão atual', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => '' })
+    vi.stubGlobal('fetch', fetchMock)
+    setToken('sessao-de-outra-aba')
+
+    await expect(api.login('lucas@example.com', 'errada')).rejects.toThrow(
+      'E-mail ou senha inválidos.',
+    )
+    expect(getToken()).toBe('sessao-de-outra-aba')
+  })
+
+  it('traduz 409 do registro em e-mail já usado', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 409, text: async () => '' })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(api.register('lucas@example.com', 'senha-forte-123')).rejects.toThrow(
+      'Já existe uma conta com esse e-mail.',
+    )
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/auth/register')
   })
 })

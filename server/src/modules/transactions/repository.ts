@@ -113,18 +113,24 @@ function toRecord(row: TransactionRow): TransactionRecord {
   }
 }
 
+/**
+ * Todo método recebe o `userId` como primeiro argumento e ele entra no WHERE de
+ * toda consulta — inclusive nas de escrita. Não existe leitura nem alteração
+ * "global": um id de outra conta simplesmente não casa e a rota responde 404,
+ * sem revelar que a transação existe.
+ */
 export class TransactionsRepository {
   constructor(private readonly db: AppDatabase) {}
 
-  create(input: CreateTransactionInput): TransactionRecord {
+  create(userId: number, input: CreateTransactionInput): TransactionRecord {
     const result = this.db
       .prepare(
-        `INSERT INTO transactions (type, description, amount_cents, category, occurred_on, recurring)
-         VALUES (@type, @description, @amountCents, @category, @occurredOn, @recurring)`,
+        `INSERT INTO transactions (user_id, type, description, amount_cents, category, occurred_on, recurring)
+         VALUES (@userId, @type, @description, @amountCents, @category, @occurredOn, @recurring)`,
       )
       // better-sqlite3 não aceita boolean como parâmetro: converte para 0/1.
-      .run({ ...input, recurring: input.recurring ? 1 : 0 })
-    const created = this.findById(Number(result.lastInsertRowid))
+      .run({ ...input, userId, recurring: input.recurring ? 1 : 0 })
+    const created = this.findById(userId, Number(result.lastInsertRowid))
     if (!created) {
       throw new Error('transação recém-criada não encontrada')
     }
@@ -132,42 +138,52 @@ export class TransactionsRepository {
   }
 
   /** Tudo ou nada: numa transação do SQLite, uma falha no meio desfaz as linhas já inseridas. */
-  createMany(inputs: CreateTransactionInput[]): number {
+  createMany(userId: number, inputs: CreateTransactionInput[]): number {
     const insertAll = this.db.transaction((items: CreateTransactionInput[]) => {
       for (const item of items) {
-        this.create(item)
+        this.create(userId, item)
       }
       return items.length
     })
     return insertAll(inputs)
   }
 
-  findById(id: number): TransactionRecord | undefined {
-    const row = this.db.prepare('SELECT * FROM transactions WHERE id = ?').get(id) as
-      TransactionRow | undefined
+  findById(userId: number, id: number): TransactionRecord | undefined {
+    const row = this.db
+      .prepare('SELECT * FROM transactions WHERE id = ? AND user_id = ?')
+      .get(id, userId) as TransactionRow | undefined
     return row ? toRecord(row) : undefined
   }
 
-  updateById(id: number, input: UpdateTransactionInput): TransactionRecord | undefined {
+  updateById(
+    userId: number,
+    id: number,
+    input: UpdateTransactionInput,
+  ): TransactionRecord | undefined {
     const result = this.db
       .prepare(
         `UPDATE transactions
          SET type = @type, description = @description, amount_cents = @amountCents,
              category = @category, occurred_on = @occurredOn, recurring = @recurring
-         WHERE id = @id`,
+         WHERE id = @id AND user_id = @userId`,
       )
-      .run({ ...input, id, recurring: input.recurring ? 1 : 0 })
-    return result.changes > 0 ? this.findById(id) : undefined
+      .run({ ...input, id, userId, recurring: input.recurring ? 1 : 0 })
+    return result.changes > 0 ? this.findById(userId, id) : undefined
   }
 
-  deleteById(id: number): boolean {
-    const result = this.db.prepare('DELETE FROM transactions WHERE id = ?').run(id)
+  deleteById(userId: number, id: number): boolean {
+    const result = this.db
+      .prepare('DELETE FROM transactions WHERE id = ? AND user_id = ?')
+      .run(id, userId)
     return result.changes > 0
   }
 
-  list({ month, type, category, q, limit, offset }: ListTransactionsFilters): TransactionPage {
-    const conditions: string[] = []
-    const params: string[] = []
+  list(
+    userId: number,
+    { month, type, category, q, limit, offset }: ListTransactionsFilters,
+  ): TransactionPage {
+    const conditions: string[] = ['user_id = ?']
+    const params: Array<string | number> = [userId]
     if (month) {
       conditions.push('occurred_on LIKE ?')
       params.push(`${month}-%`)
@@ -184,7 +200,7 @@ export class TransactionsRepository {
       conditions.push(`description LIKE ? ESCAPE '\\'`)
       params.push(`%${escapeLikeTerm(q)}%`)
     }
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+    const where = `WHERE ${conditions.join(' AND ')}`
     const rows = this.db
       .prepare(
         `SELECT * FROM transactions ${where} ORDER BY occurred_on DESC, id DESC LIMIT ? OFFSET ?`,
@@ -197,28 +213,35 @@ export class TransactionsRepository {
   }
 
   /** Mês inteiro sem paginação, do dia 1 ao último: é a ordem natural de leitura num export. */
-  listByMonth(month: string): TransactionRecord[] {
+  listByMonth(userId: number, month: string): TransactionRecord[] {
     const rows = this.db
-      .prepare('SELECT * FROM transactions WHERE occurred_on LIKE ? ORDER BY occurred_on, id')
-      .all(`${month}-%`) as TransactionRow[]
+      .prepare(
+        `SELECT * FROM transactions WHERE user_id = ? AND occurred_on LIKE ?
+         ORDER BY occurred_on, id`,
+      )
+      .all(userId, `${month}-%`) as TransactionRow[]
     return rows.map(toRecord)
   }
 
-  listCategories(month?: string): string[] {
+  listCategories(userId: number, month?: string): string[] {
     const rows = (
       month
         ? this.db
-            .prepare('SELECT DISTINCT category FROM transactions WHERE occurred_on LIKE ?')
-            .all(`${month}-%`)
-        : this.db.prepare('SELECT DISTINCT category FROM transactions').all()
+            .prepare(
+              'SELECT DISTINCT category FROM transactions WHERE user_id = ? AND occurred_on LIKE ?',
+            )
+            .all(userId, `${month}-%`)
+        : this.db
+            .prepare('SELECT DISTINCT category FROM transactions WHERE user_id = ?')
+            .all(userId)
     ) as Array<{ category: string }>
     // Ordena em JS: o ORDER BY do SQLite compara byte a byte e joga acentuados para o fim.
     return rows.map((row) => row.category).sort((a, b) => a.localeCompare(b, 'pt-BR'))
   }
 
-  expensesByCategory(month?: string): ExpensesByCategory {
-    const conditions = ["type = 'expense'"]
-    const params: string[] = []
+  expensesByCategory(userId: number, month?: string): ExpensesByCategory {
+    const conditions = ['user_id = ?', "type = 'expense'"]
+    const params: Array<string | number> = [userId]
     if (month) {
       conditions.push('occurred_on LIKE ?')
       params.push(`${month}-%`)
@@ -243,13 +266,14 @@ export class TransactionsRepository {
    * desde o dia 1. Preencher os dias vazios aqui deixa o gráfico de linha proporcional ao
    * tempo — sem isso, dois lançamentos distantes viraram pontos vizinhos na linha.
    */
-  dailyBalance(month: string): DailyBalance {
+  dailyBalance(userId: number, month: string): DailyBalance {
     const rows = this.db
       .prepare(
         `SELECT occurred_on AS date, type, COALESCE(SUM(amount_cents), 0) AS total
-         FROM transactions WHERE occurred_on LIKE ? GROUP BY occurred_on, type`,
+         FROM transactions WHERE user_id = ? AND occurred_on LIKE ?
+         GROUP BY occurred_on, type`,
       )
-      .all(`${month}-%`) as Array<{ date: string; type: TransactionType; total: number }>
+      .all(userId, `${month}-%`) as Array<{ date: string; type: TransactionType; total: number }>
 
     const byDay = new Map<string, { incomeCents: number; expenseCents: number }>()
     for (const row of rows) {
@@ -274,21 +298,21 @@ export class TransactionsRepository {
     return { month, items }
   }
 
-  summaryByMonth(month?: string): MonthlySummary {
+  summaryByMonth(userId: number, month?: string): MonthlySummary {
     const rows = (
       month
         ? this.db
             .prepare(
               `SELECT type, COALESCE(SUM(amount_cents), 0) AS total
-               FROM transactions WHERE occurred_on LIKE ? GROUP BY type`,
+               FROM transactions WHERE user_id = ? AND occurred_on LIKE ? GROUP BY type`,
             )
-            .all(`${month}-%`)
+            .all(userId, `${month}-%`)
         : this.db
             .prepare(
               `SELECT type, COALESCE(SUM(amount_cents), 0) AS total
-               FROM transactions GROUP BY type`,
+               FROM transactions WHERE user_id = ? GROUP BY type`,
             )
-            .all()
+            .all(userId)
     ) as Array<{ type: TransactionType; total: number }>
 
     const incomeCents = rows.find((row) => row.type === 'income')?.total ?? 0
@@ -300,36 +324,49 @@ export class TransactionsRepository {
    * Resumo do mês com o mês anterior anexado para comparação na UI.
    * Sem mês não há "anterior" definido: devolve só o resumo geral.
    */
-  summaryWithComparison(month?: string): SummaryWithComparison {
-    const current = this.summaryByMonth(month)
+  summaryWithComparison(userId: number, month?: string): SummaryWithComparison {
+    const current = this.summaryByMonth(userId, month)
     if (!month) {
       return current
     }
     const reference = previousMonth(month)
-    return { ...current, previous: { month: reference, ...this.summaryByMonth(reference) } }
+    return { ...current, previous: { month: reference, ...this.summaryByMonth(userId, reference) } }
   }
 
   /**
-   * Gera as transações recorrentes do mês: para cada série (tipo + descrição + categoria)
+   * Donos que têm alguma série recorrente. O boot gera o mês de cada um em
+   * separado: sem isso a geração só enxergaria as transações de um usuário.
+   */
+  listOwnersWithRecurring(): number[] {
+    const rows = this.db
+      .prepare(
+        'SELECT DISTINCT user_id AS id FROM transactions WHERE recurring = 1 AND user_id IS NOT NULL',
+      )
+      .all() as Array<{ id: number }>
+    return rows.map((row) => row.id)
+  }
+
+  /**
+   * Gera as recorrentes do mês de um usuário: para cada série (tipo + descrição + categoria)
    * com flag `recurring`, copia a ocorrência mais recente anterior ao mês — assim uma
    * edição de valor vale a partir do mês seguinte. Idempotente: série que já tem
    * lançamento recorrente no mês não gera de novo. Dia clampado ao tamanho do mês
    * (aluguel do dia 31 cai no dia 28/29 em fevereiro).
    */
-  generateRecurringForMonth(month: string): TransactionRecord[] {
+  generateRecurringForMonth(userId: number, month: string): TransactionRecord[] {
     const generate = this.db.transaction((): TransactionRecord[] => {
       const templates = this.db
         .prepare(
-          `SELECT * FROM transactions WHERE recurring = 1 AND occurred_on < ?
+          `SELECT * FROM transactions WHERE user_id = ? AND recurring = 1 AND occurred_on < ?
            ORDER BY occurred_on DESC, id DESC`,
         )
-        .all(`${month}-01`) as TransactionRow[]
+        .all(userId, `${month}-01`) as TransactionRow[]
       const existing = this.db
         .prepare(
           `SELECT DISTINCT type || '|' || description || '|' || category AS key
-           FROM transactions WHERE recurring = 1 AND occurred_on LIKE ?`,
+           FROM transactions WHERE user_id = ? AND recurring = 1 AND occurred_on LIKE ?`,
         )
-        .all(`${month}-%`) as Array<{ key: string }>
+        .all(userId, `${month}-%`) as Array<{ key: string }>
 
       const done = new Set(existing.map((row) => row.key))
       const created: TransactionRecord[] = []
@@ -341,7 +378,7 @@ export class TransactionsRepository {
         done.add(key)
         const day = Math.min(Number(template.occurred_on.slice(8, 10)), daysInMonth(month))
         created.push(
-          this.create({
+          this.create(userId, {
             type: template.type,
             description: template.description,
             amountCents: template.amount_cents,

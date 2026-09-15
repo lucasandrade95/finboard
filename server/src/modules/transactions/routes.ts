@@ -1,4 +1,5 @@
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyRequest } from 'fastify'
+import { authenticate } from '../auth/authenticate.js'
 import { parseTransactionsCsv, transactionsToCsv } from './csv.js'
 import type { TransactionsRepository } from './repository.js'
 import {
@@ -14,21 +15,36 @@ import {
 // Um arquivo inteiro errado geraria milhares de linhas no relatório: a UI mostra as primeiras.
 const MAX_REPORTED_ERRORS = 50
 
+// Todas as rotas deste módulo mexem em dinheiro de alguém: nenhuma responde sem token.
+const protectedRoute = { preHandler: authenticate }
+
+// O `sub` do JWT é o id do usuário em string (claim padrão); o repositório quer número.
+function ownerId(request: FastifyRequest): number {
+  return Number(request.user.sub)
+}
+
 export function registerTransactionRoutes(
   app: FastifyInstance,
   repository: TransactionsRepository,
 ): void {
-  app.get('/api/transactions', async (request) => {
+  app.get('/api/transactions', protectedRoute, async (request) => {
     const { month, type, category, q, limit, offset } = listTransactionsQuerySchema.parse(
       request.query,
     )
-    const { items, total } = repository.list({ month, type, category, q, limit, offset })
+    const { items, total } = repository.list(ownerId(request), {
+      month,
+      type,
+      category,
+      q,
+      limit,
+      offset,
+    })
     return { items, total, limit, offset }
   })
 
-  app.get('/api/transactions/export.csv', async (request, reply) => {
+  app.get('/api/transactions/export.csv', protectedRoute, async (request, reply) => {
     const { month } = requiredMonthQuerySchema.parse(request.query)
-    const csv = transactionsToCsv(repository.listByMonth(month))
+    const csv = transactionsToCsv(repository.listByMonth(ownerId(request), month))
     return (
       reply
         .header('content-type', 'text/csv; charset=utf-8')
@@ -44,7 +60,7 @@ export function registerTransactionRoutes(
     done(null, body)
   })
 
-  app.post('/api/transactions/import', async (request, reply) => {
+  app.post('/api/transactions/import', protectedRoute, async (request, reply) => {
     const csv = importCsvBodySchema.parse(request.body)
     const { rows, errors } = parseTransactionsCsv(csv)
     // Arquivo com qualquer erro não importa nada: corrigir e reenviar não duplica linhas.
@@ -55,50 +71,51 @@ export function registerTransactionRoutes(
         errors: errors.slice(0, MAX_REPORTED_ERRORS),
       })
     }
-    return reply.code(201).send({ imported: repository.createMany(rows) })
+    return reply.code(201).send({ imported: repository.createMany(ownerId(request), rows) })
   })
 
-  app.post('/api/transactions', async (request, reply) => {
+  app.post('/api/transactions', protectedRoute, async (request, reply) => {
     const input = createTransactionSchema.parse(request.body)
-    const created = repository.create(input)
+    const created = repository.create(ownerId(request), input)
     return reply.code(201).send(created)
   })
 
-  app.put('/api/transactions/:id', async (request, reply) => {
+  app.put('/api/transactions/:id', protectedRoute, async (request, reply) => {
     const { id } = idParamSchema.parse(request.params)
     const input = updateTransactionSchema.parse(request.body)
-    const updated = repository.updateById(id, input)
+    const updated = repository.updateById(ownerId(request), id, input)
+    // Transação de outra conta cai aqui: o 404 não confirma que o id existe.
     if (!updated) {
       return reply.code(404).send({ error: 'not_found' })
     }
     return updated
   })
 
-  app.delete('/api/transactions/:id', async (request, reply) => {
+  app.delete('/api/transactions/:id', protectedRoute, async (request, reply) => {
     const { id } = idParamSchema.parse(request.params)
-    if (!repository.deleteById(id)) {
+    if (!repository.deleteById(ownerId(request), id)) {
       return reply.code(404).send({ error: 'not_found' })
     }
     return reply.code(204).send()
   })
 
-  app.get('/api/categories', async (request) => {
+  app.get('/api/categories', protectedRoute, async (request) => {
     const { month } = monthQuerySchema.parse(request.query)
-    return { categories: repository.listCategories(month) }
+    return { categories: repository.listCategories(ownerId(request), month) }
   })
 
-  app.get('/api/expenses-by-category', async (request) => {
+  app.get('/api/expenses-by-category', protectedRoute, async (request) => {
     const { month } = monthQuerySchema.parse(request.query)
-    return repository.expensesByCategory(month)
+    return repository.expensesByCategory(ownerId(request), month)
   })
 
-  app.get('/api/daily-balance', async (request) => {
+  app.get('/api/daily-balance', protectedRoute, async (request) => {
     const { month } = requiredMonthQuerySchema.parse(request.query)
-    return repository.dailyBalance(month)
+    return repository.dailyBalance(ownerId(request), month)
   })
 
-  app.get('/api/summary', async (request) => {
+  app.get('/api/summary', protectedRoute, async (request) => {
     const { month } = monthQuerySchema.parse(request.query)
-    return repository.summaryWithComparison(month)
+    return repository.summaryWithComparison(ownerId(request), month)
   })
 }
