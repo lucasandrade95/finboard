@@ -25,3 +25,11 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     return reply.code(401).send({ error: 'unauthorized' })
   }
 }
+
+/** Rotas que mexem em dinheiro de alguém: nenhuma responde sem token. */
+export const protectedRoute = { preHandler: authenticate }
+
+/** O `sub` do JWT é o id do usuário em string (claim padrão); os repositórios querem número. */
+export function ownerId(request: FastifyRequest): number {
+  return Number(request.user.sub)
+}

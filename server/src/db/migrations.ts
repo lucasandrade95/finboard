@@ -8,6 +8,22 @@ export interface Migration {
 }
 
 /**
+ * Banco que rodava single-user: com exatamente um usuário cadastrado ele é, sem
+ * ambiguidade, o dono do que existia antes do escopo. Com zero ou vários não há
+ * escolha segura — as linhas ficam sem dono (nada é apagado) e param de aparecer
+ * na API até alguém reatribuir.
+ */
+function soleUserId(db: AppDatabase): number | undefined {
+  const users = db.prepare('SELECT id FROM users LIMIT 2').all() as Array<{ id: number }>
+  return users.length === 1 ? users[0]?.id : undefined
+}
+
+function hasColumn(db: AppDatabase, table: string, column: string): boolean {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+  return columns.some((info) => info.name === column)
+}
+
+/**
  * Migrações versionadas: cada passo roda uma única vez e fica registrado em
  * `schema_migrations`. A ordem é a ordem histórica do schema — nunca edite nem
  * renumere uma migração já publicada; acrescente uma nova no fim.
@@ -95,8 +111,7 @@ export const MIGRATIONS: readonly Migration[] = [
     id: 6,
     name: 'add_transactions_user_id',
     up: (db) => {
-      const columns = db.prepare('PRAGMA table_info(transactions)').all() as Array<{ name: string }>
-      if (!columns.some((column) => column.name === 'user_id')) {
+      if (!hasColumn(db, 'transactions', 'user_id')) {
         // Anulável de propósito: o ALTER TABLE do SQLite não aceita NOT NULL sem
         // default, e qualquer default aqui apontaria para um usuário inventado.
         db.exec('ALTER TABLE transactions ADD COLUMN user_id INTEGER REFERENCES users(id)')
@@ -106,14 +121,53 @@ export const MIGRATIONS: readonly Migration[] = [
       db.exec(
         'CREATE INDEX IF NOT EXISTS idx_transactions_user_occurred_on ON transactions (user_id, occurred_on)',
       )
-      // Banco que rodava single-user: com exatamente um usuário cadastrado ele é,
-      // sem ambiguidade, o dono do histórico anterior ao escopo. Com zero ou vários
-      // não há escolha segura — as linhas ficam sem dono (nada é apagado) e param
-      // de aparecer na API até alguém reatribuir.
-      const users = db.prepare('SELECT id FROM users LIMIT 2').all() as Array<{ id: number }>
-      const soleOwner = users.length === 1 ? users[0] : undefined
-      if (soleOwner) {
-        db.prepare('UPDATE transactions SET user_id = ? WHERE user_id IS NULL').run(soleOwner.id)
+      const owner = soleUserId(db)
+      if (owner) {
+        db.prepare('UPDATE transactions SET user_id = ? WHERE user_id IS NULL').run(owner)
+      }
+    },
+  },
+  {
+    id: 7,
+    name: 'add_budgets_user_id',
+    up: (db) => {
+      if (!hasColumn(db, 'budgets', 'user_id')) {
+        // A chave primária deixa de ser só a categoria e passa a ser (dono, categoria):
+        // duas contas podem ter teto para "mercado" sem uma sobrescrever a outra.
+        // SQLite não troca chave primária por ALTER TABLE — recria e copia.
+        db.exec(`
+          CREATE TABLE budgets_scoped (
+            user_id INTEGER REFERENCES users(id),
+            category TEXT NOT NULL,
+            amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (user_id, category)
+          );
+          INSERT INTO budgets_scoped (user_id, category, amount_cents, created_at)
+            SELECT NULL, category, amount_cents, created_at FROM budgets;
+          DROP TABLE budgets;
+          ALTER TABLE budgets_scoped RENAME TO budgets;
+        `)
+      }
+      const owner = soleUserId(db)
+      if (owner) {
+        db.prepare('UPDATE budgets SET user_id = ? WHERE user_id IS NULL').run(owner)
+      }
+    },
+  },
+  {
+    id: 8,
+    name: 'add_goals_user_id',
+    up: (db) => {
+      if (!hasColumn(db, 'goals', 'user_id')) {
+        db.exec('ALTER TABLE goals ADD COLUMN user_id INTEGER REFERENCES users(id)')
+      }
+      // A listagem é sempre "as metas desta conta": o dono abre o índice, o prazo
+      // ordena dentro dele.
+      db.exec('CREATE INDEX IF NOT EXISTS idx_goals_user_deadline ON goals (user_id, deadline)')
+      const owner = soleUserId(db)
+      if (owner) {
+        db.prepare('UPDATE goals SET user_id = ? WHERE user_id IS NULL').run(owner)
       }
     },
   },

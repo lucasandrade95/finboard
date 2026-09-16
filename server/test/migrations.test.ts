@@ -98,6 +98,47 @@ describe('runMigrations', () => {
     db.close()
   })
 
+  it('leva orçamentos e metas do banco single-user para o único usuário', () => {
+    const db = new Database(':memory:')
+    const scoping = ['add_budgets_user_id', 'add_goals_user_id']
+    runMigrations(
+      db,
+      MIGRATIONS.filter((migration) => !scoping.includes(migration.name)),
+    )
+    db.exec(`
+      INSERT INTO users (email, password_hash) VALUES ('lucas@example.com', 'hash');
+      INSERT INTO budgets (category, amount_cents) VALUES ('mercado', 80000);
+      INSERT INTO goals (name, target_cents) VALUES ('Reserva', 1000000);
+    `)
+
+    expect(runMigrations(db)).toEqual(scoping)
+
+    // Os valores sobrevivem à recriação da tabela de orçamentos, agora com dono.
+    expect(db.prepare('SELECT user_id, category, amount_cents FROM budgets').get()).toEqual({
+      user_id: 1,
+      category: 'mercado',
+      amount_cents: 80000,
+    })
+    expect(db.prepare('SELECT user_id, name FROM goals').get()).toEqual({
+      user_id: 1,
+      name: 'Reserva',
+    })
+    db.close()
+  })
+
+  it('aceita a mesma categoria orçada por contas diferentes', () => {
+    const db = openDatabase(':memory:')
+    db.exec(`
+      INSERT INTO users (email, password_hash) VALUES ('lucas@example.com', 'hash');
+      INSERT INTO users (email, password_hash) VALUES ('maria@example.com', 'hash');
+      INSERT INTO budgets (user_id, category, amount_cents) VALUES (1, 'mercado', 80000);
+      INSERT INTO budgets (user_id, category, amount_cents) VALUES (2, 'mercado', 15000);
+    `)
+
+    expect(db.prepare('SELECT COUNT(*) AS total FROM budgets').get()).toEqual({ total: 2 })
+    db.close()
+  })
+
   it('não chuta um dono quando o banco legado tem mais de um usuário', () => {
     const db = new Database(':memory:')
     runMigrations(

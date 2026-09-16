@@ -1,5 +1,5 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify'
-import { authenticate } from '../auth/authenticate.js'
+import type { FastifyInstance } from 'fastify'
+import { ownerId, protectedRoute } from '../auth/authenticate.js'
 import { parseTransactionsCsv, transactionsToCsv } from './csv.js'
 import type { TransactionsRepository } from './repository.js'
 import {
@@ -14,14 +14,6 @@ import {
 
 // Um arquivo inteiro errado geraria milhares de linhas no relatório: a UI mostra as primeiras.
 const MAX_REPORTED_ERRORS = 50
-
-// Todas as rotas deste módulo mexem em dinheiro de alguém: nenhuma responde sem token.
-const protectedRoute = { preHandler: authenticate }
-
-// O `sub` do JWT é o id do usuário em string (claim padrão); o repositório quer número.
-function ownerId(request: FastifyRequest): number {
-  return Number(request.user.sub)
-}
 
 export function registerTransactionRoutes(
   app: FastifyInstance,

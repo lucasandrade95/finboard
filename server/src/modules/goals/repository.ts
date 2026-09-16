@@ -35,61 +35,68 @@ function toRecord(row: GoalRow): GoalRecord {
  * é informado pelo usuário (aporte), não deduzido do saldo. Ligar meta a
  * transações exigiria decidir "qual receita conta como poupança", e isso muda
  * de pessoa para pessoa.
+ *
+ * O `userId` é o primeiro argumento de todo método e entra no WHERE de leitura e
+ * de escrita: meta de outra conta não casa e a rota responde 404.
  */
 export class GoalsRepository {
   constructor(private readonly db: AppDatabase) {}
 
-  create(input: CreateGoalInput): GoalRecord {
+  create(userId: number, input: CreateGoalInput): GoalRecord {
     const result = this.db
       .prepare(
-        `INSERT INTO goals (name, target_cents, saved_cents, deadline)
-         VALUES (@name, @targetCents, @savedCents, @deadline)`,
+        `INSERT INTO goals (user_id, name, target_cents, saved_cents, deadline)
+         VALUES (@userId, @name, @targetCents, @savedCents, @deadline)`,
       )
-      .run(input)
-    const created = this.findById(Number(result.lastInsertRowid))
+      .run({ ...input, userId })
+    const created = this.findById(userId, Number(result.lastInsertRowid))
     if (!created) {
       throw new Error('meta recém-criada não encontrada')
     }
     return created
   }
 
-  findById(id: number): GoalRecord | undefined {
-    const row = this.db.prepare('SELECT * FROM goals WHERE id = ?').get(id) as GoalRow | undefined
+  findById(userId: number, id: number): GoalRecord | undefined {
+    const row = this.db
+      .prepare('SELECT * FROM goals WHERE id = ? AND user_id = ?')
+      .get(id, userId) as GoalRow | undefined
     return row ? toRecord(row) : undefined
   }
 
   // Prazo mais próximo primeiro; metas sem prazo vão para o fim, na ordem de criação.
-  list(): GoalRecord[] {
+  list(userId: number): GoalRecord[] {
     const rows = this.db
-      .prepare('SELECT * FROM goals ORDER BY deadline IS NULL, deadline, id')
-      .all() as GoalRow[]
+      .prepare('SELECT * FROM goals WHERE user_id = ? ORDER BY deadline IS NULL, deadline, id')
+      .all(userId) as GoalRow[]
     return rows.map(toRecord)
   }
 
-  updateById(id: number, input: UpdateGoalInput): GoalRecord | undefined {
+  updateById(userId: number, id: number, input: UpdateGoalInput): GoalRecord | undefined {
     const result = this.db
       .prepare(
         `UPDATE goals
          SET name = @name, target_cents = @targetCents, saved_cents = @savedCents,
              deadline = @deadline
-         WHERE id = @id`,
+         WHERE id = @id AND user_id = @userId`,
       )
-      .run({ ...input, id })
-    return result.changes > 0 ? this.findById(id) : undefined
+      .run({ ...input, id, userId })
+    return result.changes > 0 ? this.findById(userId, id) : undefined
   }
 
   /**
    * Aporte soma no banco (`saved_cents + ?`) em vez de ler-somar-gravar no
    * cliente: dois aportes simultâneos não se sobrescrevem.
    */
-  contribute(id: number, amountCents: number): GoalRecord | undefined {
+  contribute(userId: number, id: number, amountCents: number): GoalRecord | undefined {
     const result = this.db
-      .prepare('UPDATE goals SET saved_cents = saved_cents + ? WHERE id = ?')
-      .run(amountCents, id)
-    return result.changes > 0 ? this.findById(id) : undefined
+      .prepare('UPDATE goals SET saved_cents = saved_cents + ? WHERE id = ? AND user_id = ?')
+      .run(amountCents, id, userId)
+    return result.changes > 0 ? this.findById(userId, id) : undefined
   }
 
-  deleteById(id: number): boolean {
-    return this.db.prepare('DELETE FROM goals WHERE id = ?').run(id).changes > 0
+  deleteById(userId: number, id: number): boolean {
+    return (
+      this.db.prepare('DELETE FROM goals WHERE id = ? AND user_id = ?').run(id, userId).changes > 0
+    )
   }
 }
