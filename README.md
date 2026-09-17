@@ -38,6 +38,7 @@ Decisões:
 - **Migrações versionadas no boot** — cada passo tem id fixo e é registrado em `schema_migrations`; roda uma vez só, dentro de uma transação (falhou, nada entra). Bancos antigos, sem a tabela de controle, são adotados na primeira subida porque os passos continuam idempotentes.
 - **Auth com argon2id + JWT stateless** — senha só existe como hash argon2id; login devolve JWT HS256 (7 dias) e rotas protegidas usam o preHandler `authenticate`. Senha errada e e-mail inexistente respondem o mesmo 401, com o mesmo custo de hash.
 - **Tudo escopado por usuário** — transações, orçamentos e metas: o `user_id` entra no `WHERE` de toda consulta do repositório, inclusive nas de escrita, e id de outra conta responde 404 (e não 403, que confirmaria a existência). Em orçamento a chave é o par `(user_id, category)`, então duas contas podem ter teto para "mercado" sem uma sobrescrever a outra. O token guardado no SPA é o que libera as rotas; 401 derruba a sessão e devolve a tela de login.
+- **Cabeçalhos de segurança e rate limit por IP** — helmet é o primeiro plugin registrado, então `nosniff`, anti-clickjacking e HSTS valem inclusive nas respostas de erro; o CORP fica em `cross-origin` porque a API é consumida de outra origem. O rate limit tem dois níveis: teto global folgado (300/min por IP — uma tela do dashboard já dispara meia dúzia de chamadas) e teto apertado em registro e login (10/min por rota), que é onde força bruta bate. Cada rota conta no próprio balde, e o 429 sai no formato de erro do resto da API (`{ error: 'rate_limit_exceeded' }`) com `retry-after`.
 
 ## Rodando
 
@@ -50,7 +51,7 @@ npm run verify       # lint + format + testes + build (mesmo gate do CI)
 
 ## API
 
-Fora `/health` e `/api/auth/register|login`, toda rota exige `Authorization: Bearer <token>` e responde só com os dados da conta do token (401 sem token válido).
+Fora `/health` e `/api/auth/register|login`, toda rota exige `Authorization: Bearer <token>` e responde só com os dados da conta do token (401 sem token válido). Qualquer rota responde 429 `rate_limit_exceeded` quando o IP passa do teto da janela de 1 minuto — 300 requisições no geral, 10 em registro e em login.
 
 | Método | Rota                               | Descrição                                                                                                                            |
 | ------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -101,7 +102,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Autenticação: registro/login com JWT (argon2)
 - [x] Multiusuário: escopo de transações por usuário
 - [x] Multiusuário: escopo de orçamentos e metas por usuário
-- [ ] Rate limiting (@fastify/rate-limit) e helmet
+- [x] Rate limiting (@fastify/rate-limit) e helmet
 - [ ] OpenAPI via @fastify/swagger + UI
 - [ ] Dark mode (prefers-color-scheme + toggle persistido)
 - [ ] Skeleton loaders no lugar de "Carregando…"

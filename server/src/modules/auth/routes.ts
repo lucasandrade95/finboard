@@ -1,10 +1,23 @@
 import argon2 from 'argon2'
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, RouteShorthandOptions } from 'fastify'
 import { authenticate } from './authenticate.js'
 import type { UserRecord, UsersRepository } from './repository.js'
 import { loginSchema, registerSchema } from './schemas.js'
 
-export function registerAuthRoutes(app: FastifyInstance, repository: UsersRepository): void {
+export interface AuthRateLimit {
+  max: number
+  timeWindow: number | string
+}
+
+export function registerAuthRoutes(
+  app: FastifyInstance,
+  repository: UsersRepository,
+  rateLimit?: AuthRateLimit,
+): void {
+  // Registro e login são as rotas que um ataque de força bruta martela: cada uma
+  // ganha um teto próprio, bem abaixo do global. Sem o plugin, `config` é inerte.
+  const credentialsRoute: RouteShorthandOptions = rateLimit ? { config: { rateLimit } } : {}
+
   const issueToken = (user: UserRecord) => app.jwt.sign({ sub: String(user.id), email: user.email })
 
   // Hash de uma senha qualquer, calculado uma vez: login com e-mail inexistente
@@ -13,7 +26,7 @@ export function registerAuthRoutes(app: FastifyInstance, repository: UsersReposi
   let dummyHash: Promise<string> | undefined
   const getDummyHash = () => (dummyHash ??= argon2.hash('finboard-dummy-password'))
 
-  app.post('/api/auth/register', async (request, reply) => {
+  app.post('/api/auth/register', credentialsRoute, async (request, reply) => {
     const { email, password } = registerSchema.parse(request.body)
     // argon2id com os parâmetros padrão da lib (64 MiB, t=3): o salt vai embutido no hash.
     const passwordHash = await argon2.hash(password)
@@ -24,7 +37,7 @@ export function registerAuthRoutes(app: FastifyInstance, repository: UsersReposi
     return reply.code(201).send({ user, token: issueToken(user) })
   })
 
-  app.post('/api/auth/login', async (request, reply) => {
+  app.post('/api/auth/login', credentialsRoute, async (request, reply) => {
     const { email, password } = loginSchema.parse(request.body)
     const credentials = repository.findCredentialsByEmail(email)
     if (!credentials) {
