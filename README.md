@@ -17,6 +17,8 @@ finboard/
 │   │   ├── config.ts                 # config via env (PORT, DB_PATH, JWT_SECRET)
 │   │   ├── db/connection.ts          # abre SQLite + roda o runner de migrações
 │   │   ├── db/migrations.ts          # lista versionada + runner (schema_migrations)
+│   │   ├── docs/openapi.ts           # @fastify/swagger + UI em /docs
+│   │   ├── docs/schemas.ts           # descrição das rotas (OpenAPI), sem validar nada
 │   │   └── modules/                  # auth, transactions, budgets, goals — rotas → repositório, schemas Zod
 │   └── test/                         # Vitest + app.inject (sem rede)
 └── web/      # SPA — React 19 + Vite
@@ -40,6 +42,8 @@ Decisões:
 - **Tudo escopado por usuário** — transações, orçamentos e metas: o `user_id` entra no `WHERE` de toda consulta do repositório, inclusive nas de escrita, e id de outra conta responde 404 (e não 403, que confirmaria a existência). Em orçamento a chave é o par `(user_id, category)`, então duas contas podem ter teto para "mercado" sem uma sobrescrever a outra. O token guardado no SPA é o que libera as rotas; 401 derruba a sessão e devolve a tela de login.
 - **Cabeçalhos de segurança e rate limit por IP** — helmet é o primeiro plugin registrado, então `nosniff`, anti-clickjacking e HSTS valem inclusive nas respostas de erro; o CORP fica em `cross-origin` porque a API é consumida de outra origem. O rate limit tem dois níveis: teto global folgado (300/min por IP — uma tela do dashboard já dispara meia dúzia de chamadas) e teto apertado em registro e login (10/min por rota), que é onde força bruta bate. Cada rota conta no próprio balde, e o 429 sai no formato de erro do resto da API (`{ error: 'rate_limit_exceeded' }`) com `retry-after`.
 
+- **OpenAPI gerado das rotas, validação continua no Zod** — cada rota declara um `schema` que só descreve a operação (tags, resumo, corpo, respostas, `bearerAuth`); o `@fastify/swagger` monta o documento a partir disso e a UI fica em `/docs`. Para o JSON Schema não virar um segundo validador — recusando requisição com outro formato de erro e recortando campos da resposta —, o `buildApp` registra um `validatorCompiler` e um `serializerCompiler` neutros: quem valida é o Zod no handler, com o 400 detalhado por campo.
+
 ## Rodando
 
 ```bash
@@ -52,6 +56,8 @@ npm run verify       # lint + format + testes + build (mesmo gate do CI)
 ## API
 
 Fora `/health` e `/api/auth/register|login`, toda rota exige `Authorization: Bearer <token>` e responde só com os dados da conta do token (401 sem token válido). Qualquer rota responde 429 `rate_limit_exceeded` quando o IP passa do teto da janela de 1 minuto — 300 requisições no geral, 10 em registro e em login.
+
+Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento OpenAPI cru em `/docs/json`): dá para autenticar com o token do login e disparar as chamadas pela própria página.
 
 | Método | Rota                               | Descrição                                                                                                                            |
 | ------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -103,7 +109,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Multiusuário: escopo de transações por usuário
 - [x] Multiusuário: escopo de orçamentos e metas por usuário
 - [x] Rate limiting (@fastify/rate-limit) e helmet
-- [ ] OpenAPI via @fastify/swagger + UI
+- [x] OpenAPI via @fastify/swagger + UI
 - [ ] Dark mode (prefers-color-scheme + toggle persistido)
 - [ ] Skeleton loaders no lugar de "Carregando…"
 - [ ] Testes de componente para TransactionForm (fluxo de erro incluído)

@@ -6,6 +6,8 @@ import Fastify, { type FastifyInstance } from 'fastify'
 import { ZodError } from 'zod'
 import { DEV_JWT_SECRET } from './config.js'
 import { openDatabase } from './db/connection.js'
+import { registerOpenApi } from './docs/openapi.js'
+import { healthDocs } from './docs/schemas.js'
 import { UsersRepository } from './modules/auth/repository.js'
 import { registerAuthRoutes } from './modules/auth/routes.js'
 import { BudgetsRepository } from './modules/budgets/repository.js'
@@ -79,6 +81,15 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     })
   }
 
+  await registerOpenApi(app)
+
+  // O JSON Schema declarado nas rotas existe para gerar o documento OpenAPI, não
+  // para validar: quem valida é o Zod dentro do handler, que devolve o 400 com erro
+  // por campo. Sem estes dois compiladores neutros o Fastify usaria o AJV antes do
+  // handler (rejeitando com outro formato de erro) e filtraria campos da resposta.
+  app.setValidatorCompiler(() => (data) => ({ value: data }))
+  app.setSerializerCompiler(() => (data) => JSON.stringify(data))
+
   await app.register(cors, { origin: true })
   await app.register(jwt, {
     secret: options.jwtSecret ?? DEV_JWT_SECRET,
@@ -106,7 +117,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       .send({ error: statusCode >= 500 ? 'internal_error' : (fastifyError.message ?? 'erro') })
   })
 
-  app.get('/health', async () => ({ status: 'ok' }))
+  app.get('/health', { schema: healthDocs }, async () => ({ status: 'ok' }))
 
   const repository = new TransactionsRepository(db)
   registerAuthRoutes(
