@@ -25,11 +25,13 @@ finboard/
     └── src/
         ├── lib/api.ts                # client tipado + formatBRL/parseReaisToCents
         ├── lib/auth.ts               # store do token (memória + localStorage + listeners)
+        ├── lib/theme.ts              # store do tema (system/light/dark, data-theme no <html>)
         ├── lib/donut.ts              # geometria do donut SVG (pura, testável sem render)
         ├── lib/balance-line.ts       # geometria da linha de saldo (pura, testável sem render)
         ├── hooks/use-auth.ts         # token atual via useSyncExternalStore
+        ├── hooks/use-theme.ts        # tema em uso via useSyncExternalStore
         ├── hooks/use-finance.ts      # TanStack Query (cache por mês)
-        └── components/               # AuthScreen, SummaryCards, BalanceLineChart, CategoryDonut, BudgetPanel, TransactionForm, TransactionList, Export/ImportCsvButton
+        └── components/               # AuthScreen, ThemeToggle, SummaryCards, BalanceLineChart, CategoryDonut, BudgetPanel, TransactionForm, TransactionList, Export/ImportCsvButton
 ```
 
 Decisões:
@@ -41,6 +43,8 @@ Decisões:
 - **Auth com argon2id + JWT stateless** — senha só existe como hash argon2id; login devolve JWT HS256 (7 dias) e rotas protegidas usam o preHandler `authenticate`. Senha errada e e-mail inexistente respondem o mesmo 401, com o mesmo custo de hash.
 - **Tudo escopado por usuário** — transações, orçamentos e metas: o `user_id` entra no `WHERE` de toda consulta do repositório, inclusive nas de escrita, e id de outra conta responde 404 (e não 403, que confirmaria a existência). Em orçamento a chave é o par `(user_id, category)`, então duas contas podem ter teto para "mercado" sem uma sobrescrever a outra. O token guardado no SPA é o que libera as rotas; 401 derruba a sessão e devolve a tela de login.
 - **Cabeçalhos de segurança e rate limit por IP** — helmet é o primeiro plugin registrado, então `nosniff`, anti-clickjacking e HSTS valem inclusive nas respostas de erro; o CORP fica em `cross-origin` porque a API é consumida de outra origem. O rate limit tem dois níveis: teto global folgado (300/min por IP — uma tela do dashboard já dispara meia dúzia de chamadas) e teto apertado em registro e login (10/min por rota), que é onde força bruta bate. Cada rota conta no próprio balde, e o 429 sai no formato de erro do resto da API (`{ error: 'rate_limit_exceeded' }`) com `retry-after`.
+
+- **Tema em variáveis CSS, preferência em três estados** — o `styles.css` guarda só tokens (`--bg`, `--surface`, `--text`…); o tema escuro troca os valores, nenhuma regra de componente repete cor crua. A preferência persistida é `system` (padrão), `light` ou `dark` — nunca o tema já resolvido, senão entrar uma vez com o SO no escuro congelaria a página no escuro para sempre. Com `system`, o `prefers-color-scheme` manda e continua mandando se o SO virar com a página aberta. O CSS reage sozinho (media query) e o JS só escreve `data-theme` no `<html>` quando a escolha é explícita: como o CSS chega antes do JS rodar, quem usa o SO no escuro não vê o flash branco na carga.
 
 - **OpenAPI gerado das rotas, validação continua no Zod** — cada rota declara um `schema` que só descreve a operação (tags, resumo, corpo, respostas, `bearerAuth`); o `@fastify/swagger` monta o documento a partir disso e a UI fica em `/docs`. Para o JSON Schema não virar um segundo validador — recusando requisição com outro formato de erro e recortando campos da resposta —, o `buildApp` registra um `validatorCompiler` e um `serializerCompiler` neutros: quem valida é o Zod no handler, com o 400 detalhado por campo.
 
@@ -110,7 +114,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Multiusuário: escopo de orçamentos e metas por usuário
 - [x] Rate limiting (@fastify/rate-limit) e helmet
 - [x] OpenAPI via @fastify/swagger + UI
-- [ ] Dark mode (prefers-color-scheme + toggle persistido)
+- [x] Dark mode (prefers-color-scheme + toggle persistido)
 - [ ] Skeleton loaders no lugar de "Carregando…"
 - [ ] Testes de componente para TransactionForm (fluxo de erro incluído)
 - [ ] Testes de componente para TransactionList

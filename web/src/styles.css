@@ -4,6 +4,15 @@
   padding: 0;
 }
 
+/*
+ * Tema em variáveis: o claro é o padrão, o escuro só troca os valores. As regras
+ * de componente abaixo nunca repetem cor crua — quem quiser um terceiro tema
+ * mexe só neste bloco.
+ *
+ * A ordem importa: quem manda é o `data-theme` escrito pelo `lib/theme.ts`
+ * (escolha explícita do usuário); sem ele, a media query segue o SO — e como o
+ * CSS chega antes do JS rodar, quem usa o SO no escuro não vê o flash branco.
+ */
 :root {
   --bg: #f6f7f9;
   --surface: #ffffff;
@@ -13,6 +22,52 @@
   --positive: #047857;
   --negative: #b91c1c;
   --accent: #2563eb;
+  --accent-text: #ffffff;
+  --danger-soft: #fee2e2;
+  --danger-soft-border: #fecaca;
+  --warning: #d97706;
+  --warning-soft: #fef3c7;
+  --warning-text: #92400e;
+  /* Faz o navegador pintar scrollbar, calendário do `input[type=month]` e afins no tom certo. */
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0f1216;
+    --surface: #171c22;
+    --text: #e6e8eb;
+    --muted: #9aa4b2;
+    --border: #2a313a;
+    --positive: #34d399;
+    --negative: #f87171;
+    --accent: #60a5fa;
+    --accent-text: #0b1220;
+    --danger-soft: #3a1e1e;
+    --danger-soft-border: #5c2a2a;
+    --warning: #f59e0b;
+    --warning-soft: #3a2e12;
+    --warning-text: #fbbf24;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0f1216;
+  --surface: #171c22;
+  --text: #e6e8eb;
+  --muted: #9aa4b2;
+  --border: #2a313a;
+  --positive: #34d399;
+  --negative: #f87171;
+  --accent: #60a5fa;
+  --accent-text: #0b1220;
+  --danger-soft: #3a1e1e;
+  --danger-soft-border: #5c2a2a;
+  --warning: #f59e0b;
+  --warning-soft: #3a2e12;
+  --warning-text: #fbbf24;
+  color-scheme: dark;
 }
 
 body {
@@ -47,6 +102,22 @@ body {
   font-size: 0.875rem;
   color: var(--muted);
   margin-left: auto;
+}
+
+.theme-toggle {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .logout {
@@ -459,8 +530,8 @@ input:focus-visible + .import-csv {
   margin: -0.25rem 0 0.75rem;
   padding: 0.5rem 0.75rem;
   border-radius: 8px;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-soft-border);
   color: var(--negative);
   font-size: 0.85rem;
   font-weight: 600;
@@ -477,16 +548,16 @@ input:focus-visible + .import-csv {
 }
 
 .budget-item.warning .budget-badge {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--warning-soft);
+  color: var(--warning-text);
 }
 
 .budget-item.warning .budget-bar-fill {
-  background: #d97706;
+  background: var(--warning);
 }
 
 .budget-item.over .budget-badge {
-  background: #fee2e2;
+  background: var(--danger-soft);
   color: var(--negative);
 }
 
@@ -669,7 +740,7 @@ input:focus-visible + .import-csv {
 
 button[type='submit'] {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-text);
   border: none;
   border-radius: 8px;
   padding: 0.6rem 1.25rem;
@@ -838,7 +909,7 @@ button[type='submit']:disabled {
 
 .save-button {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-text);
   border: 1px solid var(--accent);
   border-radius: 8px;
   padding: 0.25rem 0.6rem;

@@ -10,6 +10,7 @@ import { GoalsPanel } from './components/GoalsPanel'
 import { ImportCsvButton } from './components/ImportCsvButton'
 import { SearchFilter } from './components/SearchFilter'
 import { SummaryCards } from './components/SummaryCards'
+import { ThemeToggle } from './components/ThemeToggle'
 import { TransactionForm } from './components/TransactionForm'
 import { TransactionList } from './components/TransactionList'
 import { TypeFilter } from './components/TypeFilter'
@@ -110,6 +111,7 @@ function Dashboard() {
           Mês
           <input type="month" value={month} onChange={(e) => handleMonthChange(e.target.value)} />
         </label>
+        <ThemeToggle />
         <button type="button" className="logout" onClick={() => setToken(null)}>
           Sair
         </button>
