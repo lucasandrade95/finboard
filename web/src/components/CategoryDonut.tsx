@@ -8,6 +8,7 @@ import {
   DONUT_SIZE,
   DONUT_STROKE,
 } from '../lib/donut'
+import { Skeleton } from './Skeleton'
 
 interface CategoryDonutProps {
   data: ExpensesByCategory | undefined
@@ -21,7 +22,7 @@ export function CategoryDonut({ data, loading }: CategoryDonutProps) {
     <section className="category-donut card" aria-busy={loading}>
       <h2>Despesas por categoria</h2>
       {loading ? (
-        <p className="list-empty">Carregando…</p>
+        <Skeleton shape="circle" lines={1} label="Carregando despesas por categoria…" />
       ) : slices.length === 0 ? (
         <p className="list-empty">Nenhuma despesa neste mês.</p>
       ) : (

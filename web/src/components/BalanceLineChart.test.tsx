@@ -63,10 +63,11 @@ describe('BalanceLineChart', () => {
     expect(screen.getByText('Sem dados para este mês.')).toBeTruthy()
   })
 
-  it('mostra estado de carregamento', () => {
+  it('mostra skeleton na altura do gráfico enquanto carrega', () => {
     const { container } = render(<BalanceLineChart data={undefined} loading={true} />)
 
-    expect(screen.getByText('Carregando…')).toBeTruthy()
+    expect(container.querySelector('.skeleton-chart')).toBeTruthy()
+    expect(screen.getByText('Carregando evolução do saldo…')).toBeTruthy()
     expect(container.querySelector('[aria-busy="true"]')).toBeTruthy()
   })
 })

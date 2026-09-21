@@ -6,6 +6,7 @@ import {
   LINE_PADDING,
   LINE_WIDTH,
 } from '../lib/balance-line'
+import { Skeleton } from './Skeleton'
 
 interface BalanceLineChartProps {
   data: DailyBalance | undefined
@@ -19,7 +20,7 @@ export function BalanceLineChart({ data, loading }: BalanceLineChartProps) {
     <section className="balance-line card" aria-busy={loading}>
       <h2>Evolução do saldo no mês</h2>
       {loading ? (
-        <p className="list-empty">Carregando…</p>
+        <Skeleton shape="chart" lines={1} label="Carregando evolução do saldo…" />
       ) : !chart ? (
         <p className="list-empty">Sem dados para este mês.</p>
       ) : (

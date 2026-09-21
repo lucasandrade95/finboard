@@ -19,9 +19,13 @@ describe('SummaryCards', () => {
     expect(screen.getByText(/3\.500,00/)).toBeTruthy()
   })
 
-  it('mostra travessão enquanto carrega', () => {
-    render(<SummaryCards summary={undefined} loading={true} />)
-    expect(screen.getAllByText('—')).toHaveLength(3)
+  it('mostra skeleton no lugar do valor enquanto carrega', () => {
+    const { container } = render(<SummaryCards summary={undefined} loading={true} />)
+
+    expect(container.querySelectorAll('.skeleton-value')).toHaveLength(3)
+    expect(screen.getByText('Carregando saldo…')).toBeTruthy()
+    // Nenhum valor em BRL aparece antes da resposta, nem zerado.
+    expect(screen.queryByText(/R\$/)).toBeNull()
   })
 
   it('mostra variação vs mês anterior quando o comparativo existe', () => {

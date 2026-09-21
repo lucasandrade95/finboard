@@ -47,10 +47,11 @@ describe('CategoryDonut', () => {
     expect(screen.queryByText('Total')).toBeNull()
   })
 
-  it('mostra estado de carregamento', () => {
+  it('mostra skeleton em forma de donut enquanto carrega', () => {
     const { container } = render(<CategoryDonut data={undefined} loading={true} />)
 
-    expect(screen.getByText('Carregando…')).toBeTruthy()
+    expect(container.querySelector('.skeleton-circle')).toBeTruthy()
+    expect(screen.getByText('Carregando despesas por categoria…')).toBeTruthy()
     expect(container.querySelector('[aria-busy="true"]')).toBeTruthy()
   })
 })

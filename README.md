@@ -115,7 +115,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Rate limiting (@fastify/rate-limit) e helmet
 - [x] OpenAPI via @fastify/swagger + UI
 - [x] Dark mode (prefers-color-scheme + toggle persistido)
-- [ ] Skeleton loaders no lugar de "Carregando…"
+- [x] Skeleton loaders no lugar de "Carregando…"
 - [ ] Testes de componente para TransactionForm (fluxo de erro incluído)
 - [ ] Testes de componente para TransactionList
 - [ ] MSW nos testes do front (mock da API por request)

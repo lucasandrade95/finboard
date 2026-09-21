@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useContributeToGoal, useCreateGoal, useDeleteGoal } from '../hooks/use-finance'
 import { formatBRL, parseReaisToCents, type Goal } from '../lib/api'
 import { goalProgress } from '../lib/goal-progress'
+import { Skeleton } from './Skeleton'
 
 interface GoalsPanelProps {
   goals: Goal[] | undefined
@@ -66,7 +67,7 @@ export function GoalsPanel({ goals, loading, today = localToday() }: GoalsPanelP
     <section className="goals-panel card" aria-busy={loading}>
       <h2>Metas de economia</h2>
       {loading ? (
-        <p className="list-empty">Carregando…</p>
+        <Skeleton lines={2} label="Carregando metas…" />
       ) : items.length === 0 ? (
         <p className="list-empty">Nenhuma meta definida.</p>
       ) : (

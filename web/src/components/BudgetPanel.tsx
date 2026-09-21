@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useDeleteBudget, useUpsertBudget } from '../hooks/use-finance'
 import { formatBRL, parseReaisToCents, type BudgetProgressList } from '../lib/api'
 import { budgetStatus } from '../lib/budget-status'
+import { Skeleton } from './Skeleton'
 
 interface BudgetPanelProps {
   data: BudgetProgressList | undefined
@@ -59,7 +60,7 @@ export function BudgetPanel({ data, loading, categories = [] }: BudgetPanelProps
         </p>
       )}
       {loading ? (
-        <p className="list-empty">Carregando…</p>
+        <Skeleton lines={3} label="Carregando orçamentos…" />
       ) : items.length === 0 ? (
         <p className="list-empty">Nenhum orçamento definido.</p>
       ) : (

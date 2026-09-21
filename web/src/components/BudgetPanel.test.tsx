@@ -107,10 +107,11 @@ describe('BudgetPanel', () => {
     expect(screen.queryByRole('progressbar')).toBeNull()
   })
 
-  it('mostra estado de carregamento', () => {
+  it('mostra skeleton enquanto carrega', () => {
     const { container } = renderPanel(undefined, true)
 
-    expect(screen.getByText('Carregando…')).toBeTruthy()
+    expect(container.querySelectorAll('.skeleton-text .skeleton-bar')).toHaveLength(3)
+    expect(screen.getByText('Carregando orçamentos…')).toBeTruthy()
     expect(container.querySelector('[aria-busy="true"]')).toBeTruthy()
   })
 

@@ -1,4 +1,5 @@
 import { formatBRL, type MonthlySummary } from '../lib/api'
+import { Skeleton } from './Skeleton'
 
 interface SummaryCardsProps {
   summary: MonthlySummary | undefined
@@ -42,7 +43,13 @@ export function SummaryCards({ summary, loading }: SummaryCardsProps) {
       {cards.map((card) => (
         <article key={card.label} className={`card ${card.tone}`}>
           <h2>{card.label}</h2>
-          <p className="card-value">{loading ? '—' : formatBRL(card.value)}</p>
+          <p className="card-value">
+            {loading ? (
+              <Skeleton shape="value" lines={1} label={`Carregando ${card.label.toLowerCase()}…`} />
+            ) : (
+              formatBRL(card.value)
+            )}
+          </p>
           {!loading && card.deltaCents !== undefined && (
             <p
               className={`card-delta ${

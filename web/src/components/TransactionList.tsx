@@ -7,6 +7,7 @@ import {
   type TransactionType,
 } from '../lib/api'
 import { useDeleteTransaction, useUpdateTransaction } from '../hooks/use-finance'
+import { Skeleton } from './Skeleton'
 
 interface TransactionListProps {
   transactions: Transaction[] | undefined
@@ -165,7 +166,8 @@ export function TransactionList({
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   if (loading) {
-    return <p className="list-empty">Carregando…</p>
+    // Seis barras: sugere uma lista sem apostar no tamanho da página, que varia com o filtro.
+    return <Skeleton lines={6} label="Carregando transações…" />
   }
   if (!transactions || transactions.length === 0) {
     return <p className="list-empty">Nenhuma transação neste mês.</p>

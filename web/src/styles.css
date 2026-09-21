@@ -28,6 +28,8 @@
   --warning: #d97706;
   --warning-soft: #fef3c7;
   --warning-text: #92400e;
+  --skeleton: #e5e7eb;
+  --skeleton-shine: #f3f4f6;
   /* Faz o navegador pintar scrollbar, calendário do `input[type=month]` e afins no tom certo. */
   color-scheme: light;
 }
@@ -48,6 +50,8 @@
     --warning: #f59e0b;
     --warning-soft: #3a2e12;
     --warning-text: #fbbf24;
+    --skeleton: #232a32;
+    --skeleton-shine: #2f3843;
     color-scheme: dark;
   }
 }
@@ -67,6 +71,8 @@
   --warning: #f59e0b;
   --warning-soft: #3a2e12;
   --warning-text: #fbbf24;
+  --skeleton: #232a32;
+  --skeleton-shine: #2f3843;
   color-scheme: dark;
 }
 
@@ -943,4 +949,74 @@ button[type='submit']:disabled {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/*
+ * Skeleton: cada variante reserva mais ou menos o espaço do conteúdo real, para
+ * a página não pular quando a resposta chega. O tamanho vive aqui (não no
+ * componente) e acompanha as medidas dos gráficos: 180px é a altura da linha do
+ * saldo, 160px é o diâmetro do donut.
+ */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+}
+
+.skeleton-bar {
+  display: block;
+  height: 0.9rem;
+  border-radius: 6px;
+  /* Gradiente largo deslocado pela animação — um elemento só, sem pseudo-nó extra. */
+  background: linear-gradient(
+    90deg,
+    var(--skeleton) 25%,
+    var(--skeleton-shine) 50%,
+    var(--skeleton) 75%
+  );
+  background-size: 300% 100%;
+  animation: skeleton-shine 1.4s ease-in-out infinite;
+}
+
+/* A última barra mais curta imita o fim de um parágrafo e evita o bloco chapado. */
+.skeleton-text .skeleton-bar:last-child {
+  width: 60%;
+}
+
+.skeleton-value .skeleton-bar {
+  height: 1.75rem;
+  width: 70%;
+}
+
+.skeleton-chart .skeleton-bar {
+  height: 180px;
+}
+
+.skeleton-circle {
+  align-items: center;
+  padding: 1rem 0;
+}
+
+.skeleton-circle .skeleton-bar {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+}
+
+@keyframes skeleton-shine {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -150% 0;
+  }
+}
+
+/* Quem pediu menos movimento fica com o bloco cinza parado — o espaço reservado é o que importa. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-bar {
+    animation: none;
+    background: var(--skeleton);
+  }
 }

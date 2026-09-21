@@ -90,4 +90,19 @@ describe('TransactionList', () => {
 
     expect(screen.queryByRole('navigation', { name: 'Paginação' })).toBeNull()
   })
+
+  it('mostra skeleton de lista enquanto carrega, sem a tabela vazia', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <TransactionList transactions={undefined} loading={true} />
+      </QueryClientProvider>,
+    )
+
+    expect(container.querySelectorAll('.skeleton-text .skeleton-bar')).toHaveLength(6)
+    expect(screen.getByText('Carregando transações…')).toBeTruthy()
+    // Sem tabela e sem "nenhuma transação": carregando não é o mesmo que vazio.
+    expect(container.querySelector('table')).toBeNull()
+    expect(screen.queryByText('Nenhuma transação neste mês.')).toBeNull()
+  })
 })
