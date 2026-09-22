@@ -122,7 +122,11 @@ export function TransactionForm({ categories = [] }: TransactionFormProps) {
           Repetir todo mês
         </label>
       </div>
-      {error && <p className="form-error">{error}</p>}
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
       <button type="submit" disabled={createTransaction.isPending}>
         {createTransaction.isPending ? 'Salvando…' : 'Adicionar'}
       </button>
