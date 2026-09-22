@@ -125,6 +125,30 @@ Uma fatia por dia, sempre com teste e build verde.
 - [ ] CI: job de typecheck dos testes do server (tsc --noEmit incluindo test/)
 - [ ] Acessibilidade: navegação por teclado + aria-labels auditados
 - [ ] i18n preparada (strings centralizadas, pt-BR default)
+- [ ] Categorias como entidade (tabela categories: nome, cor, ícone) + CRUD e select no formulário
+- [ ] Contas/carteiras (tabela accounts) e saldo por conta no summary
+- [ ] Transferência entre contas (par de lançamentos vinculados, fora de receita/despesa)
+- [ ] Tags livres nas transações (N:N) + filtro por tag
+- [ ] Compras parceladas (parcelamento gera N transações futuras vinculadas)
+- [ ] Projeção de saldo dos próximos 30 dias (recorrentes + parcelas)
+- [ ] Gráfico anual receitas × despesas por mês (barras SVG)
+- [ ] Filtro por período customizado (data inicial/final) na listagem e nos gráficos
+- [ ] Ordenação da tabela por coluna (data, valor, categoria) com indicador visual
+- [ ] Atalhos de teclado (n = nova transação, / = busca, ? = ajuda)
+- [ ] Anexo de comprovante na transação (upload local, limite de tamanho, preview)
+- [ ] Relatório mensal em PDF (resumo, gráficos, top categorias)
+- [ ] Auditoria: histórico de alterações por transação (quem, quando, o quê)
+- [ ] Refresh token com rotação + logout de todos os dispositivos
+- [ ] Recuperação de senha por e-mail (token expirável, template pt-BR)
+- [ ] Exportar todos os meus dados (JSON) e excluir conta (LGPD)
+- [ ] Notificação por e-mail quando orçamento passa de 80% e 100%
+- [ ] Cache HTTP com ETag/If-None-Match nos endpoints de leitura
+- [ ] Logs estruturados (pino) com request id propagado até o repositório
+- [ ] Healthcheck `/health` e métricas `/metrics` (Prometheus)
+- [ ] Teste de carga com autocannon e baseline documentado no README
+- [ ] PWA: manifest + service worker com leitura offline do último resumo
+- [ ] Storybook dos componentes de UI com estados (loading, vazio, erro)
+- [ ] CI: publicar imagem Docker no GHCR a cada merge na main
 
 ## Progresso
 
