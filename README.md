@@ -117,7 +117,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Dark mode (prefers-color-scheme + toggle persistido)
 - [x] Skeleton loaders no lugar de "Carregando…"
 - [x] Testes de componente para TransactionForm (fluxo de erro incluído)
-- [ ] Testes de componente para TransactionList
+- [x] Testes de componente para TransactionList
 - [ ] MSW nos testes do front (mock da API por request)
 - [ ] E2E com Playwright (fluxo criar → listar → resumo)
 - [ ] Docker: Dockerfile multi-stage + docker-compose
