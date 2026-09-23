@@ -104,7 +104,11 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
           />
           Repetir todo mês
         </label>
-        {error && <p className="form-error">{error}</p>}
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
       </td>
       <td>
         <input
@@ -243,7 +247,11 @@ export function TransactionList({
           )}
         </tbody>
       </table>
-      {deleteTransaction.isError && <p className="form-error">Falha ao excluir. Tente de novo.</p>}
+      {deleteTransaction.isError && (
+        <p className="form-error" role="alert">
+          Falha ao excluir. Tente de novo.
+        </p>
+      )}
       {onPageChange && pageCount > 1 && (
         <nav className="pagination" aria-label="Paginação">
           <button
