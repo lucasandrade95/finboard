@@ -2,7 +2,7 @@
 
 Dashboard de finanças pessoais full-stack. Projeto de portfólio de Lucas Andrade.
 
-**Stack:** Node.js 22 · Fastify 5 · TypeScript (strict) · SQLite (better-sqlite3) · Zod · React 19 · Vite · TanStack Query · Vitest · ESLint 9 (flat) · Prettier · GitHub Actions
+**Stack:** Node.js 22 · Fastify 5 · TypeScript (strict) · SQLite (better-sqlite3) · Zod · React 19 · Vite · TanStack Query · Vitest · MSW · ESLint 9 (flat) · Prettier · GitHub Actions
 
 ## Arquitetura
 
@@ -31,6 +31,7 @@ finboard/
         ├── hooks/use-auth.ts         # token atual via useSyncExternalStore
         ├── hooks/use-theme.ts        # tema em uso via useSyncExternalStore
         ├── hooks/use-finance.ts      # TanStack Query (cache por mês)
+        ├── test/msw.ts               # API falsa dos testes (MSW) + gravação dos requests
         └── components/               # AuthScreen, ThemeToggle, SummaryCards, BalanceLineChart, CategoryDonut, BudgetPanel, TransactionForm, TransactionList, Export/ImportCsvButton
 ```
 
@@ -118,7 +119,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Skeleton loaders no lugar de "Carregando…"
 - [x] Testes de componente para TransactionForm (fluxo de erro incluído)
 - [x] Testes de componente para TransactionList
-- [ ] MSW nos testes do front (mock da API por request)
+- [x] MSW nos testes do front (mock da API por request)
 - [ ] E2E com Playwright (fluxo criar → listar → resumo)
 - [ ] Docker: Dockerfile multi-stage + docker-compose
 - [ ] Seed script com dados realistas de demonstração
