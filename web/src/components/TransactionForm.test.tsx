@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { delay, http, HttpResponse, type JsonBodyType } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { pathOf, recordRequests, server } from '../test/msw'
 import { TransactionForm } from './TransactionForm'
 
 function renderForm(categories?: string[]) {
@@ -15,20 +17,15 @@ function renderForm(categories?: string[]) {
   )
 }
 
-function mockFetch(status: number, body: unknown) {
-  const fetchMock = vi.fn().mockResolvedValue({
-    ok: status >= 200 && status < 300,
-    status,
-    json: () => Promise.resolve(body),
-    text: () => Promise.resolve(JSON.stringify(body)),
-  })
-  vi.stubGlobal('fetch', fetchMock)
-  return fetchMock
+// POST /api/transactions respondendo `status` com `body`; devolve os requests recebidos.
+function mockCreate(status: number, body: JsonBodyType) {
+  server.use(http.post('/api/transactions', () => HttpResponse.json(body, { status })))
+  return recordRequests()
 }
 
-// fetch que nunca resolve: congela a mutação em "pending" para inspecionar o botão.
-function mockPendingFetch() {
-  vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise(() => {})))
+// API que nunca responde: congela a mutação em "pending" para inspecionar o botão.
+function mockPendingCreate() {
+  server.use(http.post('/api/transactions', () => delay('infinite')))
 }
 
 function field(label: string): HTMLInputElement {
@@ -52,14 +49,12 @@ function submit() {
   fireEvent.click(screen.getByRole('button', { name: 'Adicionar' }))
 }
 
-function postedBody(fetchMock: ReturnType<typeof vi.fn>): Record<string, unknown> {
-  const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-  return JSON.parse(String(init.body)) as Record<string, unknown>
+function postedBody(requests: Request[]): Promise<Record<string, unknown>> {
+  return requests[0]!.json() as Promise<Record<string, unknown>>
 }
 
 afterEach(() => {
   cleanup()
-  vi.unstubAllGlobals()
 })
 
 describe('TransactionForm', () => {
@@ -94,7 +89,7 @@ describe('TransactionForm', () => {
 
   describe('envio', () => {
     it('converte o valor em centavos e envia o payload completo para a API', async () => {
-      const fetchMock = mockFetch(201, { id: 1 })
+      const requests = mockCreate(201, { id: 1 })
       renderForm([])
 
       fireEvent.change(screen.getByLabelText('Tipo'), { target: { value: 'income' } })
@@ -102,12 +97,11 @@ describe('TransactionForm', () => {
       fireEvent.click(screen.getByRole('checkbox', { name: 'Repetir todo mês' }))
       submit()
 
-      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
-      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-      expect(url).toBe('/api/transactions')
-      expect(init.method).toBe('POST')
+      await vi.waitFor(() => expect(requests).toHaveLength(1))
+      expect(pathOf(requests[0]!)).toBe('/api/transactions')
+      expect(requests[0]!.method).toBe('POST')
       // Descrição e categoria vão sem espaços nas pontas; o valor nunca viaja como float.
-      expect(postedBody(fetchMock)).toEqual({
+      expect(await postedBody(requests)).toEqual({
         type: 'income',
         description: 'Salário',
         amountCents: 525075,
@@ -118,18 +112,18 @@ describe('TransactionForm', () => {
     })
 
     it('omite a categoria quando o campo fica em branco', async () => {
-      const fetchMock = mockFetch(201, { id: 1 })
+      const requests = mockCreate(201, { id: 1 })
       renderForm([])
 
       fillForm({ category: '   ' })
       submit()
 
-      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
-      expect(postedBody(fetchMock)).not.toHaveProperty('category')
+      await vi.waitFor(() => expect(requests).toHaveLength(1))
+      expect(await postedBody(requests)).not.toHaveProperty('category')
     })
 
     it('limpa os campos após salvar, mantendo tipo e data para o próximo lançamento', async () => {
-      mockFetch(201, { id: 1 })
+      mockCreate(201, { id: 1 })
       renderForm([])
 
       fireEvent.change(screen.getByLabelText('Tipo'), { target: { value: 'income' } })
@@ -147,7 +141,7 @@ describe('TransactionForm', () => {
     })
 
     it('desabilita o botão e mostra "Salvando…" enquanto a API não responde', async () => {
-      mockPendingFetch()
+      mockPendingCreate()
       renderForm([])
 
       fillForm()
@@ -160,18 +154,18 @@ describe('TransactionForm', () => {
 
   describe('fluxo de erro', () => {
     it('rejeita valor que não é número sem chamar a API', () => {
-      const fetchMock = mockFetch(201, { id: 1 })
+      const requests = mockCreate(201, { id: 1 })
       renderForm([])
 
       fillForm({ amount: 'abc' })
       submit()
 
       expect(screen.getByRole('alert').textContent).toBe('Informe um valor válido, ex.: 159,90')
-      expect(fetchMock).not.toHaveBeenCalled()
+      expect(requests).toHaveLength(0)
     })
 
     it('rejeita valor zero ou negativo sem chamar a API', () => {
-      const fetchMock = mockFetch(201, { id: 1 })
+      const requests = mockCreate(201, { id: 1 })
       renderForm([])
 
       fillForm({ amount: '0,00' })
@@ -182,11 +176,11 @@ describe('TransactionForm', () => {
       submit()
       expect(screen.getByRole('alert').textContent).toBe('O valor precisa ser maior que zero')
 
-      expect(fetchMock).not.toHaveBeenCalled()
+      expect(requests).toHaveLength(0)
     })
 
     it('mostra a falha da API e preserva o que foi digitado para tentar de novo', async () => {
-      mockFetch(500, { error: 'internal_error' })
+      mockCreate(500, { error: 'internal_error' })
       renderForm([])
 
       fillForm({ description: 'Mercado', amount: '159,90' })
@@ -204,7 +198,7 @@ describe('TransactionForm', () => {
     })
 
     it('limpa o erro anterior ao reenviar com valor corrigido', async () => {
-      const fetchMock = mockFetch(201, { id: 1 })
+      const requests = mockCreate(201, { id: 1 })
       renderForm([])
 
       fillForm({ amount: 'abc' })
@@ -214,9 +208,9 @@ describe('TransactionForm', () => {
       fireEvent.change(field('Valor (R$)'), { target: { value: '12,50' } })
       submit()
 
-      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+      await vi.waitFor(() => expect(requests).toHaveLength(1))
       expect(screen.queryByRole('alert')).toBeNull()
-      expect(postedBody(fetchMock).amountCents).toBe(1250)
+      expect((await postedBody(requests)).amountCents).toBe(1250)
     })
   })
 })

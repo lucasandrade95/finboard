@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { delay, http, HttpResponse, type JsonBodyType } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Transaction } from '../lib/api'
+import { pathOf, recordRequests, server } from '../test/msw'
 import { TransactionList } from './TransactionList'
 
 const transaction: Transaction = {
@@ -30,28 +32,29 @@ function renderList(
   )
 }
 
-function mockFetch(status: number, body?: unknown) {
-  const fetchMock = vi.fn().mockResolvedValue({
-    ok: status >= 200 && status < 300,
-    status,
-    json: () => Promise.resolve(body),
-    text: () => Promise.resolve(JSON.stringify(body ?? '')),
-  })
-  vi.stubGlobal('fetch', fetchMock)
-  return fetchMock
+type Method = 'delete' | 'put'
+
+// `method` em /api/transactions/:id respondendo `status` (com `body`, se houver).
+function mockTransaction(method: Method, status: number, body?: JsonBodyType) {
+  server.use(
+    http[method]('/api/transactions/:id', () =>
+      body === undefined ? new HttpResponse(null, { status }) : HttpResponse.json(body, { status }),
+    ),
+  )
+  return recordRequests()
 }
 
-// fetch que nunca resolve: congela a mutação em "pending" para inspecionar os botões.
-function mockPendingFetch() {
-  vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise(() => {})))
+// API que nunca responde: congela a mutação em "pending" para inspecionar os botões.
+function mockPendingTransaction(method: Method) {
+  server.use(http[method]('/api/transactions/:id', () => delay('infinite')))
 }
 
 function field(label: string): HTMLInputElement {
   return screen.getByLabelText(label) as HTMLInputElement
 }
 
-function sentRequest(fetchMock: ReturnType<typeof vi.fn>): [string, RequestInit] {
-  return fetchMock.mock.calls[0] as [string, RequestInit]
+function sentBody(requests: Request[]): Promise<Record<string, unknown>> {
+  return requests[0]!.json() as Promise<Record<string, unknown>>
 }
 
 function startEditing(description = 'Mercado') {
@@ -60,7 +63,6 @@ function startEditing(description = 'Mercado') {
 
 afterEach(() => {
   cleanup()
-  vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
 
@@ -98,31 +100,30 @@ describe('TransactionList', () => {
   })
 
   it('não chama a API quando a exclusão não é confirmada', () => {
-    const fetchMock = mockFetch(204)
+    const requests = mockTransaction('delete', 204)
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     renderList([transaction])
 
     fireEvent.click(screen.getByRole('button', { name: 'Excluir Mercado' }))
 
     expect(confirm).toHaveBeenCalledWith('Excluir "Mercado"?')
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(requests).toHaveLength(0)
   })
 
   it('envia DELETE com o id da transação quando a exclusão é confirmada', async () => {
-    const fetchMock = mockFetch(204)
+    const requests = mockTransaction('delete', 204)
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     renderList([{ ...transaction, id: 42 }])
 
     fireEvent.click(screen.getByRole('button', { name: 'Excluir Mercado' }))
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
-    const [url, init] = sentRequest(fetchMock)
-    expect(url).toBe('/api/transactions/42')
-    expect(init.method).toBe('DELETE')
+    await waitFor(() => expect(requests).toHaveLength(1))
+    expect(pathOf(requests[0]!)).toBe('/api/transactions/42')
+    expect(requests[0]!.method).toBe('DELETE')
   })
 
   it('desabilita os botões de excluir enquanto a exclusão está pendente', async () => {
-    mockPendingFetch()
+    mockPendingTransaction('delete')
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     renderList([transaction, { ...transaction, id: 2, description: 'Farmácia' }])
 
@@ -138,7 +139,7 @@ describe('TransactionList', () => {
   })
 
   it('anuncia a falha quando a API recusa a exclusão', async () => {
-    mockFetch(500, { error: 'internal' })
+    mockTransaction('delete', 500, { error: 'internal' })
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     renderList([transaction])
 
@@ -150,7 +151,7 @@ describe('TransactionList', () => {
   })
 
   it('salva a edição com PUT, valor em centavos e campos sem espaços nas pontas', async () => {
-    const fetchMock = mockFetch(200, { ...transaction, description: 'Feira' })
+    const requests = mockTransaction('put', 200, { ...transaction, description: 'Feira' })
     renderList([transaction])
 
     startEditing()
@@ -161,11 +162,10 @@ describe('TransactionList', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Repetir todo mês' }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
-    const [url, init] = sentRequest(fetchMock)
-    expect(url).toBe('/api/transactions/1')
-    expect(init.method).toBe('PUT')
-    expect(JSON.parse(String(init.body))).toEqual({
+    await waitFor(() => expect(requests).toHaveLength(1))
+    expect(pathOf(requests[0]!)).toBe('/api/transactions/1')
+    expect(requests[0]!.method).toBe('PUT')
+    expect(await sentBody(requests)).toEqual({
       type: 'income',
       description: 'Feira',
       amountCents: 123456,
@@ -178,20 +178,19 @@ describe('TransactionList', () => {
   })
 
   it('omite a categoria em branco na edição em vez de enviar string vazia', async () => {
-    const fetchMock = mockFetch(200, transaction)
+    const requests = mockTransaction('put', 200, transaction)
     renderList([transaction])
 
     startEditing()
     fireEvent.change(field('Categoria'), { target: { value: '   ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
-    const body = JSON.parse(String(sentRequest(fetchMock)[1].body)) as Record<string, unknown>
-    expect(body).not.toHaveProperty('category')
+    await waitFor(() => expect(requests).toHaveLength(1))
+    expect(await sentBody(requests)).not.toHaveProperty('category')
   })
 
   it('mostra "Salvando…" desabilitado enquanto a edição não responde', async () => {
-    mockPendingFetch()
+    mockPendingTransaction('put')
     renderList([transaction])
 
     startEditing()
@@ -205,7 +204,7 @@ describe('TransactionList', () => {
     ['abc', 'Informe um valor válido, ex.: 159,90'],
     ['0', 'O valor precisa ser maior que zero'],
   ])('barra o valor "%s" na edição antes de chamar a API', (amount, message) => {
-    const fetchMock = mockFetch(200, transaction)
+    const requests = mockTransaction('put', 200, transaction)
     renderList([transaction])
 
     startEditing()
@@ -213,11 +212,11 @@ describe('TransactionList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     expect(screen.getByRole('alert').textContent).toBe(message)
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(requests).toHaveLength(0)
   })
 
   it('mantém a edição aberta com o que foi digitado quando a API falha', async () => {
-    mockFetch(500, { error: 'internal' })
+    mockTransaction('put', 500, { error: 'internal' })
     renderList([transaction])
 
     startEditing()
