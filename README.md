@@ -56,6 +56,7 @@ npm install
 JWT_SECRET=... npm run dev:server   # API em http://localhost:3000 (sem JWT_SECRET usa segredo de dev; em produção é obrigatório)
 npm run dev:web      # SPA em http://localhost:5173 (proxy /api → 3000)
 npm run verify       # lint + format + testes + build (mesmo gate do CI)
+npm run test:e2e     # Playwright: sobe API (:3100, banco em memória) + SPA (:5174) e roda o fluxo no Chromium
 ```
 
 ## API
@@ -120,7 +121,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Testes de componente para TransactionForm (fluxo de erro incluído)
 - [x] Testes de componente para TransactionList
 - [x] MSW nos testes do front (mock da API por request)
-- [ ] E2E com Playwright (fluxo criar → listar → resumo)
+- [x] E2E com Playwright (fluxo criar → listar → resumo)
 - [ ] Docker: Dockerfile multi-stage + docker-compose
 - [ ] Seed script com dados realistas de demonstração
 - [ ] CI: job de typecheck dos testes do server (tsc --noEmit incluindo test/)
