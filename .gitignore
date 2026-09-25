@@ -10,3 +10,5 @@ data/
 .env.*
 .DS_Store
 .daily/
+test-results/
+playwright-report/

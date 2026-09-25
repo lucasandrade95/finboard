@@ -5,11 +5,20 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', '**/data/**'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/coverage/**',
+      '**/data/**',
+      '**/test-results/**',
+      '**/playwright-report/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['server/**/*.ts'],
+    files: ['server/**/*.ts', 'e2e/**/*.ts', 'playwright.config.ts'],
     languageOptions: { globals: globals.node },
   },
   {

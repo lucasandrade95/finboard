@@ -5,7 +5,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': 'http://localhost:3000',
+      // O E2E sobe uma API própria em outra porta, para não mexer no banco de desenvolvimento.
+      '/api': process.env.FINBOARD_API_URL ?? 'http://localhost:3000',
     },
   },
   test: {

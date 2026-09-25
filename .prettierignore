@@ -4,3 +4,5 @@ coverage
 data
 package-lock.json
 .daily
+test-results
+playwright-report
