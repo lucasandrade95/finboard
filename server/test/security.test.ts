@@ -109,3 +109,30 @@ describe('rate limit', () => {
     expect((await login()).statusCode).toBe(401)
   })
 })
+
+describe('atrás de proxy reverso (trustProxy)', () => {
+  const loginFrom = (ip: string) =>
+    app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      headers: { 'x-forwarded-for': ip },
+      payload: { email: 'lucas@example.com', password: 'senha-forte-123' },
+    })
+
+  it('conta o rate limit pelo IP do cliente repassado pelo proxy', async () => {
+    await build({ trustProxy: true, rateLimit: { max: 50, authMax: 1, timeWindow: 60_000 } })
+
+    expect((await loginFrom('203.0.113.10')).statusCode).toBe(401)
+    expect((await loginFrom('203.0.113.10')).statusCode).toBe(429)
+
+    // Outro cliente atrás do mesmo proxy tem o próprio balde.
+    expect((await loginFrom('203.0.113.20')).statusCode).toBe(401)
+  })
+
+  it('ignora x-forwarded-for por padrão, senão qualquer um furaria o limite forjando o header', async () => {
+    await build({ rateLimit: { max: 50, authMax: 1, timeWindow: 60_000 } })
+
+    expect((await loginFrom('203.0.113.10')).statusCode).toBe(401)
+    expect((await loginFrom('203.0.113.20')).statusCode).toBe(429)
+  })
+})
