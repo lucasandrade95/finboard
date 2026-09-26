@@ -1,0 +1,27 @@
+# Sobe o Finboard completo: JWT_SECRET=... docker compose up --build
+# SPA em http://localhost:8080 (o nginx repassa /api para a API).
+services:
+  api:
+    build:
+      context: .
+      target: api
+    environment:
+      JWT_SECRET: '${JWT_SECRET:?defina JWT_SECRET, ex. openssl rand -hex 32}'
+      TRUST_PROXY: 'true'
+    volumes:
+      - finboard-data:/data
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      target: web
+    ports:
+      - '${WEB_PORT:-8080}:80'
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  finboard-data:

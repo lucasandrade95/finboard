@@ -1,0 +1,17 @@
+**/node_modules
+**/dist
+**/coverage
+data
+*.db
+*.db-*
+.env
+.env.*
+.git
+.github
+.daily
+e2e
+test-results
+playwright-report
+Dockerfile
+docker-compose.yml
+.dockerignore
