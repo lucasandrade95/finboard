@@ -45,6 +45,8 @@ export interface BuildAppOptions {
   jwtSecret?: string
   /** Limites por IP; `false` desliga o plugin (testes que disparam muita requisição). */
   rateLimit?: RateLimitSettings | false
+  /** Confia no `x-forwarded-for` para `request.ip` (rate limit por cliente atrás do nginx). */
+  trustProxy?: boolean
 }
 
 // Mês local, não UTC: a virada de mês deve seguir o relógio do usuário.
@@ -54,7 +56,10 @@ function currentMonth(): string {
 }
 
 export async function buildApp(options: BuildAppOptions): Promise<FastifyInstance> {
-  const app = Fastify({ logger: options.logger ?? false })
+  const app = Fastify({
+    logger: options.logger ?? false,
+    trustProxy: options.trustProxy ?? false,
+  })
   const db = openDatabase(options.dbPath, {
     onMigrated: (applied) => {
       if (applied.length > 0) {
