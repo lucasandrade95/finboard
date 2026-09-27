@@ -10,6 +10,7 @@
   "scripts": {
     "dev:server": "npm run dev --workspace @finboard/server",
     "dev:web": "npm run dev --workspace @finboard/web",
+    "seed": "npm run seed --workspace @finboard/server",
     "lint": "eslint .",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
