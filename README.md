@@ -58,6 +58,7 @@ Decisões:
 npm install
 JWT_SECRET=... npm run dev:server   # API em http://localhost:3000 (sem JWT_SECRET usa segredo de dev; em produção é obrigatório)
 npm run dev:web      # SPA em http://localhost:5173 (proxy /api → 3000)
+npm run seed         # conta demo (demo@finboard.dev / demo-finboard-123) com 3 meses de dados; rodar de novo recria
 npm run verify       # lint + format + testes + build (mesmo gate do CI)
 npm run test:e2e     # Playwright: sobe API (:3100, banco em memória) + SPA (:5174) e roda o fluxo no Chromium
 ```
@@ -66,6 +67,7 @@ npm run test:e2e     # Playwright: sobe API (:3100, banco em memória) + SPA (:5
 
 ```bash
 JWT_SECRET=$(openssl rand -hex 32) docker compose up --build   # SPA em http://localhost:8080 (WEB_PORT muda a porta)
+docker compose exec api node server/dist/seed.js --force        # opcional: popula a conta demo no volume
 ```
 
 O `Dockerfile` é multi-stage: um estágio instala o workspace e compila API (`tsc`) e SPA (`vite build`); a imagem `api` leva só `dist/` e as dependências de produção (sem TypeScript, Vite nem código-fonte), roda como usuário `node` e tem `HEALTHCHECK` no `/health`; a imagem `web` é um nginx servindo o build estático e repassando `/api` para a API — mesma origem, sem CORS. O banco fica no volume `finboard-data` e sobrevive a `docker compose down` (só `down -v` apaga). A API sobe com `TRUST_PROXY=true`, então o rate limit conta pelo IP do cliente que o nginx repassa, e não pelo IP do próprio nginx.
@@ -134,7 +136,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] MSW nos testes do front (mock da API por request)
 - [x] E2E com Playwright (fluxo criar → listar → resumo)
 - [x] Docker: Dockerfile multi-stage + docker-compose
-- [ ] Seed script com dados realistas de demonstração
+- [x] Seed script com dados realistas de demonstração
 - [ ] CI: job de typecheck dos testes do server (tsc --noEmit incluindo test/)
 - [ ] Acessibilidade: navegação por teclado + aria-labels auditados
 - [ ] i18n preparada (strings centralizadas, pt-BR default)
