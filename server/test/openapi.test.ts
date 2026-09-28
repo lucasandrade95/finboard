@@ -34,6 +34,14 @@ async function fetchDocument(): Promise<OpenApiDoc> {
   return response.json() as OpenApiDoc
 }
 
+// Com `noUncheckedIndexedAccess`, `doc.paths[path][method]` pode ser undefined:
+// em vez de um TypeError genérico, o teste falha dizendo qual operação sumiu.
+function operationOf(doc: OpenApiDoc, path: string, method: string): OperationDoc {
+  const operation = doc.paths[path]?.[method]
+  if (!operation) throw new Error(`operação ${method.toUpperCase()} ${path} fora da documentação`)
+  return operation
+}
+
 async function register() {
   const response = await app.inject({
     method: 'POST',
@@ -85,19 +93,19 @@ describe('documento OpenAPI', () => {
     const doc = await fetchDocument()
     const isPublic = (operation: OperationDoc) => operation.security === undefined
 
-    expect(isPublic(doc.paths['/health'].get)).toBe(true)
-    expect(isPublic(doc.paths['/api/auth/register'].post)).toBe(true)
-    expect(isPublic(doc.paths['/api/auth/login'].post)).toBe(true)
+    expect(isPublic(operationOf(doc, '/health', 'get'))).toBe(true)
+    expect(isPublic(operationOf(doc, '/api/auth/register', 'post'))).toBe(true)
+    expect(isPublic(operationOf(doc, '/api/auth/login', 'post'))).toBe(true)
 
-    expect(doc.paths['/api/auth/me'].get.security).toEqual([{ bearerAuth: [] }])
-    expect(doc.paths['/api/transactions'].post.security).toEqual([{ bearerAuth: [] }])
-    expect(doc.paths['/api/goals'].get.security).toEqual([{ bearerAuth: [] }])
-    expect(doc.paths['/api/budgets'].get.security).toEqual([{ bearerAuth: [] }])
+    expect(operationOf(doc, '/api/auth/me', 'get').security).toEqual([{ bearerAuth: [] }])
+    expect(operationOf(doc, '/api/transactions', 'post').security).toEqual([{ bearerAuth: [] }])
+    expect(operationOf(doc, '/api/goals', 'get').security).toEqual([{ bearerAuth: [] }])
+    expect(operationOf(doc, '/api/budgets', 'get').security).toEqual([{ bearerAuth: [] }])
   })
 
   it('documenta corpo, resumo e respostas de erro das rotas de escrita', async () => {
     const doc = await fetchDocument()
-    const create = doc.paths['/api/transactions'].post
+    const create = operationOf(doc, '/api/transactions', 'post')
 
     expect(create.summary).toBe('Cria transação')
     expect(create.tags).toEqual(['transações'])
