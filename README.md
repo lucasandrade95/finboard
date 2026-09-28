@@ -59,7 +59,7 @@ npm install
 JWT_SECRET=... npm run dev:server   # API em http://localhost:3000 (sem JWT_SECRET usa segredo de dev; em produção é obrigatório)
 npm run dev:web      # SPA em http://localhost:5173 (proxy /api → 3000)
 npm run seed         # conta demo (demo@finboard.dev / demo-finboard-123) com 3 meses de dados; rodar de novo recria
-npm run verify       # lint + format + testes + build (mesmo gate do CI)
+npm run verify       # lint + format + typecheck + testes + build (mesmo gate do CI)
 npm run test:e2e     # Playwright: sobe API (:3100, banco em memória) + SPA (:5174) e roda o fluxo no Chromium
 ```
 
@@ -137,7 +137,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] E2E com Playwright (fluxo criar → listar → resumo)
 - [x] Docker: Dockerfile multi-stage + docker-compose
 - [x] Seed script com dados realistas de demonstração
-- [ ] CI: job de typecheck dos testes do server (tsc --noEmit incluindo test/)
+- [x] CI: job de typecheck dos testes do server (tsc --noEmit incluindo test/)
 - [ ] Acessibilidade: navegação por teclado + aria-labels auditados
 - [ ] i18n preparada (strings centralizadas, pt-BR default)
 - [ ] Categorias como entidade (tabela categories: nome, cor, ícone) + CRUD e select no formulário
