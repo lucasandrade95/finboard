@@ -16,7 +16,8 @@
     "format:fix": "prettier --write .",
     "test": "npm run test --workspaces",
     "build": "npm run build --workspaces",
-    "verify": "npm run lint && npm run format && npm run test && npm run build",
+    "typecheck": "npm run typecheck --workspace @finboard/server",
+    "verify": "npm run lint && npm run format && npm run typecheck && npm run test && npm run build",
     "test:e2e": "tsc -p e2e/tsconfig.json && playwright test"
   },
   "devDependencies": {

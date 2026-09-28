@@ -17,6 +17,19 @@ jobs:
       - run: npm ci
       - run: npm run verify
 
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # O build do server só compila src/ e o Vitest (esbuild) não checa tipos:
+      # sem este passo, erro de tipo nos testes passaria despercebido.
+      - run: npm run typecheck
+
   e2e:
     runs-on: ubuntu-latest
     steps:
