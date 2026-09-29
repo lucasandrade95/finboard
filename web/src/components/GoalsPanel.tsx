@@ -157,6 +157,7 @@ function GoalItem({ goal, today }: GoalItemProps) {
         <button
           type="button"
           className="delete-button"
+          aria-label={`Remover meta ${goal.name}`}
           onClick={() => deleteGoal.mutate(goal.id)}
           disabled={deleteGoal.isPending}
         >

@@ -942,6 +942,41 @@ button[type='submit']:disabled {
   color: var(--muted);
 }
 
+/*
+ * Foco visível para quem navega por teclado: :focus-visible não acende no
+ * clique do mouse, então o anel aparece só quando ajuda.
+ */
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Fica fora da tela até receber foco pelo Tab. */
+.skip-link {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 10;
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+/* O main recebe foco pelo skip link, mas não é controle: sem anel. */
+main:focus {
+  outline: none;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

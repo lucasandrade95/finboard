@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import {
   formatBRL,
   parseReaisToCents,
@@ -71,15 +71,25 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
     )
   }
 
+  // Escape cancela de qualquer campo da linha, como num diálogo.
+  function handleKeyDown(event: KeyboardEvent<HTMLTableRowElement>) {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      onDone()
+    }
+  }
+
   const formId = `edit-transaction-${transaction.id}`
 
   return (
-    <tr className="edit-row">
+    <tr className="edit-row" onKeyDown={handleKeyDown}>
       <td>
         <input
           form={formId}
           type="date"
           aria-label="Data"
+          // Quem abriu a edição pelo teclado cai direto no primeiro campo.
+          autoFocus
           value={occurredOn}
           onChange={(e) => setOccurredOn(e.target.value)}
           required
@@ -167,6 +177,17 @@ export function TransactionList({
 }: TransactionListProps) {
   const [editingId, setEditingId] = useState<number | null>(null)
   const deleteTransaction = useDeleteTransaction()
+  const editButtons = useRef(new Map<number, HTMLButtonElement>())
+  const closedEditId = useRef<number | null>(null)
+
+  // Ao fechar a edição (salvar, cancelar ou Escape) a linha é desmontada junto
+  // com o foco; devolvê-lo ao "Editar" da mesma linha evita cair no topo da página.
+  useEffect(() => {
+    if (editingId === null && closedEditId.current !== null) {
+      editButtons.current.get(closedEditId.current)?.focus()
+      closedEditId.current = null
+    }
+  }, [editingId])
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   if (loading) {
@@ -203,7 +224,10 @@ export function TransactionList({
               <TransactionEditRow
                 key={transaction.id}
                 transaction={transaction}
-                onDone={() => setEditingId(null)}
+                onDone={() => {
+                  closedEditId.current = transaction.id
+                  setEditingId(null)
+                }}
               />
             ) : (
               <tr key={transaction.id}>
@@ -228,6 +252,13 @@ export function TransactionList({
                     type="button"
                     className="edit-button"
                     aria-label={`Editar ${transaction.description}`}
+                    ref={(button) => {
+                      if (button) {
+                        editButtons.current.set(transaction.id, button)
+                      } else {
+                        editButtons.current.delete(transaction.id)
+                      }
+                    }}
                     onClick={() => setEditingId(transaction.id)}
                   >
                     Editar
@@ -262,7 +293,7 @@ export function TransactionList({
           >
             Anterior
           </button>
-          <span className="pagination-info">
+          <span className="pagination-info" aria-live="polite">
             Página {page} de {pageCount}
           </span>
           <button

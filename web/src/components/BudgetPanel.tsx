@@ -88,6 +88,7 @@ export function BudgetPanel({ data, loading, categories = [] }: BudgetPanelProps
                   <button
                     type="button"
                     className="delete-button"
+                    aria-label={`Remover orçamento de ${item.category}`}
                     onClick={() => deleteBudget.mutate(item.category)}
                     disabled={deleteBudget.isPending}
                   >

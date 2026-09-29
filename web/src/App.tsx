@@ -105,6 +105,10 @@ function Dashboard() {
 
   return (
     <div className="layout">
+      {/* Primeiro item do Tab: pula o topo e vai direto ao dashboard. */}
+      <a className="skip-link" href="#conteudo">
+        Pular para o conteúdo
+      </a>
       <header className="topbar">
         <h1>Finboard</h1>
         <label className="month-picker">
@@ -117,10 +121,12 @@ function Dashboard() {
         </button>
       </header>
 
-      <main>
+      <main id="conteudo" tabIndex={-1}>
         <SummaryCards summary={summary.data} loading={summary.isPending} />
         {(transactions.isError || summary.isError) && (
-          <p className="form-error">Falha ao carregar dados. A API está rodando?</p>
+          <p className="form-error" role="alert">
+            Falha ao carregar dados. A API está rodando?
+          </p>
         )}
         <BalanceLineChart data={dailyBalance.data} loading={dailyBalance.isPending} />
         <CategoryDonut data={expensesByCategory.data} loading={expensesByCategory.isPending} />
