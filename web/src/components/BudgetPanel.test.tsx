@@ -115,6 +115,19 @@ describe('BudgetPanel', () => {
     expect(container.querySelector('[aria-busy="true"]')).toBeTruthy()
   })
 
+  it('nomeia cada botão Remover com a categoria, para o leitor de tela distinguir', () => {
+    renderPanel({
+      month: '2026-08',
+      items: [
+        { category: 'mercado', budgetCents: 80000, spentCents: 60000 },
+        { category: 'lazer', budgetCents: 40000, spentCents: 10000 },
+      ],
+    })
+
+    expect(screen.getByRole('button', { name: 'Remover orçamento de mercado' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remover orçamento de lazer' })).toBeTruthy()
+  })
+
   it('sugere as categorias existentes no formulário via datalist', () => {
     const { container } = renderPanel({ month: '2026-08', items: [] }, false, [
       'mercado',

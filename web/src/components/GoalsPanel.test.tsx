@@ -84,6 +84,13 @@ describe('GoalsPanel', () => {
     expect(screen.getByRole('button', { name: 'Guardar' })).toBeTruthy()
   })
 
+  it('nomeia cada botão Remover com a meta, para o leitor de tela distinguir', () => {
+    renderPanel([goal({ id: 1, name: 'Viagem' }), goal({ id: 2, name: 'Reserva' })])
+
+    expect(screen.getByRole('button', { name: 'Remover meta Viagem' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remover meta Reserva' })).toBeTruthy()
+  })
+
   it('avisa quando não há meta definida', () => {
     renderPanel([])
 

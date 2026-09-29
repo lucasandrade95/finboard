@@ -280,6 +280,55 @@ describe('TransactionList', () => {
     expect(screen.getByText('Mercado')).toBeTruthy()
   })
 
+  it('leva o foco ao primeiro campo ao abrir a edição', () => {
+    renderList([transaction])
+
+    startEditing()
+
+    expect(document.activeElement).toBe(field('Data'))
+  })
+
+  it('fecha a edição com Escape sem salvar e devolve o foco ao botão Editar', () => {
+    const requests = mockTransaction('put', 200, transaction)
+    renderList([transaction])
+
+    startEditing()
+    fireEvent.change(field('Descrição'), { target: { value: 'Feira' } })
+    fireEvent.keyDown(field('Descrição'), { key: 'Escape' })
+
+    expect(screen.queryByLabelText('Descrição')).toBeNull()
+    expect(screen.getByText('Mercado')).toBeTruthy()
+    expect(requests).toHaveLength(0)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Editar Mercado' }))
+  })
+
+  it('devolve o foco ao botão Editar da mesma linha ao cancelar', () => {
+    renderList([transaction, { ...transaction, id: 2, description: 'Farmácia' }])
+
+    startEditing('Farmácia')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Editar Farmácia' }))
+  })
+
+  it('devolve o foco ao botão Editar depois de salvar', async () => {
+    mockTransaction('put', 200, transaction)
+    renderList([transaction])
+
+    startEditing()
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Editar Mercado' })),
+    )
+  })
+
+  it('anuncia a troca de página para leitor de tela', () => {
+    renderList([transaction], { page: 1, total: 45, onPageChange: vi.fn() })
+
+    expect(screen.getByText('Página 1 de 3').getAttribute('aria-live')).toBe('polite')
+  })
+
   it('mostra controles de paginação e navega entre páginas', () => {
     const onPageChange = vi.fn()
     renderList([transaction], { page: 2, total: 45, onPageChange })
