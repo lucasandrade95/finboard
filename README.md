@@ -139,7 +139,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Seed script com dados realistas de demonstração
 - [x] CI: job de typecheck dos testes do server (tsc --noEmit incluindo test/)
 - [x] Acessibilidade: navegação por teclado + aria-labels auditados
-- [ ] i18n preparada (strings centralizadas, pt-BR default)
+- [x] i18n preparada (strings centralizadas, pt-BR default)
 - [ ] Categorias como entidade (tabela categories: nome, cor, ícone) + CRUD e select no formulário
 - [ ] Contas/carteiras (tabela accounts) e saldo por conta no summary
 - [ ] Transferência entre contas (par de lançamentos vinculados, fora de receita/despesa)
