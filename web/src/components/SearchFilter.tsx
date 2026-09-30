@@ -1,3 +1,5 @@
+import { t } from '../i18n'
+
 interface SearchFilterProps {
   value: string
   onChange: (term: string) => void
@@ -6,11 +8,11 @@ interface SearchFilterProps {
 export function SearchFilter({ value, onChange }: SearchFilterProps) {
   return (
     <label className="search-filter">
-      Buscar
+      {t.filters.search}
       <input
         type="search"
         value={value}
-        placeholder="descrição…"
+        placeholder={t.filters.searchPlaceholder}
         onChange={(e) => onChange(e.target.value)}
       />
     </label>

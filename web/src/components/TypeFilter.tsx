@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import type { TransactionType } from '../lib/api'
 
 interface TypeFilterProps {
@@ -6,16 +7,16 @@ interface TypeFilterProps {
 }
 
 const OPTIONS: Array<{ value: TransactionType; label: string }> = [
-  { value: 'income', label: 'Receitas' },
-  { value: 'expense', label: 'Despesas' },
+  { value: 'income', label: t.filters.incomes },
+  { value: 'expense', label: t.filters.expenses },
 ]
 
 export function TypeFilter({ value, onChange }: TypeFilterProps) {
   return (
     <label className="type-filter">
-      Tipo
+      {t.common.type}
       <select value={value} onChange={(e) => onChange(e.target.value as TransactionType | '')}>
-        <option value="">Todos</option>
+        <option value="">{t.filters.allTypes}</option>
         {OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

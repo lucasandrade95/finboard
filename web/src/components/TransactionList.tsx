@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { t } from '../i18n'
 import {
   formatBRL,
   parseReaisToCents,
@@ -44,11 +45,11 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
     try {
       amountCents = parseReaisToCents(amount)
     } catch {
-      setError('Informe um valor válido, ex.: 159,90')
+      setError(t.common.invalidAmount('159,90'))
       return
     }
     if (amountCents <= 0) {
-      setError('O valor precisa ser maior que zero')
+      setError(t.common.amountMustBePositive)
       return
     }
 
@@ -87,7 +88,7 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
         <input
           form={formId}
           type="date"
-          aria-label="Data"
+          aria-label={t.common.date}
           // Quem abriu a edição pelo teclado cai direto no primeiro campo.
           autoFocus
           value={occurredOn}
@@ -98,7 +99,7 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
       <td>
         <form id={formId} onSubmit={handleSubmit}>
           <input
-            aria-label="Descrição"
+            aria-label={t.common.description}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             required
@@ -112,7 +113,7 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
             checked={recurring}
             onChange={(e) => setRecurring(e.target.checked)}
           />
-          Repetir todo mês
+          {t.common.recurringLabel}
         </label>
         {error && (
           <p className="form-error" role="alert">
@@ -123,10 +124,10 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
       <td>
         <input
           form={formId}
-          aria-label="Categoria"
+          aria-label={t.common.category}
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          placeholder="geral"
+          placeholder={t.common.categoryPlaceholder}
           maxLength={50}
         />
       </td>
@@ -134,16 +135,16 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
         <span className="edit-amount">
           <select
             form={formId}
-            aria-label="Tipo"
+            aria-label={t.common.type}
             value={type}
             onChange={(e) => setType(e.target.value as TransactionType)}
           >
-            <option value="expense">Despesa</option>
-            <option value="income">Receita</option>
+            <option value="expense">{t.common.expense}</option>
+            <option value="income">{t.common.income}</option>
           </select>
           <input
             form={formId}
-            aria-label="Valor (R$)"
+            aria-label={t.common.amountInput}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             required
@@ -158,10 +159,10 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
           className="save-button"
           disabled={updateTransaction.isPending}
         >
-          {updateTransaction.isPending ? 'Salvando…' : 'Salvar'}
+          {updateTransaction.isPending ? t.common.saving : t.transactionList.save}
         </button>
         <button type="button" className="edit-button" onClick={onDone}>
-          Cancelar
+          {t.transactionList.cancel}
         </button>
       </td>
     </tr>
@@ -192,14 +193,14 @@ export function TransactionList({
 
   if (loading) {
     // Seis barras: sugere uma lista sem apostar no tamanho da página, que varia com o filtro.
-    return <Skeleton lines={6} label="Carregando transações…" />
+    return <Skeleton lines={6} label={t.transactionList.loading} />
   }
   if (!transactions || transactions.length === 0) {
-    return <p className="list-empty">Nenhuma transação neste mês.</p>
+    return <p className="list-empty">{t.transactionList.empty}</p>
   }
 
   function handleDelete(transaction: Transaction) {
-    if (window.confirm(`Excluir "${transaction.description}"?`)) {
+    if (window.confirm(t.transactionList.confirmDelete(transaction.description))) {
       deleteTransaction.mutate(transaction.id)
     }
   }
@@ -209,12 +210,12 @@ export function TransactionList({
       <table className="transaction-table">
         <thead>
           <tr>
-            <th>Data</th>
-            <th>Descrição</th>
-            <th>Categoria</th>
-            <th className="amount-col">Valor</th>
+            <th>{t.common.date}</th>
+            <th>{t.common.description}</th>
+            <th>{t.common.category}</th>
+            <th className="amount-col">{t.common.amount}</th>
             <th className="actions-col">
-              <span className="visually-hidden">Ações</span>
+              <span className="visually-hidden">{t.transactionList.actions}</span>
             </th>
           </tr>
         </thead>
@@ -235,8 +236,8 @@ export function TransactionList({
                 <td>
                   {transaction.description}
                   {transaction.recurring && (
-                    <span className="recurring-tag" title="Gerada todo mês automaticamente">
-                      ↻ mensal
+                    <span className="recurring-tag" title={t.transactionList.recurringTitle}>
+                      {t.transactionList.recurringTag}
                     </span>
                   )}
                 </td>
@@ -251,7 +252,7 @@ export function TransactionList({
                   <button
                     type="button"
                     className="edit-button"
-                    aria-label={`Editar ${transaction.description}`}
+                    aria-label={t.transactionList.editLabel(transaction.description)}
                     ref={(button) => {
                       if (button) {
                         editButtons.current.set(transaction.id, button)
@@ -261,16 +262,16 @@ export function TransactionList({
                     }}
                     onClick={() => setEditingId(transaction.id)}
                   >
-                    Editar
+                    {t.transactionList.edit}
                   </button>
                   <button
                     type="button"
                     className="delete-button"
-                    aria-label={`Excluir ${transaction.description}`}
+                    aria-label={t.transactionList.deleteLabel(transaction.description)}
                     disabled={deleteTransaction.isPending}
                     onClick={() => handleDelete(transaction)}
                   >
-                    Excluir
+                    {t.transactionList.delete}
                   </button>
                 </td>
               </tr>
@@ -280,21 +281,21 @@ export function TransactionList({
       </table>
       {deleteTransaction.isError && (
         <p className="form-error" role="alert">
-          Falha ao excluir. Tente de novo.
+          {t.transactionList.deleteError}
         </p>
       )}
       {onPageChange && pageCount > 1 && (
-        <nav className="pagination" aria-label="Paginação">
+        <nav className="pagination" aria-label={t.transactionList.pagination}>
           <button
             type="button"
             className="edit-button"
             disabled={page <= 1}
             onClick={() => onPageChange(page - 1)}
           >
-            Anterior
+            {t.transactionList.previous}
           </button>
           <span className="pagination-info" aria-live="polite">
-            Página {page} de {pageCount}
+            {t.transactionList.pageOf(page, pageCount)}
           </span>
           <button
             type="button"
@@ -302,7 +303,7 @@ export function TransactionList({
             disabled={page >= pageCount}
             onClick={() => onPageChange(page + 1)}
           >
-            Próxima
+            {t.transactionList.next}
           </button>
         </nav>
       )}

@@ -25,6 +25,7 @@ import {
   useSummary,
   useTransactions,
 } from './hooks/use-finance'
+import { t } from './i18n'
 import { PAGE_SIZE, type TransactionType } from './lib/api'
 import { setToken } from './lib/auth'
 
@@ -107,17 +108,17 @@ function Dashboard() {
     <div className="layout">
       {/* Primeiro item do Tab: pula o topo e vai direto ao dashboard. */}
       <a className="skip-link" href="#conteudo">
-        Pular para o conteúdo
+        {t.dashboard.skipToContent}
       </a>
       <header className="topbar">
-        <h1>Finboard</h1>
+        <h1>{t.common.appName}</h1>
         <label className="month-picker">
-          Mês
+          {t.dashboard.month}
           <input type="month" value={month} onChange={(e) => handleMonthChange(e.target.value)} />
         </label>
         <ThemeToggle />
         <button type="button" className="logout" onClick={() => setToken(null)}>
-          Sair
+          {t.dashboard.logout}
         </button>
       </header>
 
@@ -125,7 +126,7 @@ function Dashboard() {
         <SummaryCards summary={summary.data} loading={summary.isPending} />
         {(transactions.isError || summary.isError) && (
           <p className="form-error" role="alert">
-            Falha ao carregar dados. A API está rodando?
+            {t.dashboard.loadError}
           </p>
         )}
         <BalanceLineChart data={dailyBalance.data} loading={dailyBalance.isPending} />

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { t } from '../i18n'
 import { api } from '../lib/api'
 import { setToken } from '../lib/auth'
 
@@ -6,16 +7,16 @@ type Mode = 'login' | 'register'
 
 const COPY: Record<Mode, { title: string; submit: string; pending: string; toggle: string }> = {
   login: {
-    title: 'Entrar',
-    submit: 'Entrar',
-    pending: 'Entrando…',
-    toggle: 'Não tem conta? Criar uma',
+    title: t.auth.loginTitle,
+    submit: t.auth.loginSubmit,
+    pending: t.auth.loginPending,
+    toggle: t.auth.loginToggle,
   },
   register: {
-    title: 'Criar conta',
-    submit: 'Criar conta',
-    pending: 'Criando…',
-    toggle: 'Já tem conta? Entrar',
+    title: t.auth.registerTitle,
+    submit: t.auth.registerSubmit,
+    pending: t.auth.registerPending,
+    toggle: t.auth.registerToggle,
   },
 }
 
@@ -44,7 +45,7 @@ export function AuthScreen() {
       // O token no store já derruba esta tela: o App observa a mesma fonte.
       setToken(session.token)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Não foi possível entrar.')
+      setError(caught instanceof Error ? caught.message : t.auth.genericError)
       setPending(false)
     }
   }
@@ -57,10 +58,10 @@ export function AuthScreen() {
   return (
     <div className="auth-screen">
       <form className="auth-card" onSubmit={(event) => void handleSubmit(event)}>
-        <h1>Finboard</h1>
+        <h1>{t.common.appName}</h1>
         <h2>{copy.title}</h2>
         <label>
-          E-mail
+          {t.auth.email}
           <input
             type="email"
             value={email}
@@ -70,7 +71,7 @@ export function AuthScreen() {
           />
         </label>
         <label>
-          Senha
+          {t.auth.password}
           <input
             type="password"
             value={password}

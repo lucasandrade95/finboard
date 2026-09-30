@@ -1,4 +1,5 @@
 import { useTheme } from '../hooks/use-theme'
+import { t } from '../i18n'
 import { toggleTheme } from '../lib/theme'
 
 /**
@@ -8,7 +9,7 @@ import { toggleTheme } from '../lib/theme'
  */
 export function ThemeToggle() {
   const theme = useTheme()
-  const label = theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'
+  const label = theme === 'dark' ? t.theme.useLight : t.theme.useDark
 
   return (
     <button

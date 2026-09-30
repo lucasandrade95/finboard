@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { formatBRL, type MonthlySummary } from '../lib/api'
 import { Skeleton } from './Skeleton'
 
@@ -15,7 +16,7 @@ export function SummaryCards({ summary, loading }: SummaryCardsProps) {
   const previous = summary?.previous
   const cards = [
     {
-      label: 'Receitas',
+      label: t.summary.income,
       value: summary?.incomeCents ?? 0,
       tone: 'positive',
       deltaCents: previous ? (summary?.incomeCents ?? 0) - previous.incomeCents : undefined,
@@ -23,14 +24,14 @@ export function SummaryCards({ summary, loading }: SummaryCardsProps) {
       goodWhenUp: true,
     },
     {
-      label: 'Despesas',
+      label: t.summary.expense,
       value: summary?.expenseCents ?? 0,
       tone: 'negative',
       deltaCents: previous ? (summary?.expenseCents ?? 0) - previous.expenseCents : undefined,
       goodWhenUp: false,
     },
     {
-      label: 'Saldo',
+      label: t.summary.balance,
       value: balance,
       tone: balance >= 0 ? 'positive' : 'negative',
       deltaCents: previous ? balance - previous.balanceCents : undefined,
@@ -45,7 +46,7 @@ export function SummaryCards({ summary, loading }: SummaryCardsProps) {
           <h2>{card.label}</h2>
           <p className="card-value">
             {loading ? (
-              <Skeleton shape="value" lines={1} label={`Carregando ${card.label.toLowerCase()}…`} />
+              <Skeleton shape="value" lines={1} label={t.summary.loadingCard(card.label)} />
             ) : (
               formatBRL(card.value)
             )}
@@ -60,7 +61,7 @@ export function SummaryCards({ summary, loading }: SummaryCardsProps) {
                     : 'negative'
               }`}
             >
-              {formatDelta(card.deltaCents)} vs mês anterior
+              {t.summary.vsPreviousMonth(formatDelta(card.deltaCents))}
             </p>
           )}
         </article>

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useCreateTransaction } from '../hooks/use-finance'
+import { t } from '../i18n'
 import { parseReaisToCents, type TransactionType } from '../lib/api'
 
 function today(): string {
@@ -28,11 +29,11 @@ export function TransactionForm({ categories = [] }: TransactionFormProps) {
     try {
       amountCents = parseReaisToCents(amount)
     } catch {
-      setError('Informe um valor válido, ex.: 159,90')
+      setError(t.common.invalidAmount('159,90'))
       return
     }
     if (amountCents <= 0) {
-      setError('O valor precisa ser maior que zero')
+      setError(t.common.amountMustBePositive)
       return
     }
 
@@ -59,27 +60,27 @@ export function TransactionForm({ categories = [] }: TransactionFormProps) {
 
   return (
     <form className="transaction-form" onSubmit={handleSubmit}>
-      <h2>Nova transação</h2>
+      <h2>{t.transactionForm.title}</h2>
       <div className="form-grid">
         <label>
-          Tipo
+          {t.common.type}
           <select value={type} onChange={(e) => setType(e.target.value as TransactionType)}>
-            <option value="expense">Despesa</option>
-            <option value="income">Receita</option>
+            <option value="expense">{t.common.expense}</option>
+            <option value="income">{t.common.income}</option>
           </select>
         </label>
         <label>
-          Descrição
+          {t.common.description}
           <input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Mercado, salário…"
+            placeholder={t.transactionForm.descriptionPlaceholder}
             required
             maxLength={200}
           />
         </label>
         <label>
-          Valor (R$)
+          {t.common.amountInput}
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -89,12 +90,12 @@ export function TransactionForm({ categories = [] }: TransactionFormProps) {
           />
         </label>
         <label>
-          Categoria
+          {t.common.category}
           {/* datalist sugere as categorias já usadas sem impedir digitar uma nova. */}
           <input
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            placeholder="geral"
+            placeholder={t.common.categoryPlaceholder}
             maxLength={50}
             list="category-suggestions"
           />
@@ -105,7 +106,7 @@ export function TransactionForm({ categories = [] }: TransactionFormProps) {
           </datalist>
         </label>
         <label>
-          Data
+          {t.common.date}
           <input
             type="date"
             value={occurredOn}
@@ -119,7 +120,7 @@ export function TransactionForm({ categories = [] }: TransactionFormProps) {
             checked={recurring}
             onChange={(e) => setRecurring(e.target.checked)}
           />
-          Repetir todo mês
+          {t.common.recurringLabel}
         </label>
       </div>
       {error && (
@@ -128,7 +129,7 @@ export function TransactionForm({ categories = [] }: TransactionFormProps) {
         </p>
       )}
       <button type="submit" disabled={createTransaction.isPending}>
-        {createTransaction.isPending ? 'Salvando…' : 'Adicionar'}
+        {createTransaction.isPending ? t.common.saving : t.transactionForm.submit}
       </button>
     </form>
   )

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useDeleteBudget, useUpsertBudget } from '../hooks/use-finance'
+import { t } from '../i18n'
 import { formatBRL, parseReaisToCents, type BudgetProgressList } from '../lib/api'
 import { budgetStatus } from '../lib/budget-status'
 import { Skeleton } from './Skeleton'
@@ -29,11 +30,11 @@ export function BudgetPanel({ data, loading, categories = [] }: BudgetPanelProps
     try {
       amountCents = parseReaisToCents(amount)
     } catch {
-      setError('Informe um valor válido, ex.: 800,00')
+      setError(t.common.invalidAmount('800,00'))
       return
     }
     if (amountCents <= 0) {
-      setError('O valor precisa ser maior que zero')
+      setError(t.common.amountMustBePositive)
       return
     }
 
@@ -51,18 +52,16 @@ export function BudgetPanel({ data, loading, categories = [] }: BudgetPanelProps
 
   return (
     <section className="budget-panel card" aria-busy={loading}>
-      <h2>Orçamento por categoria</h2>
+      <h2>{t.budgets.title}</h2>
       {overCount > 0 && (
         <p className="budget-alert" role="alert">
-          {overCount === 1
-            ? '1 orçamento estourou este mês.'
-            : `${overCount} orçamentos estouraram este mês.`}
+          {t.budgets.overAlert(overCount)}
         </p>
       )}
       {loading ? (
-        <Skeleton lines={3} label="Carregando orçamentos…" />
+        <Skeleton lines={3} label={t.budgets.loading} />
       ) : items.length === 0 ? (
-        <p className="list-empty">Nenhum orçamento definido.</p>
+        <p className="list-empty">{t.budgets.empty}</p>
       ) : (
         <ul className="budget-list">
           {items.map((item) => {
@@ -74,31 +73,31 @@ export function BudgetPanel({ data, loading, categories = [] }: BudgetPanelProps
                     {item.category}
                     {status.level === 'over' && (
                       <span className="budget-badge">
-                        Estourou em {formatBRL(status.overCents)}
+                        {t.budgets.overBy(formatBRL(status.overCents))}
                       </span>
                     )}
                     {status.level === 'warning' && (
-                      <span className="budget-badge">Perto do limite</span>
+                      <span className="budget-badge">{t.budgets.nearLimit}</span>
                     )}
                   </span>
                   <span className="budget-values">
-                    {formatBRL(item.spentCents)} de {formatBRL(item.budgetCents)}
+                    {t.budgets.spentOf(formatBRL(item.spentCents), formatBRL(item.budgetCents))}
                   </span>
                   <span className="budget-percent">{status.percent}%</span>
                   <button
                     type="button"
                     className="delete-button"
-                    aria-label={`Remover orçamento de ${item.category}`}
+                    aria-label={t.budgets.removeLabel(item.category)}
                     onClick={() => deleteBudget.mutate(item.category)}
                     disabled={deleteBudget.isPending}
                   >
-                    Remover
+                    {t.common.remove}
                   </button>
                 </div>
                 <div
                   className="budget-bar"
                   role="progressbar"
-                  aria-label={`Orçamento de ${item.category}`}
+                  aria-label={t.budgets.progressLabel(item.category)}
                   aria-valuenow={status.percent}
                   aria-valuemin={0}
                   aria-valuemax={100}
@@ -114,11 +113,11 @@ export function BudgetPanel({ data, loading, categories = [] }: BudgetPanelProps
       <form className="budget-form" onSubmit={handleSubmit}>
         <div className="form-grid">
           <label>
-            Categoria
+            {t.common.category}
             <input
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              placeholder="mercado"
+              placeholder={t.budgets.categoryPlaceholder}
               required
               maxLength={50}
               list="budget-category-suggestions"
@@ -130,7 +129,7 @@ export function BudgetPanel({ data, loading, categories = [] }: BudgetPanelProps
             </datalist>
           </label>
           <label>
-            Limite mensal (R$)
+            {t.budgets.limitInput}
             <input
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
@@ -142,7 +141,7 @@ export function BudgetPanel({ data, loading, categories = [] }: BudgetPanelProps
         </div>
         {error && <p className="form-error">{error}</p>}
         <button type="submit" disabled={upsertBudget.isPending}>
-          {upsertBudget.isPending ? 'Salvando…' : 'Definir orçamento'}
+          {upsertBudget.isPending ? t.common.saving : t.budgets.submit}
         </button>
       </form>
     </section>

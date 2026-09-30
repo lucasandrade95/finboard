@@ -1,5 +1,6 @@
 import { useId, type ChangeEvent } from 'react'
 import { useImportTransactions } from '../hooks/use-finance'
+import { t } from '../i18n'
 import { CsvImportError } from '../lib/api'
 
 // Input de arquivo escondido atrás do label: o botão fica igual ao "Exportar CSV" ao lado,
@@ -32,34 +33,31 @@ export function ImportCsvButton() {
         onChange={(event) => void handleChange(event)}
       />
       <label className="import-csv" htmlFor={inputId} aria-busy={importMutation.isPending}>
-        {importMutation.isPending ? 'Importando…' : 'Importar CSV'}
+        {importMutation.isPending ? t.csv.importing : t.csv.import}
       </label>
       {importMutation.isSuccess && (
         <p className="import-report" role="status">
-          {importMutation.data.imported === 1
-            ? '1 transação importada.'
-            : `${importMutation.data.imported} transações importadas.`}
+          {t.csv.imported(importMutation.data.imported)}
         </p>
       )}
       {error instanceof CsvImportError && (
         <div className="import-report form-error" role="alert">
-          <p>Nada foi importado. Corrija o arquivo e envie de novo:</p>
+          <p>{t.csv.nothingImported}</p>
           <ul>
             {error.errors.map((rowError, index) => (
               <li key={index}>
-                Linha {rowError.line}
-                {rowError.column ? ` (${rowError.column})` : ''}: {rowError.message}
+                {t.csv.rowError(rowError.line, rowError.column, rowError.message)}
               </li>
             ))}
           </ul>
           {error.errorCount > error.errors.length && (
-            <p>…e mais {error.errorCount - error.errors.length} erro(s).</p>
+            <p>{t.csv.moreErrors(error.errorCount - error.errors.length)}</p>
           )}
         </div>
       )}
       {error && !(error instanceof CsvImportError) && (
         <p className="import-report form-error" role="alert">
-          Falha ao importar o arquivo. Tente de novo.
+          {t.csv.importError}
         </p>
       )}
     </>

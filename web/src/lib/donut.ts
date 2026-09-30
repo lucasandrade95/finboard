@@ -1,3 +1,4 @@
+import { compareText, t } from '../i18n'
 import type { CategoryTotal } from './api'
 
 // Geometria do donut. Fica fora do componente para ser testável sem renderizar SVG.
@@ -9,7 +10,7 @@ export const DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS
 
 // Acima disso o gráfico vira confete: as menores viram uma fatia "outras".
 export const MAX_SLICES = 6
-export const OTHERS_LABEL = 'outras'
+export const OTHERS_LABEL = t.donut.others
 
 const PALETTE = ['#2563eb', '#0891b2', '#7c3aed', '#db2777', '#ea580c', '#65a30d']
 const FALLBACK_COLOR = '#94a3b8'
@@ -44,7 +45,7 @@ export function buildDonutSlices(items: CategoryTotal[]): DonutSlice[] {
 
   // Não depende da ordem da API: ordena aqui para o agrupamento em "outras" ser previsível.
   const ordered = [...positives].sort(
-    (a, b) => b.totalCents - a.totalCents || a.category.localeCompare(b.category, 'pt-BR'),
+    (a, b) => b.totalCents - a.totalCents || compareText(a.category, b.category),
   )
   const visible =
     ordered.length > MAX_SLICES

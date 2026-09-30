@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { formatBRL, type DailyBalance } from '../lib/api'
 import {
   buildBalanceLine,
@@ -18,11 +19,11 @@ export function BalanceLineChart({ data, loading }: BalanceLineChartProps) {
 
   return (
     <section className="balance-line card" aria-busy={loading}>
-      <h2>Evolução do saldo no mês</h2>
+      <h2>{t.balanceLine.title}</h2>
       {loading ? (
-        <Skeleton shape="chart" lines={1} label="Carregando evolução do saldo…" />
+        <Skeleton shape="chart" lines={1} label={t.balanceLine.loading} />
       ) : !chart ? (
-        <p className="list-empty">Sem dados para este mês.</p>
+        <p className="list-empty">{t.balanceLine.empty}</p>
       ) : (
         <>
           {/* O SVG é decorativo: os mesmos números estão no resumo em texto abaixo. */}
@@ -50,17 +51,17 @@ export function BalanceLineChart({ data, loading }: BalanceLineChartProps) {
           </div>
           <dl className="line-summary">
             <div>
-              <dt>Saldo no fim do mês</dt>
+              <dt>{t.balanceLine.endOfMonth}</dt>
               <dd className={chart.last.balanceCents < 0 ? 'negative' : 'positive'}>
                 {formatBRL(chart.last.balanceCents)}
               </dd>
             </div>
             <div>
-              <dt>Pico ({formatDayLabel(chart.highest.date)})</dt>
+              <dt>{t.balanceLine.highest(formatDayLabel(chart.highest.date))}</dt>
               <dd>{formatBRL(chart.highest.balanceCents)}</dd>
             </div>
             <div>
-              <dt>Fundo ({formatDayLabel(chart.lowest.date)})</dt>
+              <dt>{t.balanceLine.lowest(formatDayLabel(chart.lowest.date))}</dt>
               <dd>{formatBRL(chart.lowest.balanceCents)}</dd>
             </div>
           </dl>

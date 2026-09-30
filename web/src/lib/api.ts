@@ -1,3 +1,4 @@
+import { locale, t } from '../i18n'
 import { getToken, setToken } from './auth'
 
 export type TransactionType = 'income' | 'expense'
@@ -145,7 +146,7 @@ export class CsvImportError extends Error {
 
 export const PAGE_SIZE = 20
 
-const brlFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+const brlFormatter = new Intl.NumberFormat(locale, { style: 'currency', currency: 'BRL' })
 
 export function formatBRL(cents: number): string {
   return brlFormatter.format(cents / 100)
@@ -216,13 +217,13 @@ async function authenticate(path: string, email: string, password: string): Prom
     return response.json() as Promise<AuthSession>
   }
   if (response.status === 401) {
-    throw new Error('E-mail ou senha inválidos.')
+    throw new Error(t.auth.invalidCredentials)
   }
   if (response.status === 409) {
-    throw new Error('Já existe uma conta com esse e-mail.')
+    throw new Error(t.auth.emailTaken)
   }
   if (response.status === 400) {
-    throw new Error('Informe um e-mail válido e uma senha de 8 a 128 caracteres.')
+    throw new Error(t.auth.invalidInput)
   }
   throw new Error(`API ${response.status}: ${await response.text()}`)
 }

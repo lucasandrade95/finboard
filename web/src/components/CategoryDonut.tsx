@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { formatBRL, type ExpensesByCategory } from '../lib/api'
 import {
   buildDonutSlices,
@@ -20,11 +21,11 @@ export function CategoryDonut({ data, loading }: CategoryDonutProps) {
 
   return (
     <section className="category-donut card" aria-busy={loading}>
-      <h2>Despesas por categoria</h2>
+      <h2>{t.donut.title}</h2>
       {loading ? (
-        <Skeleton shape="circle" lines={1} label="Carregando despesas por categoria…" />
+        <Skeleton shape="circle" lines={1} label={t.donut.loading} />
       ) : slices.length === 0 ? (
-        <p className="list-empty">Nenhuma despesa neste mês.</p>
+        <p className="list-empty">{t.donut.empty}</p>
       ) : (
         <div className="donut-body">
           {/* O SVG é decorativo: a legenda ao lado carrega os mesmos números em texto. */}
@@ -52,7 +53,7 @@ export function CategoryDonut({ data, loading }: CategoryDonutProps) {
               ))}
             </g>
             <text className="donut-label" x={DONUT_CENTER} y={DONUT_CENTER - 4}>
-              Total
+              {t.donut.total}
             </text>
             <text className="donut-total" x={DONUT_CENTER} y={DONUT_CENTER + 16}>
               {formatBRL(data?.totalCents ?? 0)}

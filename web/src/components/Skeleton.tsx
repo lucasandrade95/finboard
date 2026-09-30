@@ -1,3 +1,5 @@
+import { t } from '../i18n'
+
 export type SkeletonShape = 'text' | 'chart' | 'circle' | 'value'
 
 interface SkeletonProps {
@@ -20,7 +22,7 @@ interface SkeletonProps {
  *
  * Tudo em `<span>` para o bloco ser válido dentro de `<p>` também.
  */
-export function Skeleton({ lines = 3, shape = 'text', label = 'Carregando…' }: SkeletonProps) {
+export function Skeleton({ lines = 3, shape = 'text', label = t.common.loading }: SkeletonProps) {
   return (
     <span className={`skeleton skeleton-${shape}`} role="status">
       <span className="visually-hidden">{label}</span>

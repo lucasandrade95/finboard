@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { t } from '../i18n'
 import { api } from '../lib/api'
 
 interface ExportCsvButtonProps {
@@ -41,11 +42,11 @@ export function ExportCsvButton({ month }: ExportCsvButtonProps) {
         disabled={pending}
         onClick={() => void handleClick()}
       >
-        {pending ? 'Exportando…' : 'Exportar CSV'}
+        {pending ? t.csv.exporting : t.csv.export}
       </button>
       {failed && (
         <p className="import-report form-error" role="alert">
-          Falha ao exportar o CSV. Tente de novo.
+          {t.csv.exportError}
         </p>
       )}
     </>
