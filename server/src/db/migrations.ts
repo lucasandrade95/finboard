@@ -171,6 +171,26 @@ export const MIGRATIONS: readonly Migration[] = [
       }
     },
   },
+  {
+    id: 9,
+    name: 'create_categories',
+    up: (db) => {
+      // As transações continuam guardando o nome da categoria em texto: o catálogo
+      // dá cor e ícone a esses nomes sem exigir migrar cada lançamento para uma FK.
+      // O UNIQUE com NOCASE impede "Mercado" e "mercado" lado a lado na mesma conta.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS categories (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id),
+          name TEXT NOT NULL COLLATE NOCASE,
+          color TEXT NOT NULL,
+          icon TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (user_id, name)
+        );
+      `)
+    },
+  },
 ]
 
 /**

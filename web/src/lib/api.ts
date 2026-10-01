@@ -35,6 +35,25 @@ export interface CategoryList {
   categories: string[]
 }
 
+/** Categoria do catálogo da conta: o `name` é o mesmo texto gravado na transação. */
+export interface Category {
+  id: number
+  name: string
+  color: string
+  icon: string | null
+  createdAt: string
+}
+
+export interface CategoryCatalog {
+  items: Category[]
+}
+
+export interface CreateCategoryInput {
+  name: string
+  color: string
+  icon?: string | null
+}
+
 export interface MonthlySummary {
   incomeCents: number
   expenseCents: number
@@ -300,6 +319,12 @@ export const api = {
   },
   listCategories: (month: string) =>
     request<CategoryList>(`/api/categories?month=${month}`).then((data) => data.categories),
+  listCategoryCatalog: () =>
+    request<CategoryCatalog>('/api/categories/catalog').then((data) => data.items),
+  createCategory: (input: CreateCategoryInput) =>
+    request<Category>('/api/categories/catalog', { method: 'POST', body: JSON.stringify(input) }),
+  deleteCategory: (id: number) =>
+    request<void>(`/api/categories/catalog/${id}`, { method: 'DELETE' }),
   getSummary: (month: string) => request<MonthlySummary>(`/api/summary?month=${month}`),
   getExpensesByCategory: (month: string) =>
     request<ExpensesByCategory>(`/api/expenses-by-category?month=${month}`),

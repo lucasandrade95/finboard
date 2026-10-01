@@ -1,6 +1,7 @@
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   api,
+  type CreateCategoryInput,
   type CreateGoalInput,
   type CreateTransactionInput,
   type TransactionFilters,
@@ -21,6 +22,34 @@ export function useCategories(month: string) {
   return useQuery({
     queryKey: ['categories', month],
     queryFn: () => api.listCategories(month),
+  })
+}
+
+// Catálogo não depende do mês: chave fixa, invalidada só pelas próprias mutações.
+export function useCategoryCatalog() {
+  return useQuery({
+    queryKey: ['category-catalog'],
+    queryFn: () => api.listCategoryCatalog(),
+  })
+}
+
+export function useCreateCategory() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CreateCategoryInput) => api.createCategory(input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['category-catalog'] })
+    },
+  })
+}
+
+export function useDeleteCategory() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.deleteCategory(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['category-catalog'] })
+    },
   })
 }
 

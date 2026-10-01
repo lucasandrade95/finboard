@@ -1,17 +1,20 @@
 import { useState, type FormEvent } from 'react'
 import { useCreateTransaction } from '../hooks/use-finance'
 import { t } from '../i18n'
-import { parseReaisToCents, type TransactionType } from '../lib/api'
+import { parseReaisToCents, type Category, type TransactionType } from '../lib/api'
 
 function today(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
 interface TransactionFormProps {
+  /** Nomes já usados no mês: sugestões do campo livre quando não há catálogo. */
   categories?: string[]
+  /** Catálogo da conta: com pelo menos uma categoria cadastrada, o campo vira select. */
+  catalog?: Category[]
 }
 
-export function TransactionForm({ categories = [] }: TransactionFormProps) {
+export function TransactionForm({ categories = [], catalog = [] }: TransactionFormProps) {
   const [type, setType] = useState<TransactionType>('expense')
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
@@ -91,19 +94,33 @@ export function TransactionForm({ categories = [] }: TransactionFormProps) {
         </label>
         <label>
           {t.common.category}
-          {/* datalist sugere as categorias já usadas sem impedir digitar uma nova. */}
-          <input
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder={t.common.categoryPlaceholder}
-            maxLength={50}
-            list="category-suggestions"
-          />
-          <datalist id="category-suggestions">
-            {categories.map((option) => (
-              <option key={option} value={option} />
-            ))}
-          </datalist>
+          {catalog.length > 0 ? (
+            // Valor vazio cai no default `geral` do server, igual ao campo livre em branco.
+            <select value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option value="">{t.transactionForm.defaultCategory}</option>
+              {catalog.map((option) => (
+                <option key={option.id} value={option.name}>
+                  {option.icon ? `${option.icon} ${option.name}` : option.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <>
+              {/* datalist sugere as categorias já usadas sem impedir digitar uma nova. */}
+              <input
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder={t.common.categoryPlaceholder}
+                maxLength={50}
+                list="category-suggestions"
+              />
+              <datalist id="category-suggestions">
+                {categories.map((option) => (
+                  <option key={option} value={option} />
+                ))}
+              </datalist>
+            </>
+          )}
         </label>
         <label>
           {t.common.date}

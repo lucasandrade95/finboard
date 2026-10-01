@@ -520,3 +520,84 @@ export const goalDocs = {
     response: { 204: noContent, 401: unauthorized, 404: notFound },
   } satisfies FastifySchema,
 }
+
+const category = {
+  type: 'object',
+  properties: {
+    id: { type: 'integer' },
+    name: { type: 'string', example: 'mercado' },
+    color: { type: 'string', pattern: '^#[0-9a-f]{6}$', example: '#16a34a' },
+    icon: { type: ['string', 'null'], example: '🛒' },
+    createdAt: { type: 'string' },
+  },
+}
+
+const categoryBody = {
+  type: 'object',
+  required: ['name', 'color'],
+  properties: {
+    name: { type: 'string', minLength: 1, maxLength: 50 },
+    color: { type: 'string', pattern: '^#[0-9a-fA-F]{6}$', description: 'Hex #rrggbb' },
+    icon: { type: ['string', 'null'], maxLength: 8, default: null },
+  },
+}
+
+const categoryExists = errorResponse(
+  'Já existe categoria com esse nome na conta',
+  'category_exists',
+)
+
+export const categoryDocs = {
+  list: {
+    ...authenticated,
+    tags: ['categorias'],
+    summary: 'Catálogo de categorias',
+    description: 'Categorias cadastradas pela conta, com cor e ícone, em ordem alfabética.',
+    response: {
+      200: {
+        description: 'Categorias da conta',
+        type: 'object',
+        properties: { items: { type: 'array', items: category } },
+      },
+      401: unauthorized,
+    },
+  } satisfies FastifySchema,
+
+  create: {
+    ...authenticated,
+    tags: ['categorias'],
+    summary: 'Cadastra categoria',
+    body: categoryBody,
+    response: {
+      201: { description: 'Categoria criada', ...category },
+      400: validationError,
+      401: unauthorized,
+      409: categoryExists,
+    },
+  } satisfies FastifySchema,
+
+  update: {
+    ...authenticated,
+    tags: ['categorias'],
+    summary: 'Atualiza categoria',
+    description: 'Renomear propaga o novo nome para as transações e o orçamento da categoria.',
+    params: { type: 'object', properties: { id: { type: 'integer' } } },
+    body: categoryBody,
+    response: {
+      200: { description: 'Categoria atualizada', ...category },
+      400: validationError,
+      401: unauthorized,
+      404: notFound,
+      409: categoryExists,
+    },
+  } satisfies FastifySchema,
+
+  remove: {
+    ...authenticated,
+    tags: ['categorias'],
+    summary: 'Remove categoria do catálogo',
+    description: 'As transações mantêm o nome; ele só deixa de ter cor e ícone.',
+    params: { type: 'object', properties: { id: { type: 'integer' } } },
+    response: { 204: noContent, 401: unauthorized, 404: notFound },
+  } satisfies FastifySchema,
+}

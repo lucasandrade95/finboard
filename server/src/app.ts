@@ -12,6 +12,8 @@ import { UsersRepository } from './modules/auth/repository.js'
 import { registerAuthRoutes } from './modules/auth/routes.js'
 import { BudgetsRepository } from './modules/budgets/repository.js'
 import { registerBudgetRoutes } from './modules/budgets/routes.js'
+import { CategoriesRepository } from './modules/categories/repository.js'
+import { registerCategoryRoutes } from './modules/categories/routes.js'
 import { GoalsRepository } from './modules/goals/repository.js'
 import { registerGoalRoutes } from './modules/goals/routes.js'
 import { TransactionsRepository } from './modules/transactions/repository.js'
@@ -135,6 +137,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   registerTransactionRoutes(app, repository)
   registerBudgetRoutes(app, new BudgetsRepository(db))
   registerGoalRoutes(app, new GoalsRepository(db))
+  registerCategoryRoutes(app, new CategoriesRepository(db))
 
   // Uma passada por dono: cada conta tem as próprias séries recorrentes.
   const month = options.recurringMonth ?? currentMonth()

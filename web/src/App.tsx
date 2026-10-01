@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { AuthScreen } from './components/AuthScreen'
 import { BalanceLineChart } from './components/BalanceLineChart'
 import { BudgetPanel } from './components/BudgetPanel'
+import { CategoriesPanel } from './components/CategoriesPanel'
 import { CategoryDonut } from './components/CategoryDonut'
 import { CategoryFilter } from './components/CategoryFilter'
 import { ExportCsvButton } from './components/ExportCsvButton'
@@ -19,6 +20,7 @@ import { useDebouncedValue } from './hooks/use-debounced-value'
 import {
   useBudgets,
   useCategories,
+  useCategoryCatalog,
   useDailyBalance,
   useExpensesByCategory,
   useGoals,
@@ -71,6 +73,7 @@ function Dashboard() {
   const dailyBalance = useDailyBalance(month)
   const budgets = useBudgets(month)
   const goals = useGoals()
+  const catalog = useCategoryCatalog()
   const categoryOptions = categories.data ?? []
 
   // Excluir o último item de uma página deixa a página além do total: volta para a última válida.
@@ -133,7 +136,8 @@ function Dashboard() {
         <CategoryDonut data={expensesByCategory.data} loading={expensesByCategory.isPending} />
         <BudgetPanel data={budgets.data} loading={budgets.isPending} categories={categoryOptions} />
         <GoalsPanel goals={goals.data} loading={goals.isPending} />
-        <TransactionForm categories={categoryOptions} />
+        <CategoriesPanel categories={catalog.data} loading={catalog.isPending} />
+        <TransactionForm categories={categoryOptions} catalog={catalog.data} />
         <div className="list-toolbar">
           <SearchFilter value={search} onChange={setSearch} />
           <TypeFilter value={type} onChange={handleTypeChange} />

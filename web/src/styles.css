@@ -345,14 +345,16 @@ input:focus-visible + .import-csv {
 .balance-line,
 .category-donut,
 .budget-panel,
-.goals-panel {
+.goals-panel,
+.categories-panel {
   margin-bottom: 1.5rem;
 }
 
 .balance-line h2,
 .category-donut h2,
 .budget-panel h2,
-.goals-panel h2 {
+.goals-panel h2,
+.categories-panel h2 {
   font-size: 0.8rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -1054,4 +1056,32 @@ main:focus {
     animation: none;
     background: var(--skeleton);
   }
+}
+
+.category-list {
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.category-item {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.category-swatch {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.category-name {
+  font-weight: 600;
+  /* Sem ícone a coluna dele some e o nome ocupa o espaço. */
+  grid-column: 3;
 }
