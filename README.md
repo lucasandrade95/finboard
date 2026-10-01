@@ -91,6 +91,10 @@ Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento Op
 | GET    | `/api/transactions/export.csv`     | Exporta as transações do mês em CSV (`month` obrigatório; `;` + vírgula decimal + BOM, abre direto no Excel pt-BR)                   |
 | POST   | `/api/transactions/import`         | Importa CSV no formato do export (corpo `text/csv`; 201 `{ imported }`; tudo ou nada — 400 `invalid_csv` com erros por linha/coluna) |
 | GET    | `/api/categories?month=`           | Categorias distintas usadas no período (`{ categories: string[] }`)                                                                  |
+| GET    | `/api/categories/catalog`          | Catálogo de categorias da conta (`{ items }`: `name`, `color` #rrggbb, `icon` opcional), em ordem alfabética                         |
+| POST   | `/api/categories/catalog`          | Cadastra categoria (201; 409 `category_exists` se o nome já existe na conta, sem diferenciar maiúsculas)                             |
+| PUT    | `/api/categories/catalog/:id`      | Atualiza categoria; renomear leva o nome novo para as transações e o orçamento da conta (404/409)                                    |
+| DELETE | `/api/categories/catalog/:id`      | Remove do catálogo (204); as transações mantêm o nome                                                                                |
 | GET    | `/api/daily-balance?month=`        | Saldo acumulado dia a dia do mês (`month` obrigatório; um ponto por dia, inclusive dias sem movimento)                               |
 | GET    | `/api/summary?month=`              | Receitas, despesas e saldo do período (com `month`, inclui `previous` com o resumo do mês anterior)                                  |
 | GET    | `/api/expenses-by-category?month=` | Total de despesas por categoria, maior primeiro (`{ items, totalCents }`)                                                            |
@@ -140,7 +144,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] CI: job de typecheck dos testes do server (tsc --noEmit incluindo test/)
 - [x] Acessibilidade: navegação por teclado + aria-labels auditados
 - [x] i18n preparada (strings centralizadas, pt-BR default)
-- [ ] Categorias como entidade (tabela categories: nome, cor, ícone) + CRUD e select no formulário
+- [x] Categorias como entidade (tabela categories: nome, cor, ícone) + CRUD e select no formulário
 - [ ] Contas/carteiras (tabela accounts) e saldo por conta no summary
 - [ ] Transferência entre contas (par de lançamentos vinculados, fora de receita/despesa)
 - [ ] Tags livres nas transações (N:N) + filtro por tag
