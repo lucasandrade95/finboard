@@ -76,6 +76,8 @@ describe('documento OpenAPI', () => {
       '/api/transactions/export.csv',
       '/api/transactions/import',
       '/api/categories',
+      '/api/categories/catalog',
+      '/api/categories/catalog/{id}',
       '/api/daily-balance',
       '/api/summary',
       '/api/expenses-by-category',

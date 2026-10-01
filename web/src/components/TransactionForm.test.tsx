@@ -3,16 +3,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { delay, http, HttpResponse, type JsonBodyType } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { Category } from '../lib/api'
 import { pathOf, recordRequests, server } from '../test/msw'
 import { TransactionForm } from './TransactionForm'
 
-function renderForm(categories?: string[]) {
+function renderForm(categories?: string[], catalog?: Category[]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   return render(
     <QueryClientProvider client={queryClient}>
-      <TransactionForm categories={categories} />
+      <TransactionForm categories={categories} catalog={catalog} />
     </QueryClientProvider>,
   )
 }
@@ -78,6 +79,37 @@ describe('TransactionForm', () => {
     const input = screen.getByLabelText('Categoria') as HTMLInputElement
     expect(input.tagName).toBe('INPUT')
     expect(input.value).toBe('')
+  })
+
+  describe('com catálogo de categorias', () => {
+    const catalog: Category[] = [
+      { id: 1, name: 'mercado', color: '#16a34a', icon: '🛒', createdAt: '2026-10-01' },
+      { id: 2, name: 'saúde', color: '#dc2626', icon: null, createdAt: '2026-10-01' },
+    ]
+
+    it('troca o campo livre por um select com as categorias cadastradas', () => {
+      const { container } = renderForm(['usada no mês'], catalog)
+
+      const select = screen.getByLabelText('Categoria') as HTMLSelectElement
+      expect(select.tagName).toBe('SELECT')
+      expect([...select.options].map((option) => [option.value, option.textContent])).toEqual([
+        ['', 'geral (padrão)'],
+        ['mercado', '🛒 mercado'],
+        ['saúde', 'saúde'],
+      ])
+      expect(container.querySelector('datalist')).toBeNull()
+    })
+
+    it('envia o nome da categoria escolhida no select', async () => {
+      const requests = mockCreate(201, { id: 1 })
+      renderForm([], catalog)
+
+      fillForm({ category: 'saúde' })
+      submit()
+
+      await vi.waitFor(() => expect(requests).toHaveLength(1))
+      expect((await postedBody(requests)).category).toBe('saúde')
+    })
   })
 
   it('oferece o checkbox de recorrência desmarcado por padrão', () => {
