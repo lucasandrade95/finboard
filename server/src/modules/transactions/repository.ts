@@ -9,6 +9,7 @@ export interface TransactionRecord {
   category: string
   occurredOn: string
   recurring: boolean
+  accountId: number | null
   createdAt: string
 }
 
@@ -74,6 +75,7 @@ interface TransactionRow {
   category: string
   occurred_on: string
   recurring: 0 | 1
+  account_id: number | null
   created_at: string
 }
 
@@ -109,6 +111,7 @@ function toRecord(row: TransactionRow): TransactionRecord {
     category: row.category,
     occurredOn: row.occurred_on,
     recurring: row.recurring === 1,
+    accountId: row.account_id,
     createdAt: row.created_at,
   }
 }
@@ -125,11 +128,18 @@ export class TransactionsRepository {
   create(userId: number, input: CreateTransactionInput): TransactionRecord {
     const result = this.db
       .prepare(
-        `INSERT INTO transactions (user_id, type, description, amount_cents, category, occurred_on, recurring)
-         VALUES (@userId, @type, @description, @amountCents, @category, @occurredOn, @recurring)`,
+        `INSERT INTO transactions
+           (user_id, type, description, amount_cents, category, occurred_on, recurring, account_id)
+         VALUES
+           (@userId, @type, @description, @amountCents, @category, @occurredOn, @recurring, @accountId)`,
       )
       // better-sqlite3 não aceita boolean como parâmetro: converte para 0/1.
-      .run({ ...input, userId, recurring: input.recurring ? 1 : 0 })
+      .run({
+        ...input,
+        userId,
+        recurring: input.recurring ? 1 : 0,
+        accountId: input.accountId ?? null,
+      })
     const created = this.findById(userId, Number(result.lastInsertRowid))
     if (!created) {
       throw new Error('transação recém-criada não encontrada')
@@ -160,14 +170,24 @@ export class TransactionsRepository {
     id: number,
     input: UpdateTransactionInput,
   ): TransactionRecord | undefined {
+    // `accountId` omitido mantém a conta atual; só `null` explícito desvincula.
+    const { accountId, ...fields } = input
+    const keepAccount = accountId === undefined
     const result = this.db
       .prepare(
         `UPDATE transactions
          SET type = @type, description = @description, amount_cents = @amountCents,
-             category = @category, occurred_on = @occurredOn, recurring = @recurring
+             category = @category, occurred_on = @occurredOn, recurring = @recurring,
+             account_id = ${keepAccount ? 'account_id' : '@accountId'}
          WHERE id = @id AND user_id = @userId`,
       )
-      .run({ ...input, id, userId, recurring: input.recurring ? 1 : 0 })
+      .run({
+        ...fields,
+        id,
+        userId,
+        recurring: input.recurring ? 1 : 0,
+        ...(keepAccount ? {} : { accountId }),
+      })
     return result.changes > 0 ? this.findById(userId, id) : undefined
   }
 
@@ -385,6 +405,8 @@ export class TransactionsRepository {
             category: template.category,
             occurredOn: dayKey(month, day),
             recurring: true,
+            // A cópia do mês cai na mesma conta da série (aluguel sai sempre da corrente).
+            accountId: template.account_id,
           }),
         )
       }

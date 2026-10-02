@@ -30,6 +30,7 @@ export async function registerOpenApi(app: FastifyInstance): Promise<void> {
         { name: 'orçamentos', description: 'Teto mensal por categoria e gasto acumulado' },
         { name: 'metas', description: 'Metas de economia e aportes' },
         { name: 'categorias', description: 'Catálogo de categorias com cor e ícone' },
+        { name: 'contas', description: 'Contas/carteiras e saldo por conta' },
       ],
       components: {
         securitySchemes: {

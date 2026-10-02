@@ -209,6 +209,7 @@ export function buildDemoData(today: string): DemoData {
           category: entry.category,
           occurredOn: isoDay(month, entry.day),
           recurring,
+          accountId: null,
         })
       }
     }

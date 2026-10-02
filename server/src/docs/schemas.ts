@@ -76,6 +76,7 @@ const transaction = {
     category: { type: 'string', example: 'mercado' },
     occurredOn: { type: 'string', pattern: DATE_PATTERN, example: '2026-09-18' },
     recurring: { type: 'boolean', description: 'Série que ganha cópia mensal no boot da API' },
+    accountId: { type: ['integer', 'null'], description: 'Conta/carteira; null = sem conta' },
     createdAt: { type: 'string', example: '2026-09-18 12:00:00' },
   },
 }
@@ -90,6 +91,12 @@ const transactionBody = {
     category: { type: 'string', minLength: 1, maxLength: 50, default: 'geral' },
     occurredOn: { type: 'string', pattern: DATE_PATTERN },
     recurring: { type: 'boolean', default: false },
+    accountId: {
+      type: ['integer', 'null'],
+      description:
+        'Conta do próprio usuário (senão 400 em `accountId`). Na criação o padrão é null; ' +
+        'na edição, omitir mantém a conta atual.',
+    },
   },
 }
 
@@ -380,7 +387,9 @@ export const transactionDocs = {
     ...authenticated,
     tags: ['transações'],
     summary: 'Receitas, despesas e saldo do período',
-    description: 'Com `month`, inclui `previous` com o resumo do mês anterior para comparação.',
+    description:
+      'Com `month`, inclui `previous` com o resumo do mês anterior para comparação. ' +
+      '`accounts` traz o saldo acumulado de cada conta até o fim do mês (ou até hoje, sem `month`).',
     querystring: { type: 'object', properties: { month: monthParam } },
     response: {
       200: {
@@ -392,6 +401,18 @@ export const transactionDocs = {
             type: 'object',
             description: 'Só quando o resumo é de um mês específico',
             properties: { month: { type: 'string', pattern: MONTH_PATTERN }, ...monthlySummary },
+          },
+          accounts: {
+            type: 'array',
+            description: 'Saldo por conta: saldo inicial + lançamentos até o fim do período',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'integer' },
+                name: { type: 'string', example: 'Conta corrente' },
+                balanceCents: { type: 'integer' },
+              },
+            },
           },
         },
       },
@@ -597,6 +618,82 @@ export const categoryDocs = {
     tags: ['categorias'],
     summary: 'Remove categoria do catálogo',
     description: 'As transações mantêm o nome; ele só deixa de ter cor e ícone.',
+    params: { type: 'object', properties: { id: { type: 'integer' } } },
+    response: { 204: noContent, 401: unauthorized, 404: notFound },
+  } satisfies FastifySchema,
+}
+
+const account = {
+  type: 'object',
+  properties: {
+    id: { type: 'integer' },
+    name: { type: 'string', example: 'Conta corrente' },
+    openingBalanceCents: { type: 'integer', description: 'Saldo de partida; pode ser negativo' },
+    balanceCents: { type: 'integer', description: 'Saldo inicial + todos os lançamentos da conta' },
+    createdAt: { type: 'string' },
+  },
+}
+
+const accountBody = {
+  type: 'object',
+  required: ['name'],
+  properties: {
+    name: { type: 'string', minLength: 1, maxLength: 50 },
+    openingBalanceCents: { type: 'integer', default: 0 },
+  },
+}
+
+const accountExists = errorResponse('Já existe conta com esse nome', 'account_exists')
+
+export const accountDocs = {
+  list: {
+    ...authenticated,
+    tags: ['contas'],
+    summary: 'Contas/carteiras com saldo atual',
+    description: 'Em ordem alfabética. O saldo é calculado na leitura, nunca gravado.',
+    response: {
+      200: {
+        description: 'Contas do usuário',
+        type: 'object',
+        properties: { items: { type: 'array', items: account } },
+      },
+      401: unauthorized,
+    },
+  } satisfies FastifySchema,
+
+  create: {
+    ...authenticated,
+    tags: ['contas'],
+    summary: 'Cadastra conta',
+    body: accountBody,
+    response: {
+      201: { description: 'Conta criada', ...account },
+      400: validationError,
+      401: unauthorized,
+      409: accountExists,
+    },
+  } satisfies FastifySchema,
+
+  update: {
+    ...authenticated,
+    tags: ['contas'],
+    summary: 'Renomeia conta ou ajusta o saldo inicial',
+    params: { type: 'object', properties: { id: { type: 'integer' } } },
+    body: accountBody,
+    response: {
+      200: { description: 'Conta atualizada', ...account },
+      400: validationError,
+      401: unauthorized,
+      404: notFound,
+      409: accountExists,
+    },
+  } satisfies FastifySchema,
+
+  remove: {
+    ...authenticated,
+    tags: ['contas'],
+    summary: 'Remove conta',
+    description: 'Os lançamentos da conta não são apagados: passam a ficar sem conta.',
     params: { type: 'object', properties: { id: { type: 'integer' } } },
     response: { 204: noContent, 401: unauthorized, 404: notFound },
   } satisfies FastifySchema,

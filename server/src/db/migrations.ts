@@ -191,6 +191,31 @@ export const MIGRATIONS: readonly Migration[] = [
       `)
     },
   },
+  {
+    id: 10,
+    name: 'create_accounts',
+    up: (db) => {
+      // Saldo inicial pode ser negativo (cartão já devendo, cheque especial): sem CHECK
+      // de sinal. O saldo atual não é coluna — sai da soma dos lançamentos da conta.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS accounts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id),
+          name TEXT NOT NULL COLLATE NOCASE,
+          opening_balance_cents INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (user_id, name)
+        );
+      `)
+      if (!hasColumn(db, 'transactions', 'account_id')) {
+        // Anulável: lançamento antigo (e quem não usa contas) segue sem conta.
+        db.exec('ALTER TABLE transactions ADD COLUMN account_id INTEGER REFERENCES accounts(id)')
+      }
+      db.exec(
+        'CREATE INDEX IF NOT EXISTS idx_transactions_account ON transactions (account_id, occurred_on)',
+      )
+    },
+  },
 ]
 
 /**

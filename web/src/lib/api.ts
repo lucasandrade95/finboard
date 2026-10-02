@@ -21,6 +21,7 @@ export interface Transaction {
   category: string
   occurredOn: string
   recurring: boolean
+  accountId: number | null
   createdAt: string
 }
 
@@ -54,11 +55,37 @@ export interface CreateCategoryInput {
   icon?: string | null
 }
 
+/** Conta/carteira com o saldo atual (saldo inicial + todos os lançamentos dela). */
+export interface Account {
+  id: number
+  name: string
+  openingBalanceCents: number
+  balanceCents: number
+  createdAt: string
+}
+
+export interface AccountList {
+  items: Account[]
+}
+
+export interface CreateAccountInput {
+  name: string
+  openingBalanceCents?: number
+}
+
+/** Saldo de uma conta no fim do mês do resumo. */
+export interface AccountBalance {
+  id: number
+  name: string
+  balanceCents: number
+}
+
 export interface MonthlySummary {
   incomeCents: number
   expenseCents: number
   balanceCents: number
   previous?: PreviousMonthSummary
+  accounts?: AccountBalance[]
 }
 
 export interface PreviousMonthSummary {
@@ -134,6 +161,8 @@ export interface CreateTransactionInput {
   category?: string
   occurredOn: string
   recurring?: boolean
+  /** `null` desvincula; omitido na edição mantém a conta atual. */
+  accountId?: number | null
 }
 
 export interface TransactionFilters {
@@ -325,6 +354,10 @@ export const api = {
     request<Category>('/api/categories/catalog', { method: 'POST', body: JSON.stringify(input) }),
   deleteCategory: (id: number) =>
     request<void>(`/api/categories/catalog/${id}`, { method: 'DELETE' }),
+  listAccounts: () => request<AccountList>('/api/accounts').then((data) => data.items),
+  createAccount: (input: CreateAccountInput) =>
+    request<Account>('/api/accounts', { method: 'POST', body: JSON.stringify(input) }),
+  deleteAccount: (id: number) => request<void>(`/api/accounts/${id}`, { method: 'DELETE' }),
   getSummary: (month: string) => request<MonthlySummary>(`/api/summary?month=${month}`),
   getExpensesByCategory: (month: string) =>
     request<ExpensesByCategory>(`/api/expenses-by-category?month=${month}`),

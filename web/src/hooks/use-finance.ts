@@ -1,6 +1,7 @@
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   api,
+  type CreateAccountInput,
   type CreateCategoryInput,
   type CreateGoalInput,
   type CreateTransactionInput,
@@ -53,6 +54,37 @@ export function useDeleteCategory() {
   })
 }
 
+// Saldo da conta depende das transações: as mutações de transação também invalidam esta chave.
+export function useAccounts() {
+  return useQuery({
+    queryKey: ['accounts'],
+    queryFn: () => api.listAccounts(),
+  })
+}
+
+// Conta nova ou removida muda o saldo por conta do resumo: o summary entra junto.
+function invalidateAccountQueries(queryClient: QueryClient): void {
+  for (const key of ['accounts', 'summary', 'transactions']) {
+    void queryClient.invalidateQueries({ queryKey: [key] })
+  }
+}
+
+export function useCreateAccount() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CreateAccountInput) => api.createAccount(input),
+    onSuccess: () => invalidateAccountQueries(queryClient),
+  })
+}
+
+export function useDeleteAccount() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.deleteAccount(id),
+    onSuccess: () => invalidateAccountQueries(queryClient),
+  })
+}
+
 export function useExpensesByCategory(month: string) {
   return useQuery({
     queryKey: ['expenses-by-category', month],
@@ -90,6 +122,7 @@ function invalidateTransactionQueries(queryClient: QueryClient): void {
     'expenses-by-category',
     'daily-balance',
     'budgets',
+    'accounts',
   ]) {
     void queryClient.invalidateQueries({ queryKey: [key] })
   }

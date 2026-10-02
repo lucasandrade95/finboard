@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { AccountsPanel } from './components/AccountsPanel'
 import { AuthScreen } from './components/AuthScreen'
 import { BalanceLineChart } from './components/BalanceLineChart'
 import { BudgetPanel } from './components/BudgetPanel'
@@ -18,6 +19,7 @@ import { TypeFilter } from './components/TypeFilter'
 import { useToken } from './hooks/use-auth'
 import { useDebouncedValue } from './hooks/use-debounced-value'
 import {
+  useAccounts,
   useBudgets,
   useCategories,
   useCategoryCatalog,
@@ -74,6 +76,7 @@ function Dashboard() {
   const budgets = useBudgets(month)
   const goals = useGoals()
   const catalog = useCategoryCatalog()
+  const accounts = useAccounts()
   const categoryOptions = categories.data ?? []
 
   // Excluir o último item de uma página deixa a página além do total: volta para a última válida.
@@ -137,7 +140,12 @@ function Dashboard() {
         <BudgetPanel data={budgets.data} loading={budgets.isPending} categories={categoryOptions} />
         <GoalsPanel goals={goals.data} loading={goals.isPending} />
         <CategoriesPanel categories={catalog.data} loading={catalog.isPending} />
-        <TransactionForm categories={categoryOptions} catalog={catalog.data} />
+        <AccountsPanel accounts={accounts.data} loading={accounts.isPending} />
+        <TransactionForm
+          categories={categoryOptions}
+          catalog={catalog.data}
+          accounts={accounts.data}
+        />
         <div className="list-toolbar">
           <SearchFilter value={search} onChange={setSearch} />
           <TypeFilter value={type} onChange={handleTypeChange} />

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useCreateTransaction } from '../hooks/use-finance'
 import { t } from '../i18n'
-import { parseReaisToCents, type Category, type TransactionType } from '../lib/api'
+import { parseReaisToCents, type Account, type Category, type TransactionType } from '../lib/api'
 
 function today(): string {
   return new Date().toISOString().slice(0, 10)
@@ -12,15 +12,23 @@ interface TransactionFormProps {
   categories?: string[]
   /** Catálogo da conta: com pelo menos uma categoria cadastrada, o campo vira select. */
   catalog?: Category[]
+  /** Contas do usuário: com pelo menos uma cadastrada, aparece o select de conta. */
+  accounts?: Account[]
 }
 
-export function TransactionForm({ categories = [], catalog = [] }: TransactionFormProps) {
+export function TransactionForm({
+  categories = [],
+  catalog = [],
+  accounts = [],
+}: TransactionFormProps) {
   const [type, setType] = useState<TransactionType>('expense')
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState('')
   const [occurredOn, setOccurredOn] = useState(today)
   const [recurring, setRecurring] = useState(false)
+  // Texto do select: '' é "sem conta"; o id vira número só no envio.
+  const [accountId, setAccountId] = useState('')
   const [error, setError] = useState<string | null>(null)
   const createTransaction = useCreateTransaction()
 
@@ -48,6 +56,8 @@ export function TransactionForm({ categories = [], catalog = [] }: TransactionFo
         category: category.trim() || undefined,
         occurredOn,
         recurring,
+        // Sem contas cadastradas o campo nem existe: o corpo segue igual ao de antes.
+        ...(accounts.length > 0 ? { accountId: accountId ? Number(accountId) : null } : {}),
       },
       {
         onSuccess: () => {
@@ -131,6 +141,19 @@ export function TransactionForm({ categories = [], catalog = [] }: TransactionFo
             required
           />
         </label>
+        {accounts.length > 0 && (
+          <label>
+            {t.accounts.field}
+            <select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+              <option value="">{t.accounts.noAccount}</option>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="checkbox-label">
           <input
             type="checkbox"

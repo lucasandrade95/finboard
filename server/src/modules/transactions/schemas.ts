@@ -9,9 +9,15 @@ export const createTransactionSchema = z.object({
   category: z.string().trim().min(1).max(50).default('geral'),
   occurredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'data esperada no formato YYYY-MM-DD'),
   recurring: z.boolean().default(false),
+  // Conta/carteira do lançamento; `null` é "sem conta" (o padrão de quem não usa contas).
+  accountId: z.number().int().positive().nullable().default(null),
 })
 
-export const updateTransactionSchema = createTransactionSchema
+// Na edição, omitir `accountId` mantém a conta atual: cliente antigo que não conhece
+// o campo não desvincula o lançamento sem querer. `null` explícito desvincula.
+export const updateTransactionSchema = createTransactionSchema.extend({
+  accountId: z.number().int().positive().nullable().optional(),
+})
 
 export const idParamSchema = z.object({
   id: z.coerce.number().int().positive(),

@@ -1,4 +1,5 @@
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyReply } from 'fastify'
+import type { AccountsRepository } from '../accounts/repository.js'
 import { ownerId, protectedRoute } from '../auth/authenticate.js'
 import { parseTransactionsCsv, transactionsToCsv } from './csv.js'
 import { transactionDocs } from '../../docs/schemas.js'
@@ -16,10 +17,26 @@ import {
 // Um arquivo inteiro errado geraria milhares de linhas no relatório: a UI mostra as primeiras.
 const MAX_REPORTED_ERRORS = 50
 
+/**
+ * Conta inexistente ou de outro usuário vira erro de validação no campo, no mesmo
+ * formato do Zod: o formulário mostra a mensagem sem tratar um código à parte, e
+ * a resposta não distingue "não existe" de "é de outra pessoa".
+ */
+function sendUnknownAccount(reply: FastifyReply) {
+  return reply.code(400).send({
+    error: 'validation_error',
+    issues: [{ path: 'accountId', message: 'conta não encontrada' }],
+  })
+}
+
 export function registerTransactionRoutes(
   app: FastifyInstance,
   repository: TransactionsRepository,
+  accounts: AccountsRepository,
 ): void {
+  const ownsAccount = (userId: number, accountId: number | null | undefined) =>
+    accountId == null || accounts.belongsTo(userId, accountId)
+
   app.get(
     '/api/transactions',
     { ...protectedRoute, schema: transactionDocs.list },
@@ -84,6 +101,9 @@ export function registerTransactionRoutes(
     { ...protectedRoute, schema: transactionDocs.create },
     async (request, reply) => {
       const input = createTransactionSchema.parse(request.body)
+      if (!ownsAccount(ownerId(request), input.accountId)) {
+        return sendUnknownAccount(reply)
+      }
       const created = repository.create(ownerId(request), input)
       return reply.code(201).send(created)
     },
@@ -95,6 +115,9 @@ export function registerTransactionRoutes(
     async (request, reply) => {
       const { id } = idParamSchema.parse(request.params)
       const input = updateTransactionSchema.parse(request.body)
+      if (!ownsAccount(ownerId(request), input.accountId)) {
+        return sendUnknownAccount(reply)
+      }
       const updated = repository.updateById(ownerId(request), id, input)
       // Transação de outra conta cai aqui: o 404 não confirma que o id existe.
       if (!updated) {
@@ -148,7 +171,12 @@ export function registerTransactionRoutes(
     { ...protectedRoute, schema: transactionDocs.summary },
     async (request) => {
       const { month } = monthQuerySchema.parse(request.query)
-      return repository.summaryWithComparison(ownerId(request), month)
+      const userId = ownerId(request)
+      // Saldo por conta é acumulado (não só o mês): é quanto há em cada conta no fim do período.
+      return {
+        ...repository.summaryWithComparison(userId, month),
+        accounts: accounts.balances(userId, month),
+      }
     },
   )
 }

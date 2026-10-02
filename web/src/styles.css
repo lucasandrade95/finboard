@@ -346,7 +346,9 @@ input:focus-visible + .import-csv {
 .category-donut,
 .budget-panel,
 .goals-panel,
-.categories-panel {
+.categories-panel,
+.accounts-panel,
+.account-balances {
   margin-bottom: 1.5rem;
 }
 
@@ -354,7 +356,9 @@ input:focus-visible + .import-csv {
 .category-donut h2,
 .budget-panel h2,
 .goals-panel h2,
-.categories-panel h2 {
+.categories-panel h2,
+.accounts-panel h2,
+.account-balances h2 {
   font-size: 0.8rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -1084,4 +1088,34 @@ main:focus {
   font-weight: 600;
   /* Sem ícone a coluna dele some e o nome ocupa o espaço. */
   grid-column: 3;
+}
+
+.account-list {
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.accounts-panel .account-list {
+  margin-bottom: 1rem;
+}
+
+.account-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.account-name {
+  font-weight: 600;
+}
+
+.account-balance {
+  font-variant-numeric: tabular-nums;
+}
+
+.account-balance.negative {
+  color: var(--negative);
 }

@@ -8,6 +8,8 @@ import { DEV_JWT_SECRET } from './config.js'
 import { openDatabase } from './db/connection.js'
 import { registerOpenApi } from './docs/openapi.js'
 import { healthDocs } from './docs/schemas.js'
+import { AccountsRepository } from './modules/accounts/repository.js'
+import { registerAccountRoutes } from './modules/accounts/routes.js'
 import { UsersRepository } from './modules/auth/repository.js'
 import { registerAuthRoutes } from './modules/auth/routes.js'
 import { BudgetsRepository } from './modules/budgets/repository.js'
@@ -134,10 +136,12 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       ? undefined
       : { max: rateLimitSettings.authMax, timeWindow: rateLimitSettings.timeWindow },
   )
-  registerTransactionRoutes(app, repository)
+  const accounts = new AccountsRepository(db)
+  registerTransactionRoutes(app, repository, accounts)
   registerBudgetRoutes(app, new BudgetsRepository(db))
   registerGoalRoutes(app, new GoalsRepository(db))
   registerCategoryRoutes(app, new CategoriesRepository(db))
+  registerAccountRoutes(app, accounts)
 
   // Uma passada por dono: cada conta tem as próprias séries recorrentes.
   const month = options.recurringMonth ?? currentMonth()
