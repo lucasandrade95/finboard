@@ -85,7 +85,7 @@ Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento Op
 | POST   | `/api/auth/login`                  | Troca e-mail/senha por `{ user, token }` (401 `invalid_credentials`, igual para e-mail inexistente e senha errada)                   |
 | GET    | `/api/auth/me`                     | Usuário do token (`Authorization: Bearer <token>`; 401 sem token ou token inválido)                                                  |
 | GET    | `/api/transactions?month=`         | Lista paginada (`limit`/`offset`, filtros `type=`/`category=`, busca `q=` na descrição, devolve `{ items, total, limit, offset }`)   |
-| POST   | `/api/transactions`                | Cria transação (`amountCents` inteiro > 0; `recurring` marca a série para gerar cópia mensal no boot)                                |
+| POST   | `/api/transactions`                | Cria transação (`amountCents` inteiro > 0; `recurring` gera cópia mensal no boot; `accountId` opcional, da própria conta)            |
 | PUT    | `/api/transactions/:id`            | Atualiza transação (200; 404 se não existe)                                                                                          |
 | DELETE | `/api/transactions/:id`            | Exclui transação (204; 404 se não existe)                                                                                            |
 | GET    | `/api/transactions/export.csv`     | Exporta as transações do mês em CSV (`month` obrigatório; `;` + vírgula decimal + BOM, abre direto no Excel pt-BR)                   |
@@ -95,8 +95,12 @@ Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento Op
 | POST   | `/api/categories/catalog`          | Cadastra categoria (201; 409 `category_exists` se o nome já existe na conta, sem diferenciar maiúsculas)                             |
 | PUT    | `/api/categories/catalog/:id`      | Atualiza categoria; renomear leva o nome novo para as transações e o orçamento da conta (404/409)                                    |
 | DELETE | `/api/categories/catalog/:id`      | Remove do catálogo (204); as transações mantêm o nome                                                                                |
+| GET    | `/api/accounts`                    | Contas/carteiras do usuário (`{ items }`: `name`, `openingBalanceCents`, `balanceCents` atual), em ordem alfabética                  |
+| POST   | `/api/accounts`                    | Cadastra conta (`name`, `openingBalanceCents` opcional, pode ser negativo; 201; 409 `account_exists`)                                |
+| PUT    | `/api/accounts/:id`                | Renomeia conta ou ajusta o saldo inicial (404/409)                                                                                   |
+| DELETE | `/api/accounts/:id`                | Remove conta (204); os lançamentos dela ficam sem conta, nada é apagado                                                              |
 | GET    | `/api/daily-balance?month=`        | Saldo acumulado dia a dia do mês (`month` obrigatório; um ponto por dia, inclusive dias sem movimento)                               |
-| GET    | `/api/summary?month=`              | Receitas, despesas e saldo do período (com `month`, inclui `previous` com o resumo do mês anterior)                                  |
+| GET    | `/api/summary?month=`              | Receitas, despesas e saldo (com `month`, `previous` do mês anterior); `accounts`: saldo de cada conta no fim do período              |
 | GET    | `/api/expenses-by-category?month=` | Total de despesas por categoria, maior primeiro (`{ items, totalCents }`)                                                            |
 | GET    | `/api/budgets?month=`              | Orçamentos com gasto do mês por categoria (`month` obrigatório; `{ month, items: [{ category, budgetCents, spentCents }] }`)         |
 | PUT    | `/api/budgets/:category`           | Define/atualiza orçamento mensal da categoria (upsert; `{ amountCents }` inteiro > 0)                                                |
@@ -145,7 +149,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Acessibilidade: navegação por teclado + aria-labels auditados
 - [x] i18n preparada (strings centralizadas, pt-BR default)
 - [x] Categorias como entidade (tabela categories: nome, cor, ícone) + CRUD e select no formulário
-- [ ] Contas/carteiras (tabela accounts) e saldo por conta no summary
+- [x] Contas/carteiras (tabela accounts) e saldo por conta no summary
 - [ ] Transferência entre contas (par de lançamentos vinculados, fora de receita/despesa)
 - [ ] Tags livres nas transações (N:N) + filtro por tag
 - [ ] Compras parceladas (parcelamento gera N transações futuras vinculadas)
