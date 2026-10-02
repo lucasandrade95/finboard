@@ -3,17 +3,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { delay, http, HttpResponse, type JsonBodyType } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { Category } from '../lib/api'
+import type { Account, Category } from '../lib/api'
 import { pathOf, recordRequests, server } from '../test/msw'
 import { TransactionForm } from './TransactionForm'
 
-function renderForm(categories?: string[], catalog?: Category[]) {
+function renderForm(categories?: string[], catalog?: Category[], accounts?: Account[]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   return render(
     <QueryClientProvider client={queryClient}>
-      <TransactionForm categories={categories} catalog={catalog} />
+      <TransactionForm categories={categories} catalog={catalog} accounts={accounts} />
     </QueryClientProvider>,
   )
 }
@@ -109,6 +109,47 @@ describe('TransactionForm', () => {
 
       await vi.waitFor(() => expect(requests).toHaveLength(1))
       expect((await postedBody(requests)).category).toBe('saúde')
+    })
+  })
+
+  describe('com contas cadastradas', () => {
+    const accounts: Account[] = [
+      { id: 3, name: 'Corrente', openingBalanceCents: 0, balanceCents: 0, createdAt: '2026-10-02' },
+      { id: 5, name: 'Carteira', openingBalanceCents: 0, balanceCents: 0, createdAt: '2026-10-02' },
+    ]
+
+    it('não mostra o campo de conta para quem não cadastrou nenhuma', () => {
+      renderForm([])
+      expect(screen.queryByLabelText('Conta')).toBeNull()
+    })
+
+    it('oferece as contas com "Sem conta" como padrão e envia o id numérico', async () => {
+      const requests = mockCreate(201, { id: 1 })
+      renderForm([], [], accounts)
+
+      const select = screen.getByLabelText('Conta') as HTMLSelectElement
+      expect([...select.options].map((option) => option.textContent)).toEqual([
+        'Sem conta',
+        'Corrente',
+        'Carteira',
+      ])
+      fillForm()
+      fireEvent.change(select, { target: { value: '5' } })
+      submit()
+
+      await vi.waitFor(() => expect(requests).toHaveLength(1))
+      expect((await postedBody(requests)).accountId).toBe(5)
+    })
+
+    it('envia accountId null quando fica em "Sem conta"', async () => {
+      const requests = mockCreate(201, { id: 1 })
+      renderForm([], [], accounts)
+
+      fillForm()
+      submit()
+
+      await vi.waitFor(() => expect(requests).toHaveLength(1))
+      expect((await postedBody(requests)).accountId).toBeNull()
     })
   })
 

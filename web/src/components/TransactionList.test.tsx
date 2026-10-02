@@ -15,6 +15,7 @@ const transaction: Transaction = {
   category: 'alimentação',
   occurredOn: '2026-08-20',
   recurring: false,
+  accountId: null,
   createdAt: '2026-08-20 12:00:00',
 }
 

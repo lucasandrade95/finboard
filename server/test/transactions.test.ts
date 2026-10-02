@@ -399,6 +399,7 @@ describe('PUT /api/transactions/:id', () => {
       category: 'trabalho',
       occurredOn: '2026-08-05',
       recurring: false,
+      accountId: null,
       createdAt,
     })
 
@@ -408,6 +409,7 @@ describe('PUT /api/transactions/:id', () => {
       expenseCents: 0,
       balanceCents: 500000,
       previous: { month: '2026-07', incomeCents: 0, expenseCents: 0, balanceCents: 0 },
+      accounts: [],
     })
   })
 
@@ -621,6 +623,7 @@ describe('GET /api/summary', () => {
       expenseCents: 150000,
       balanceCents: 350000,
       previous: { month: '2026-07', incomeCents: 999900, expenseCents: 0, balanceCents: 999900 },
+      accounts: [],
     })
   })
 
@@ -643,6 +646,7 @@ describe('GET /api/summary', () => {
       expenseCents: 0,
       balanceCents: 100000,
       previous: { month: '2025-12', incomeCents: 0, expenseCents: 40000, balanceCents: -40000 },
+      accounts: [],
     })
   })
 
@@ -655,6 +659,7 @@ describe('GET /api/summary', () => {
       incomeCents: 0,
       expenseCents: 15990,
       balanceCents: -15990,
+      accounts: [],
     })
   })
 })

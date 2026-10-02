@@ -88,4 +88,39 @@ describe('SummaryCards', () => {
     )
     expect(screen.queryByText(/vs mês anterior/)).toBeNull()
   })
+
+  it('lista o saldo de cada conta no fim do mês, negativo destacado', () => {
+    const { container } = render(
+      <SummaryCards
+        summary={{
+          incomeCents: 0,
+          expenseCents: 0,
+          balanceCents: 0,
+          accounts: [
+            { id: 1, name: 'Cartão', balanceCents: -32000 },
+            { id: 2, name: 'Corrente', balanceCents: 130000 },
+          ],
+        }}
+        loading={false}
+      />,
+    )
+    const section = screen.getByRole('region', { name: 'Saldo por conta no fim do mês' })
+    expect(section.textContent).toContain('Corrente')
+    expect(section.textContent).toContain('1.300,00')
+    expect(container.querySelectorAll('.account-balance.negative')).toHaveLength(1)
+  })
+
+  it('não mostra o bloco de contas sem conta cadastrada nem durante o carregamento', () => {
+    render(
+      <SummaryCards
+        summary={{ incomeCents: 0, expenseCents: 0, balanceCents: 0, accounts: [] }}
+        loading={false}
+      />,
+    )
+    expect(screen.queryByText('Saldo por conta no fim do mês')).toBeNull()
+    cleanup()
+
+    render(<SummaryCards summary={undefined} loading={true} />)
+    expect(screen.queryByText('Saldo por conta no fim do mês')).toBeNull()
+  })
 })

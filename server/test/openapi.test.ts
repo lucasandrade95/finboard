@@ -86,6 +86,8 @@ describe('documento OpenAPI', () => {
       '/api/goals',
       '/api/goals/{id}',
       '/api/goals/{id}/contributions',
+      '/api/accounts',
+      '/api/accounts/{id}',
     ]) {
       expect(doc.paths[path], `rota ${path} fora da documentação`).toBeDefined()
     }
@@ -144,6 +146,7 @@ describe('schema das rotas é só documentação', () => {
     expect(response.statusCode).toBe(201)
     // `createdAt` e `recurring` só aparecem se a serialização não tiver recortado nada.
     expect(Object.keys(response.json()).sort()).toEqual([
+      'accountId',
       'amountCents',
       'category',
       'createdAt',
