@@ -400,6 +400,7 @@ describe('PUT /api/transactions/:id', () => {
       occurredOn: '2026-08-05',
       recurring: false,
       accountId: null,
+      transferId: null,
       createdAt,
     })
 

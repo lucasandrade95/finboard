@@ -16,6 +16,7 @@ const transaction: Transaction = {
   occurredOn: '2026-08-20',
   recurring: false,
   accountId: null,
+  transferId: null,
   createdAt: '2026-08-20 12:00:00',
 }
 
@@ -250,6 +251,19 @@ describe('TransactionList', () => {
     expect(screen.getByLabelText('Categoria')).toHaveProperty('value', 'alimentação')
     expect(screen.getByLabelText('Data')).toHaveProperty('value', '2026-08-20')
     expect(screen.getByLabelText('Tipo')).toHaveProperty('value', 'expense')
+  })
+
+  it('perna de transferência ganha etiqueta e fica sem Editar/Excluir', () => {
+    renderList([
+      { ...transaction, id: 1, description: 'Reserva', category: 'transferência', transferId: 5 },
+      { ...transaction, id: 2, description: 'Mercado' },
+    ])
+
+    expect(screen.getByText('⇄ transferência')).toBeTruthy()
+    expect(screen.getByText('Altere pelo painel de transferências')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Editar Reserva' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Excluir Reserva' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Editar Mercado' })).toBeTruthy()
   })
 
   it('marca transações recorrentes com a etiqueta mensal', () => {
