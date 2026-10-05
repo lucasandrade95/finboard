@@ -216,6 +216,27 @@ export const MIGRATIONS: readonly Migration[] = [
       )
     },
   },
+  {
+    id: 11,
+    name: 'create_transfers',
+    up: (db) => {
+      // A transferência é só o vínculo: valor, data e contas ficam nos dois
+      // lançamentos (saída na origem, entrada no destino), que já alimentam o saldo
+      // por conta sem nenhuma conta especial. `transfer_id` preenchido marca o par
+      // para ficar fora dos totais de receita e despesa.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS transfers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id),
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `)
+      if (!hasColumn(db, 'transactions', 'transfer_id')) {
+        db.exec('ALTER TABLE transactions ADD COLUMN transfer_id INTEGER REFERENCES transfers(id)')
+      }
+      db.exec('CREATE INDEX IF NOT EXISTS idx_transactions_transfer ON transactions (transfer_id)')
+    },
+  },
 ]
 
 /**

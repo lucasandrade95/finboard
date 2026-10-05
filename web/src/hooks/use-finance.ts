@@ -5,6 +5,7 @@ import {
   type CreateCategoryInput,
   type CreateGoalInput,
   type CreateTransactionInput,
+  type CreateTransferInput,
   type TransactionFilters,
 } from '../lib/api'
 
@@ -123,6 +124,7 @@ function invalidateTransactionQueries(queryClient: QueryClient): void {
     'daily-balance',
     'budgets',
     'accounts',
+    'transfers',
   ]) {
     void queryClient.invalidateQueries({ queryKey: [key] })
   }
@@ -149,6 +151,30 @@ export function useDeleteTransaction() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => api.deleteTransaction(id),
+    onSuccess: () => invalidateTransactionQueries(queryClient),
+  })
+}
+
+export function useTransfers(month: string) {
+  return useQuery({
+    queryKey: ['transfers', month],
+    queryFn: () => api.listTransfers(month),
+  })
+}
+
+// Transferência cria/remove lançamentos: invalida tudo o que uma transação invalidaria.
+export function useCreateTransfer() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CreateTransferInput) => api.createTransfer(input),
+    onSuccess: () => invalidateTransactionQueries(queryClient),
+  })
+}
+
+export function useDeleteTransfer() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.deleteTransfer(id),
     onSuccess: () => invalidateTransactionQueries(queryClient),
   })
 }

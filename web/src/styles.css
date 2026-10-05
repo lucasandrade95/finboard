@@ -348,6 +348,7 @@ input:focus-visible + .import-csv {
 .goals-panel,
 .categories-panel,
 .accounts-panel,
+.transfers-panel,
 .account-balances {
   margin-bottom: 1.5rem;
 }
@@ -358,6 +359,7 @@ input:focus-visible + .import-csv {
 .goals-panel h2,
 .categories-panel h2,
 .accounts-panel h2,
+.transfers-panel h2,
 .account-balances h2 {
   font-size: 0.8rem;
   font-weight: 600;
@@ -1118,4 +1120,38 @@ main:focus {
 
 .account-balance.negative {
   color: var(--negative);
+}
+
+.transfer-list {
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.transfer-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.transfer-date,
+.transfer-hint {
+  color: var(--muted);
+}
+
+.transfer-amount {
+  font-variant-numeric: tabular-nums;
+}
+
+.transfer-hint {
+  font-size: 0.75rem;
+}
+
+.transfer-tag {
+  margin-left: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--muted);
 }

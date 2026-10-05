@@ -15,6 +15,7 @@ import { SummaryCards } from './components/SummaryCards'
 import { ThemeToggle } from './components/ThemeToggle'
 import { TransactionForm } from './components/TransactionForm'
 import { TransactionList } from './components/TransactionList'
+import { TransfersPanel } from './components/TransfersPanel'
 import { TypeFilter } from './components/TypeFilter'
 import { useToken } from './hooks/use-auth'
 import { useDebouncedValue } from './hooks/use-debounced-value'
@@ -28,6 +29,7 @@ import {
   useGoals,
   useSummary,
   useTransactions,
+  useTransfers,
 } from './hooks/use-finance'
 import { t } from './i18n'
 import { PAGE_SIZE, type TransactionType } from './lib/api'
@@ -77,6 +79,7 @@ function Dashboard() {
   const goals = useGoals()
   const catalog = useCategoryCatalog()
   const accounts = useAccounts()
+  const transfers = useTransfers(month)
   const categoryOptions = categories.data ?? []
 
   // Excluir o último item de uma página deixa a página além do total: volta para a última válida.
@@ -141,6 +144,11 @@ function Dashboard() {
         <GoalsPanel goals={goals.data} loading={goals.isPending} />
         <CategoriesPanel categories={catalog.data} loading={catalog.isPending} />
         <AccountsPanel accounts={accounts.data} loading={accounts.isPending} />
+        <TransfersPanel
+          transfers={transfers.data}
+          accounts={accounts.data}
+          loading={transfers.isPending || accounts.isPending}
+        />
         <TransactionForm
           categories={categoryOptions}
           catalog={catalog.data}

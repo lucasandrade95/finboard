@@ -58,7 +58,7 @@ export class BudgetsRepository {
         `SELECT b.category, b.amount_cents AS budget,
                 COALESCE((SELECT SUM(t.amount_cents) FROM transactions t
                           WHERE t.user_id = b.user_id AND t.type = 'expense'
-                            AND t.category = b.category
+                            AND t.category = b.category AND t.transfer_id IS NULL
                             AND t.occurred_on LIKE ?), 0) AS spent
          FROM budgets b
          WHERE b.user_id = ?`,

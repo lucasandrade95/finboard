@@ -45,6 +45,11 @@ const validationError = {
 
 const noContent = { description: 'Removido', type: 'null' }
 
+const transferLeg = errorResponse(
+  'Lançamento faz parte de uma transferência: altere ou exclua pela transferência',
+  'transfer_leg',
+)
+
 const monthParam = {
   type: 'string',
   pattern: MONTH_PATTERN,
@@ -77,6 +82,10 @@ const transaction = {
     occurredOn: { type: 'string', pattern: DATE_PATTERN, example: '2026-09-18' },
     recurring: { type: 'boolean', description: 'Série que ganha cópia mensal no boot da API' },
     accountId: { type: ['integer', 'null'], description: 'Conta/carteira; null = sem conta' },
+    transferId: {
+      type: ['integer', 'null'],
+      description: 'Preenchido nas duas pernas de uma transferência entre contas',
+    },
     createdAt: { type: 'string', example: '2026-09-18 12:00:00' },
   },
 }
@@ -254,6 +263,7 @@ export const transactionDocs = {
       400: validationError,
       401: unauthorized,
       404: notFound,
+      409: transferLeg,
     },
   } satisfies FastifySchema,
 
@@ -262,7 +272,7 @@ export const transactionDocs = {
     tags: ['transações'],
     summary: 'Exclui transação',
     params: { type: 'object', properties: { id: { type: 'integer' } } },
-    response: { 204: noContent, 401: unauthorized, 404: notFound },
+    response: { 204: noContent, 401: unauthorized, 404: notFound, 409: transferLeg },
   } satisfies FastifySchema,
 
   // Sem schema de resposta: o corpo é CSV, não JSON.
@@ -694,6 +704,72 @@ export const accountDocs = {
     tags: ['contas'],
     summary: 'Remove conta',
     description: 'Os lançamentos da conta não são apagados: passam a ficar sem conta.',
+    params: { type: 'object', properties: { id: { type: 'integer' } } },
+    response: { 204: noContent, 401: unauthorized, 404: notFound },
+  } satisfies FastifySchema,
+}
+
+const transfer = {
+  type: 'object',
+  properties: {
+    id: { type: 'integer' },
+    fromAccountId: { type: ['integer', 'null'], description: 'null se a conta foi excluída' },
+    toAccountId: { type: ['integer', 'null'], description: 'null se a conta foi excluída' },
+    amountCents: { type: 'integer', example: 50000 },
+    occurredOn: { type: 'string', pattern: DATE_PATTERN, example: '2026-10-04' },
+    description: { type: 'string', example: 'Transferência' },
+    createdAt: { type: 'string' },
+  },
+}
+
+export const transferDocs = {
+  list: {
+    ...authenticated,
+    tags: ['transferências'],
+    summary: 'Transferências entre contas',
+    description: 'Mais recentes primeiro. Com `month`, só as do mês.',
+    querystring: { type: 'object', properties: { month: monthParam } },
+    response: {
+      200: {
+        description: 'Transferências do usuário',
+        type: 'object',
+        properties: { items: { type: 'array', items: transfer } },
+      },
+      400: validationError,
+      401: unauthorized,
+    },
+  } satisfies FastifySchema,
+
+  create: {
+    ...authenticated,
+    tags: ['transferências'],
+    summary: 'Transfere entre duas contas',
+    description:
+      'Grava um par de lançamentos vinculados (saída na origem, entrada no destino) que ' +
+      'muda o saldo das duas contas e fica fora dos totais de receita e despesa.',
+    body: {
+      type: 'object',
+      required: ['fromAccountId', 'toAccountId', 'amountCents', 'occurredOn'],
+      properties: {
+        fromAccountId: { type: 'integer', description: 'Conta do próprio usuário' },
+        toAccountId: { type: 'integer', description: 'Diferente da origem' },
+        amountCents: { type: 'integer', minimum: 1, description: 'Centavos, sempre positivo' },
+        occurredOn: { type: 'string', pattern: DATE_PATTERN },
+        description: { type: 'string', minLength: 1, maxLength: 200, default: 'Transferência' },
+      },
+    },
+    response: {
+      201: { description: 'Transferência criada', ...transfer },
+      400: validationError,
+      401: unauthorized,
+    },
+  } satisfies FastifySchema,
+
+  remove: {
+    ...authenticated,
+    tags: ['transferências'],
+    summary: 'Desfaz transferência',
+    description: 'Remove os dois lançamentos juntos.',
     params: { type: 'object', properties: { id: { type: 'integer' } } },
     response: { 204: noContent, 401: unauthorized, 404: notFound },
   } satisfies FastifySchema,

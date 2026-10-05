@@ -29,6 +29,14 @@ function sendUnknownAccount(reply: FastifyReply) {
   })
 }
 
+/**
+ * Perna de transferência só muda pela própria transferência: editar ou excluir
+ * um lado sozinho deixaria dinheiro surgindo numa conta sem sair da outra.
+ */
+function sendTransferLeg(reply: FastifyReply) {
+  return reply.code(409).send({ error: 'transfer_leg' })
+}
+
 export function registerTransactionRoutes(
   app: FastifyInstance,
   repository: TransactionsRepository,
@@ -36,6 +44,8 @@ export function registerTransactionRoutes(
 ): void {
   const ownsAccount = (userId: number, accountId: number | null | undefined) =>
     accountId == null || accounts.belongsTo(userId, accountId)
+  const isTransferLeg = (userId: number, id: number) =>
+    repository.findById(userId, id)?.transferId != null
 
   app.get(
     '/api/transactions',
@@ -118,6 +128,9 @@ export function registerTransactionRoutes(
       if (!ownsAccount(ownerId(request), input.accountId)) {
         return sendUnknownAccount(reply)
       }
+      if (isTransferLeg(ownerId(request), id)) {
+        return sendTransferLeg(reply)
+      }
       const updated = repository.updateById(ownerId(request), id, input)
       // Transação de outra conta cai aqui: o 404 não confirma que o id existe.
       if (!updated) {
@@ -132,6 +145,9 @@ export function registerTransactionRoutes(
     { ...protectedRoute, schema: transactionDocs.remove },
     async (request, reply) => {
       const { id } = idParamSchema.parse(request.params)
+      if (isTransferLeg(ownerId(request), id)) {
+        return sendTransferLeg(reply)
+      }
       if (!repository.deleteById(ownerId(request), id)) {
         return reply.code(404).send({ error: 'not_found' })
       }

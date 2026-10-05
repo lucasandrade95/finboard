@@ -22,6 +22,8 @@ export interface Transaction {
   occurredOn: string
   recurring: boolean
   accountId: number | null
+  /** Perna de transferência entre contas: só muda pela própria transferência. */
+  transferId: number | null
   createdAt: string
 }
 
@@ -71,6 +73,30 @@ export interface AccountList {
 export interface CreateAccountInput {
   name: string
   openingBalanceCents?: number
+}
+
+/** Par de lançamentos vinculados: saída na origem, entrada no destino. */
+export interface Transfer {
+  id: number
+  /** `null` quando a conta foi removida depois da transferência. */
+  fromAccountId: number | null
+  toAccountId: number | null
+  amountCents: number
+  occurredOn: string
+  description: string
+  createdAt: string
+}
+
+export interface TransferList {
+  items: Transfer[]
+}
+
+export interface CreateTransferInput {
+  fromAccountId: number
+  toAccountId: number
+  amountCents: number
+  occurredOn: string
+  description?: string
 }
 
 /** Saldo de uma conta no fim do mês do resumo. */
@@ -358,6 +384,11 @@ export const api = {
   createAccount: (input: CreateAccountInput) =>
     request<Account>('/api/accounts', { method: 'POST', body: JSON.stringify(input) }),
   deleteAccount: (id: number) => request<void>(`/api/accounts/${id}`, { method: 'DELETE' }),
+  listTransfers: (month: string) =>
+    request<TransferList>(`/api/transfers?month=${month}`).then((data) => data.items),
+  createTransfer: (input: CreateTransferInput) =>
+    request<Transfer>('/api/transfers', { method: 'POST', body: JSON.stringify(input) }),
+  deleteTransfer: (id: number) => request<void>(`/api/transfers/${id}`, { method: 'DELETE' }),
   getSummary: (month: string) => request<MonthlySummary>(`/api/summary?month=${month}`),
   getExpensesByCategory: (month: string) =>
     request<ExpensesByCategory>(`/api/expenses-by-category?month=${month}`),

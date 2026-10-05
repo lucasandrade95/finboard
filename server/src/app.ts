@@ -20,6 +20,8 @@ import { GoalsRepository } from './modules/goals/repository.js'
 import { registerGoalRoutes } from './modules/goals/routes.js'
 import { TransactionsRepository } from './modules/transactions/repository.js'
 import { registerTransactionRoutes } from './modules/transactions/routes.js'
+import { TransfersRepository } from './modules/transfers/repository.js'
+import { registerTransferRoutes } from './modules/transfers/routes.js'
 
 export interface RateLimitSettings {
   /** Teto de requisições por IP, por janela, em qualquer rota. */
@@ -142,6 +144,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   registerGoalRoutes(app, new GoalsRepository(db))
   registerCategoryRoutes(app, new CategoriesRepository(db))
   registerAccountRoutes(app, accounts)
+  registerTransferRoutes(app, new TransfersRepository(db), accounts)
 
   // Uma passada por dono: cada conta tem as próprias séries recorrentes.
   const month = options.recurringMonth ?? currentMonth()

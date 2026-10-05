@@ -10,6 +10,8 @@ export interface TransactionRecord {
   occurredOn: string
   recurring: boolean
   accountId: number | null
+  /** Preenchido nas duas pernas de uma transferência entre contas. */
+  transferId: number | null
   createdAt: string
 }
 
@@ -76,6 +78,7 @@ interface TransactionRow {
   occurred_on: string
   recurring: 0 | 1
   account_id: number | null
+  transfer_id: number | null
   created_at: string
 }
 
@@ -112,6 +115,7 @@ function toRecord(row: TransactionRow): TransactionRecord {
     occurredOn: row.occurred_on,
     recurring: row.recurring === 1,
     accountId: row.account_id,
+    transferId: row.transfer_id,
     createdAt: row.created_at,
   }
 }
@@ -260,7 +264,8 @@ export class TransactionsRepository {
   }
 
   expensesByCategory(userId: number, month?: string): ExpensesByCategory {
-    const conditions = ['user_id = ?', "type = 'expense'"]
+    // Transferência não é gasto: as pernas ficam fora do gráfico por categoria.
+    const conditions = ['user_id = ?', "type = 'expense'", 'transfer_id IS NULL']
     const params: Array<string | number> = [userId]
     if (month) {
       conditions.push('occurred_on LIKE ?')
@@ -290,7 +295,7 @@ export class TransactionsRepository {
     const rows = this.db
       .prepare(
         `SELECT occurred_on AS date, type, COALESCE(SUM(amount_cents), 0) AS total
-         FROM transactions WHERE user_id = ? AND occurred_on LIKE ?
+         FROM transactions WHERE user_id = ? AND occurred_on LIKE ? AND transfer_id IS NULL
          GROUP BY occurred_on, type`,
       )
       .all(userId, `${month}-%`) as Array<{ date: string; type: TransactionType; total: number }>
@@ -318,19 +323,24 @@ export class TransactionsRepository {
     return { month, items }
   }
 
+  /**
+   * Dinheiro que só mudou de conta não é receita nem despesa: as pernas de
+   * transferência ficam fora deste total (e da série diária), mas seguem no saldo por conta.
+   */
   summaryByMonth(userId: number, month?: string): MonthlySummary {
     const rows = (
       month
         ? this.db
             .prepare(
               `SELECT type, COALESCE(SUM(amount_cents), 0) AS total
-               FROM transactions WHERE user_id = ? AND occurred_on LIKE ? GROUP BY type`,
+               FROM transactions
+               WHERE user_id = ? AND occurred_on LIKE ? AND transfer_id IS NULL GROUP BY type`,
             )
             .all(userId, `${month}-%`)
         : this.db
             .prepare(
               `SELECT type, COALESCE(SUM(amount_cents), 0) AS total
-               FROM transactions WHERE user_id = ? GROUP BY type`,
+               FROM transactions WHERE user_id = ? AND transfer_id IS NULL GROUP BY type`,
             )
             .all(userId)
     ) as Array<{ type: TransactionType; total: number }>

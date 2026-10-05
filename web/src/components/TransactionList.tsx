@@ -243,36 +243,46 @@ export function TransactionList({
                 </td>
                 <td>
                   <span className="category-tag">{transaction.category}</span>
+                  {transaction.transferId !== null && (
+                    <span className="transfer-tag">{t.transactionList.transferTag}</span>
+                  )}
                 </td>
                 <td className={`amount-col ${transaction.type}`}>
                   {transaction.type === 'expense' ? '−' : '+'}
                   {formatBRL(transaction.amountCents)}
                 </td>
                 <td className="actions-col">
-                  <button
-                    type="button"
-                    className="edit-button"
-                    aria-label={t.transactionList.editLabel(transaction.description)}
-                    ref={(button) => {
-                      if (button) {
-                        editButtons.current.set(transaction.id, button)
-                      } else {
-                        editButtons.current.delete(transaction.id)
-                      }
-                    }}
-                    onClick={() => setEditingId(transaction.id)}
-                  >
-                    {t.transactionList.edit}
-                  </button>
-                  <button
-                    type="button"
-                    className="delete-button"
-                    aria-label={t.transactionList.deleteLabel(transaction.description)}
-                    disabled={deleteTransaction.isPending}
-                    onClick={() => handleDelete(transaction)}
-                  >
-                    {t.transactionList.delete}
-                  </button>
+                  {transaction.transferId !== null ? (
+                    // Editar uma perna sozinha desequilibraria as contas: a API responde 409.
+                    <span className="transfer-hint">{t.transactionList.transferHint}</span>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="edit-button"
+                        aria-label={t.transactionList.editLabel(transaction.description)}
+                        ref={(button) => {
+                          if (button) {
+                            editButtons.current.set(transaction.id, button)
+                          } else {
+                            editButtons.current.delete(transaction.id)
+                          }
+                        }}
+                        onClick={() => setEditingId(transaction.id)}
+                      >
+                        {t.transactionList.edit}
+                      </button>
+                      <button
+                        type="button"
+                        className="delete-button"
+                        aria-label={t.transactionList.deleteLabel(transaction.description)}
+                        disabled={deleteTransaction.isPending}
+                        onClick={() => handleDelete(transaction)}
+                      >
+                        {t.transactionList.delete}
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ),
