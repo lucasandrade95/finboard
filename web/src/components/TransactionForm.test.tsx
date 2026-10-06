@@ -195,6 +195,32 @@ describe('TransactionForm', () => {
       expect(await postedBody(requests)).not.toHaveProperty('category')
     })
 
+    it('envia as tags digitadas separadas por vírgula, sem repetidas', async () => {
+      const requests = mockCreate(201, { id: 1 })
+      renderForm([])
+
+      fillForm()
+      fireEvent.change(field('Tags'), { target: { value: ' viagem, Férias,, VIAGEM ' } })
+      submit()
+
+      await vi.waitFor(() => expect(requests).toHaveLength(1))
+      expect((await postedBody(requests)).tags).toEqual(['viagem', 'Férias'])
+      // Salvou: o campo de tags também é limpo para o próximo lançamento.
+      await vi.waitFor(() => expect(field('Tags').value).toBe(''))
+    })
+
+    it('omite as tags quando o campo fica em branco', async () => {
+      const requests = mockCreate(201, { id: 1 })
+      renderForm([])
+
+      fillForm()
+      fireEvent.change(field('Tags'), { target: { value: ' , ' } })
+      submit()
+
+      await vi.waitFor(() => expect(requests).toHaveLength(1))
+      expect(await postedBody(requests)).not.toHaveProperty('tags')
+    })
+
     it('limpa os campos após salvar, mantendo tipo e data para o próximo lançamento', async () => {
       mockCreate(201, { id: 1 })
       renderForm([])
@@ -234,6 +260,20 @@ describe('TransactionForm', () => {
       submit()
 
       expect(screen.getByRole('alert').textContent).toBe('Informe um valor válido, ex.: 159,90')
+      expect(requests).toHaveLength(0)
+    })
+
+    it('rejeita tag longa demais sem chamar a API', () => {
+      const requests = mockCreate(201, { id: 1 })
+      renderForm([])
+
+      fillForm()
+      fireEvent.change(field('Tags'), { target: { value: `ok, ${'x'.repeat(31)}` } })
+      submit()
+
+      expect(screen.getByRole('alert').textContent).toBe(
+        'Use até 10 tags de até 30 caracteres, separadas por vírgula.',
+      )
       expect(requests).toHaveLength(0)
     })
 

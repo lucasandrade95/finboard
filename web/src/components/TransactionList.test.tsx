@@ -17,6 +17,7 @@ const transaction: Transaction = {
   recurring: false,
   accountId: null,
   transferId: null,
+  tags: [],
   createdAt: '2026-08-20 12:00:00',
 }
 
@@ -174,9 +175,45 @@ describe('TransactionList', () => {
       category: 'hortifruti',
       occurredOn: '2026-08-20',
       recurring: true,
+      tags: [],
     })
     // Sucesso fecha a edição e devolve a linha de leitura.
     await waitFor(() => expect(screen.queryByLabelText('Descrição')).toBeNull())
+  })
+
+  it('mostra as tags da transação como etiquetas', () => {
+    renderList([{ ...transaction, tags: ['cartão', 'viagem'] }])
+
+    const list = screen.getByRole('list', { name: 'Tags' })
+    expect([...list.querySelectorAll('li')].map((item) => item.textContent)).toEqual([
+      '#cartão',
+      '#viagem',
+    ])
+  })
+
+  it('abre a edição com as tags no campo e envia o que foi alterado', async () => {
+    const requests = mockTransaction('put', 200, transaction)
+    renderList([{ ...transaction, tags: ['cartão', 'viagem'] }])
+
+    startEditing()
+    expect(field('Tags').value).toBe('cartão, viagem')
+    fireEvent.change(field('Tags'), { target: { value: 'viagem, férias' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => expect(requests).toHaveLength(1))
+    expect((await sentBody(requests)).tags).toEqual(['viagem', 'férias'])
+  })
+
+  it('envia lista vazia quando o campo de tags é apagado na edição', async () => {
+    const requests = mockTransaction('put', 200, transaction)
+    renderList([{ ...transaction, tags: ['viagem'] }])
+
+    startEditing()
+    fireEvent.change(field('Tags'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => expect(requests).toHaveLength(1))
+    expect((await sentBody(requests)).tags).toEqual([])
   })
 
   it('omite a categoria em branco na edição em vez de enviar string vazia', async () => {

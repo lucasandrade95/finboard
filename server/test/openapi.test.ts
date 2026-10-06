@@ -78,6 +78,7 @@ describe('documento OpenAPI', () => {
       '/api/categories',
       '/api/categories/catalog',
       '/api/categories/catalog/{id}',
+      '/api/tags',
       '/api/daily-balance',
       '/api/summary',
       '/api/expenses-by-category',
@@ -156,6 +157,7 @@ describe('schema das rotas é só documentação', () => {
       'id',
       'occurredOn',
       'recurring',
+      'tags',
       'transferId',
       'type',
     ])

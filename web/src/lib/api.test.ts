@@ -71,6 +71,14 @@ describe('api.listTransactions', () => {
     )
   })
 
+  it('inclui a tag codificada quando informada', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    await api.listTransactions('2026-08', 1, { tag: 'férias' })
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      '/api/transactions?month=2026-08&limit=20&offset=0&tag=f%C3%A9rias',
+    )
+  })
+
   it('omite a busca quando o termo está vazio', async () => {
     vi.stubGlobal('fetch', fetchMock)
     await api.listTransactions('2026-08', 1, { q: '' })

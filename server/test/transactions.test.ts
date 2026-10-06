@@ -401,6 +401,7 @@ describe('PUT /api/transactions/:id', () => {
       recurring: false,
       accountId: null,
       transferId: null,
+      tags: [],
       createdAt,
     })
 
@@ -781,7 +782,12 @@ describe('transações recorrentes', () => {
     await injectAs(first, {
       method: 'POST',
       url: '/api/transactions',
-      payload: validPayload({ description: 'Aluguel', occurredOn: '2026-08-05', recurring: true }),
+      payload: validPayload({
+        description: 'Aluguel',
+        occurredOn: '2026-08-05',
+        recurring: true,
+        tags: ['casa'],
+      }),
     })
     await injectAs(first, {
       method: 'POST',
@@ -804,6 +810,7 @@ describe('transações recorrentes', () => {
       amountCents: 15990,
       occurredOn: '2026-09-05',
       recurring: true,
+      tags: ['casa'],
     })
   })
 
@@ -1234,6 +1241,7 @@ describe('escopo por usuário', () => {
       { method: 'DELETE', url: '/api/transactions/1' },
       { method: 'GET', url: '/api/transactions/export.csv?month=2026-08' },
       { method: 'GET', url: '/api/categories' },
+      { method: 'GET', url: '/api/tags' },
       { method: 'GET', url: '/api/expenses-by-category' },
       { method: 'GET', url: '/api/daily-balance?month=2026-08' },
       { method: 'GET', url: '/api/summary' },
@@ -1244,5 +1252,134 @@ describe('escopo por usuário', () => {
       expect(response.statusCode, `${route.method} ${route.url}`).toBe(401)
       expect(response.json()).toEqual({ error: 'unauthorized' })
     }
+  })
+})
+
+describe('tags nas transações', () => {
+  async function create(overrides: Record<string, unknown>) {
+    const response = await inject({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload(overrides),
+    })
+    expect(response.statusCode).toBe(201)
+    return response.json()
+  }
+
+  it('cria sem tags por padrão e devolve as tags em ordem alfabética', async () => {
+    expect((await create({})).tags).toEqual([])
+    const tagged = await create({ tags: ['viagem', 'férias', 'Chile'] })
+    expect(tagged.tags).toEqual(['Chile', 'férias', 'viagem'])
+
+    const listed = await inject({ method: 'GET', url: '/api/transactions?month=2026-08' })
+    expect(listed.json().items.find((t: { id: number }) => t.id === tagged.id).tags).toEqual([
+      'Chile',
+      'férias',
+      'viagem',
+    ])
+  })
+
+  it('reaproveita a tag sem diferenciar maiúsculas e ignora repetidas', async () => {
+    await create({ description: 'Hotel', tags: ['Viagem'] })
+    const second = await create({ description: 'Passagem', tags: ['viagem', 'VIAGEM'] })
+    // A grafia é a da primeira vez que a tag apareceu na conta.
+    expect(second.tags).toEqual(['Viagem'])
+
+    const tags = await inject({ method: 'GET', url: '/api/tags' })
+    expect(tags.json()).toEqual({ tags: ['Viagem'] })
+  })
+
+  it('filtra a listagem por tag, sem diferenciar maiúsculas, e o total acompanha', async () => {
+    await create({ description: 'Hotel', tags: ['viagem'] })
+    await create({ description: 'Passagem', tags: ['viagem', 'cartão'] })
+    await create({ description: 'Mercado', tags: ['cartão'] })
+
+    const response = await inject({
+      method: 'GET',
+      url: '/api/transactions?month=2026-08&tag=VIAGEM',
+    })
+    const body = response.json()
+    expect(body.total).toBe(2)
+    expect(body.items.map((t: { description: string }) => t.description).sort()).toEqual([
+      'Hotel',
+      'Passagem',
+    ])
+
+    const combined = await inject({
+      method: 'GET',
+      url: '/api/transactions?month=2026-08&tag=cartão&q=merc',
+    })
+    expect(combined.json().items.map((t: { description: string }) => t.description)).toEqual([
+      'Mercado',
+    ])
+  })
+
+  it('na edição, omitir tags mantém as atuais e lista vazia remove todas', async () => {
+    const created = await create({ tags: ['casa', 'fixo'] })
+    const url = `/api/transactions/${created.id}`
+
+    const kept = await inject({ method: 'PUT', url, payload: validPayload({ amountCents: 100 }) })
+    expect(kept.json().tags).toEqual(['casa', 'fixo'])
+
+    const replaced = await inject({
+      method: 'PUT',
+      url,
+      payload: validPayload({ tags: ['lazer'] }),
+    })
+    expect(replaced.json().tags).toEqual(['lazer'])
+
+    const cleared = await inject({ method: 'PUT', url, payload: validPayload({ tags: [] }) })
+    expect(cleared.json().tags).toEqual([])
+    // Tag sem nenhuma transação some da lista do filtro.
+    expect((await inject({ method: 'GET', url: '/api/tags' })).json()).toEqual({ tags: [] })
+  })
+
+  it('excluir a transação desfaz o vínculo e tira a tag do filtro', async () => {
+    const created = await create({ tags: ['avulsa'] })
+    await inject({ method: 'DELETE', url: `/api/transactions/${created.id}` })
+    expect((await inject({ method: 'GET', url: '/api/tags' })).json()).toEqual({ tags: [] })
+  })
+
+  it('recusa tag vazia, com vírgula, longa demais ou mais de 10 tags', async () => {
+    for (const tags of [
+      [''],
+      ['a,b'],
+      ['x'.repeat(31)],
+      Array.from({ length: 11 }, (_, index) => `tag${index}`),
+    ]) {
+      const response = await inject({
+        method: 'POST',
+        url: '/api/transactions',
+        payload: validPayload({ tags }),
+      })
+      expect(response.statusCode, JSON.stringify(tags)).toBe(400)
+    }
+    const total = await inject({ method: 'GET', url: '/api/transactions' })
+    expect(total.json().total).toBe(0)
+  })
+
+  it('tags e filtro não cruzam usuários', async () => {
+    await create({ description: 'Do Lucas', tags: ['viagem'] })
+    const otherAuth = await registerAndAuthorize(app, OTHER)
+    const other = (options: InjectOptions) =>
+      app.inject({ ...options, headers: { authorization: otherAuth } })
+
+    await other({
+      method: 'POST',
+      url: '/api/transactions',
+      payload: validPayload({ description: 'Da Maria', tags: ['Viagem'] }),
+    })
+
+    const mine = await inject({ method: 'GET', url: '/api/transactions?tag=viagem' })
+    expect(mine.json().items.map((t: { description: string }) => t.description)).toEqual([
+      'Do Lucas',
+    ])
+    // Cada conta tem a própria tag: a da Maria guarda a grafia dela.
+    expect((await other({ method: 'GET', url: '/api/tags' })).json()).toEqual({
+      tags: ['Viagem'],
+    })
+    expect((await inject({ method: 'GET', url: '/api/tags' })).json()).toEqual({
+      tags: ['viagem'],
+    })
   })
 })
