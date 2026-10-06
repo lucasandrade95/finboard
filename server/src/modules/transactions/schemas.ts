@@ -2,6 +2,14 @@ import { z } from 'zod'
 
 export const transactionTypeSchema = z.enum(['income', 'expense'])
 
+// Vírgula fica de fora: é o separador do campo de tags na UI.
+export const tagNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(30)
+  .regex(/^[^,]+$/, 'tag não pode conter vírgula')
+
 export const createTransactionSchema = z.object({
   type: transactionTypeSchema,
   description: z.string().trim().min(1).max(200),
@@ -11,6 +19,8 @@ export const createTransactionSchema = z.object({
   recurring: z.boolean().default(false),
   // Conta/carteira do lançamento; `null` é "sem conta" (o padrão de quem não usa contas).
   accountId: z.number().int().positive().nullable().default(null),
+  // Tags livres: omitir na criação é "sem tags"; na edição, omitir mantém as atuais.
+  tags: z.array(tagNameSchema).max(10).optional(),
 })
 
 // Na edição, omitir `accountId` mantém a conta atual: cliente antigo que não conhece
@@ -39,6 +49,7 @@ export const listTransactionsQuerySchema = monthQuerySchema.extend({
   type: transactionTypeSchema.optional(),
   category: z.string().trim().min(1).max(50).optional(),
   q: z.string().trim().min(1).max(100).optional(),
+  tag: tagNameSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 })

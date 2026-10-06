@@ -12,6 +12,7 @@ import { GoalsPanel } from './components/GoalsPanel'
 import { ImportCsvButton } from './components/ImportCsvButton'
 import { SearchFilter } from './components/SearchFilter'
 import { SummaryCards } from './components/SummaryCards'
+import { TagFilter } from './components/TagFilter'
 import { ThemeToggle } from './components/ThemeToggle'
 import { TransactionForm } from './components/TransactionForm'
 import { TransactionList } from './components/TransactionList'
@@ -28,6 +29,7 @@ import {
   useExpensesByCategory,
   useGoals,
   useSummary,
+  useTags,
   useTransactions,
   useTransfers,
 } from './hooks/use-finance'
@@ -64,12 +66,14 @@ function Dashboard() {
   const [category, setCategory] = useState('')
   const [type, setType] = useState<TransactionType | ''>('')
   const [search, setSearch] = useState('')
+  const [tag, setTag] = useState('')
   // Digitar não dispara requisição a cada tecla: a busca só vai para a API após a pausa.
   const searchTerm = useDebouncedValue(search.trim(), 300)
   const transactions = useTransactions(month, page, {
     type: type || undefined,
     category: category || undefined,
     q: searchTerm || undefined,
+    tag: tag || undefined,
   })
   const summary = useSummary(month)
   const categories = useCategories(month)
@@ -80,6 +84,7 @@ function Dashboard() {
   const catalog = useCategoryCatalog()
   const accounts = useAccounts()
   const transfers = useTransfers(month)
+  const tags = useTags()
   const categoryOptions = categories.data ?? []
 
   // Excluir o último item de uma página deixa a página além do total: volta para a última válida.
@@ -110,6 +115,11 @@ function Dashboard() {
 
   function handleTypeChange(value: TransactionType | '') {
     setType(value)
+    setPage(1)
+  }
+
+  function handleTagChange(value: string) {
+    setTag(value)
     setPage(1)
   }
 
@@ -162,6 +172,7 @@ function Dashboard() {
             options={categoryOptions}
             onChange={handleCategoryChange}
           />
+          <TagFilter value={tag} options={tags.data ?? []} onChange={handleTagChange} />
           <ExportCsvButton month={month} />
           <ImportCsvButton />
         </div>

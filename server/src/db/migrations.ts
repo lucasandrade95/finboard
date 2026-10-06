@@ -237,6 +237,30 @@ export const MIGRATIONS: readonly Migration[] = [
       db.exec('CREATE INDEX IF NOT EXISTS idx_transactions_transfer ON transactions (transfer_id)')
     },
   },
+  {
+    id: 12,
+    name: 'create_tags',
+    up: (db) => {
+      // N:N clássico: a tag existe uma vez por usuário (NOCASE, como categorias e
+      // contas) e a tabela de junção liga quantas transações quiser. O CASCADE limpa
+      // o vínculo quando a transação some — inclusive as pernas de transferência.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS tags (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id),
+          name TEXT NOT NULL COLLATE NOCASE,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (user_id, name)
+        );
+        CREATE TABLE IF NOT EXISTS transaction_tags (
+          transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+          tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+          PRIMARY KEY (transaction_id, tag_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_transaction_tags_tag ON transaction_tags (tag_id);
+      `)
+    },
+  },
 ]
 
 /**

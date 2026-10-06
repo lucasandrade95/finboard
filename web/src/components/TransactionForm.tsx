@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useCreateTransaction } from '../hooks/use-finance'
 import { t } from '../i18n'
 import { parseReaisToCents, type Account, type Category, type TransactionType } from '../lib/api'
+import { parseTagsInput, tagsWithinLimits } from '../lib/tags'
 
 function today(): string {
   return new Date().toISOString().slice(0, 10)
@@ -29,6 +30,7 @@ export function TransactionForm({
   const [recurring, setRecurring] = useState(false)
   // Texto do select: '' é "sem conta"; o id vira número só no envio.
   const [accountId, setAccountId] = useState('')
+  const [tagsText, setTagsText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const createTransaction = useCreateTransaction()
 
@@ -47,6 +49,11 @@ export function TransactionForm({
       setError(t.common.amountMustBePositive)
       return
     }
+    const tags = parseTagsInput(tagsText)
+    if (!tagsWithinLimits(tags)) {
+      setError(t.tags.invalid)
+      return
+    }
 
     createTransaction.mutate(
       {
@@ -58,6 +65,8 @@ export function TransactionForm({
         recurring,
         // Sem contas cadastradas o campo nem existe: o corpo segue igual ao de antes.
         ...(accounts.length > 0 ? { accountId: accountId ? Number(accountId) : null } : {}),
+        // Sem tags o campo fica fora do corpo: na criação, omitido já é "nenhuma".
+        ...(tags.length > 0 ? { tags } : {}),
       },
       {
         onSuccess: () => {
@@ -65,6 +74,7 @@ export function TransactionForm({
           setAmount('')
           setCategory('')
           setRecurring(false)
+          setTagsText('')
         },
         onError: (mutationError) => setError(mutationError.message),
       },
@@ -154,6 +164,14 @@ export function TransactionForm({
             </select>
           </label>
         )}
+        <label>
+          {t.tags.field}
+          <input
+            value={tagsText}
+            onChange={(e) => setTagsText(e.target.value)}
+            placeholder={t.tags.placeholder}
+          />
+        </label>
         <label className="checkbox-label">
           <input
             type="checkbox"

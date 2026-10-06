@@ -821,6 +821,27 @@ button[type='submit']:disabled {
   color: var(--muted);
 }
 
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag-chip {
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  font-size: 0.7rem;
+  background: var(--bg);
+  color: var(--muted);
+}
+
+.edit-tags {
+  margin-top: 0.4rem;
+}
+
 .recurring-tag {
   margin-left: 0.5rem;
   border: 1px solid var(--border);

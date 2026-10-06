@@ -24,6 +24,8 @@ export interface Transaction {
   accountId: number | null
   /** Perna de transferência entre contas: só muda pela própria transferência. */
   transferId: number | null
+  /** Tags livres, em ordem alfabética. */
+  tags: string[]
   createdAt: string
 }
 
@@ -36,6 +38,10 @@ export interface TransactionPage {
 
 export interface CategoryList {
   categories: string[]
+}
+
+export interface TagList {
+  tags: string[]
 }
 
 /** Categoria do catálogo da conta: o `name` é o mesmo texto gravado na transação. */
@@ -189,12 +195,15 @@ export interface CreateTransactionInput {
   recurring?: boolean
   /** `null` desvincula; omitido na edição mantém a conta atual. */
   accountId?: number | null
+  /** Omitido na edição mantém as tags atuais; `[]` remove todas. */
+  tags?: string[]
 }
 
 export interface TransactionFilters {
   type?: TransactionType
   category?: string
   q?: string
+  tag?: string
 }
 
 export interface CsvImportRowError {
@@ -370,10 +379,14 @@ export const api = {
     if (filters.q) {
       params.set('q', filters.q)
     }
+    if (filters.tag) {
+      params.set('tag', filters.tag)
+    }
     return request<TransactionPage>(`/api/transactions?${params.toString()}`)
   },
   listCategories: (month: string) =>
     request<CategoryList>(`/api/categories?month=${month}`).then((data) => data.categories),
+  listTags: () => request<TagList>('/api/tags').then((data) => data.tags),
   listCategoryCatalog: () =>
     request<CategoryCatalog>('/api/categories/catalog').then((data) => data.items),
   createCategory: (input: CreateCategoryInput) =>

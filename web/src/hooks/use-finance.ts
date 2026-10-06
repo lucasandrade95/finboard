@@ -10,11 +10,19 @@ import {
 } from '../lib/api'
 
 export function useTransactions(month: string, page: number, filters: TransactionFilters = {}) {
-  const { type, category, q } = filters
+  const { type, category, q, tag } = filters
   return useQuery({
     // Chave só com primitivos: o objeto de filtros muda de referência a cada render.
-    queryKey: ['transactions', month, page, type ?? null, category ?? null, q ?? null],
-    queryFn: () => api.listTransactions(month, page, { type, category, q }),
+    queryKey: ['transactions', month, page, type ?? null, category ?? null, q ?? null, tag ?? null],
+    queryFn: () => api.listTransactions(month, page, { type, category, q, tag }),
+  })
+}
+
+// Tags da conta inteira, não do mês: o filtro acha a "viagem" de qualquer período.
+export function useTags() {
+  return useQuery({
+    queryKey: ['tags'],
+    queryFn: () => api.listTags(),
   })
 }
 
@@ -125,6 +133,7 @@ function invalidateTransactionQueries(queryClient: QueryClient): void {
     'budgets',
     'accounts',
     'transfers',
+    'tags',
   ]) {
     void queryClient.invalidateQueries({ queryKey: [key] })
   }

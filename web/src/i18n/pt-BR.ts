@@ -162,6 +162,13 @@ export const ptBR = {
     removeLabel: (description: string, date: string) => `Desfazer ${description} de ${date}`,
     remove: 'Desfazer',
   },
+  tags: {
+    field: 'Tags',
+    placeholder: 'viagem, férias',
+    invalid: 'Use até 10 tags de até 30 caracteres, separadas por vírgula.',
+    filter: 'Tag',
+    allTags: 'Todas',
+  },
   transactionForm: {
     title: 'Nova transação',
     descriptionPlaceholder: 'Mercado, salário…',

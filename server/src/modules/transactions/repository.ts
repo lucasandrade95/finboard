@@ -12,6 +12,8 @@ export interface TransactionRecord {
   accountId: number | null
   /** Preenchido nas duas pernas de uma transferência entre contas. */
   transferId: number | null
+  /** Tags livres da transação, em ordem alfabética. */
+  tags: string[]
   createdAt: string
 }
 
@@ -25,6 +27,7 @@ export interface ListTransactionsFilters {
   type?: TransactionType
   category?: string
   q?: string
+  tag?: string
   limit: number
   offset: number
 }
@@ -105,7 +108,11 @@ function dayKey(month: string, day: number): string {
   return `${month}-${String(day).padStart(2, '0')}`
 }
 
-function toRecord(row: TransactionRow): TransactionRecord {
+function compareText(a: string, b: string): number {
+  return a.localeCompare(b, 'pt-BR')
+}
+
+function toRecord(row: TransactionRow, tags: string[]): TransactionRecord {
   return {
     id: row.id,
     type: row.type,
@@ -116,6 +123,7 @@ function toRecord(row: TransactionRow): TransactionRecord {
     recurring: row.recurring === 1,
     accountId: row.account_id,
     transferId: row.transfer_id,
+    tags,
     createdAt: row.created_at,
   }
 }
@@ -130,21 +138,28 @@ export class TransactionsRepository {
   constructor(private readonly db: AppDatabase) {}
 
   create(userId: number, input: CreateTransactionInput): TransactionRecord {
-    const result = this.db
-      .prepare(
-        `INSERT INTO transactions
-           (user_id, type, description, amount_cents, category, occurred_on, recurring, account_id)
-         VALUES
-           (@userId, @type, @description, @amountCents, @category, @occurredOn, @recurring, @accountId)`,
-      )
-      // better-sqlite3 não aceita boolean como parâmetro: converte para 0/1.
-      .run({
-        ...input,
-        userId,
-        recurring: input.recurring ? 1 : 0,
-        accountId: input.accountId ?? null,
-      })
-    const created = this.findById(userId, Number(result.lastInsertRowid))
+    const { tags = [], ...fields } = input
+    // Linha e tags juntas: falhou no vínculo, a transação também não fica.
+    const insert = this.db.transaction(() => {
+      const result = this.db
+        .prepare(
+          `INSERT INTO transactions
+             (user_id, type, description, amount_cents, category, occurred_on, recurring, account_id)
+           VALUES
+             (@userId, @type, @description, @amountCents, @category, @occurredOn, @recurring, @accountId)`,
+        )
+        // better-sqlite3 não aceita boolean como parâmetro: converte para 0/1.
+        .run({
+          ...fields,
+          userId,
+          recurring: fields.recurring ? 1 : 0,
+          accountId: fields.accountId ?? null,
+        })
+      const id = Number(result.lastInsertRowid)
+      this.replaceTags(userId, id, tags)
+      return id
+    })
+    const created = this.findById(userId, insert())
     if (!created) {
       throw new Error('transação recém-criada não encontrada')
     }
@@ -166,7 +181,51 @@ export class TransactionsRepository {
     const row = this.db
       .prepare('SELECT * FROM transactions WHERE id = ? AND user_id = ?')
       .get(id, userId) as TransactionRow | undefined
-    return row ? toRecord(row) : undefined
+    return row ? this.toRecords([row])[0] : undefined
+  }
+
+  /**
+   * Tags de todas as linhas numa consulta só (sem N+1 na página). Os ids vão como
+   * um array JSON lido por `json_each`: não esbarra no limite de parâmetros do SQLite.
+   */
+  private toRecords(rows: TransactionRow[]): TransactionRecord[] {
+    if (rows.length === 0) {
+      return []
+    }
+    const links = this.db
+      .prepare(
+        `SELECT tt.transaction_id AS transactionId, tg.name
+         FROM transaction_tags tt JOIN tags tg ON tg.id = tt.tag_id
+         WHERE tt.transaction_id IN (SELECT value FROM json_each(?))`,
+      )
+      .all(JSON.stringify(rows.map((row) => row.id))) as Array<{
+      transactionId: number
+      name: string
+    }>
+    const tagsById = new Map<number, string[]>()
+    for (const { transactionId, name } of links) {
+      tagsById.set(transactionId, [...(tagsById.get(transactionId) ?? []), name])
+    }
+    return rows.map((row) => toRecord(row, (tagsById.get(row.id) ?? []).sort(compareText)))
+  }
+
+  /**
+   * Troca o conjunto de tags da transação. A tag é criada na primeira vez que
+   * aparece e reaproveitada depois — "Viagem" e "viagem" são a mesma (NOCASE),
+   * e o OR IGNORE da junção faz o repetido entrar uma vez só.
+   */
+  private replaceTags(userId: number, transactionId: number, names: string[]): void {
+    this.db.prepare('DELETE FROM transaction_tags WHERE transaction_id = ?').run(transactionId)
+    const insertTag = this.db.prepare('INSERT OR IGNORE INTO tags (user_id, name) VALUES (?, ?)')
+    const findTag = this.db.prepare('SELECT id FROM tags WHERE user_id = ? AND name = ?')
+    const link = this.db.prepare(
+      'INSERT OR IGNORE INTO transaction_tags (transaction_id, tag_id) VALUES (?, ?)',
+    )
+    for (const name of names) {
+      insertTag.run(userId, name)
+      const tag = findTag.get(userId, name) as { id: number }
+      link.run(transactionId, tag.id)
+    }
   }
 
   updateById(
@@ -174,25 +233,32 @@ export class TransactionsRepository {
     id: number,
     input: UpdateTransactionInput,
   ): TransactionRecord | undefined {
-    // `accountId` omitido mantém a conta atual; só `null` explícito desvincula.
-    const { accountId, ...fields } = input
+    // `accountId` e `tags` omitidos mantêm o que já está gravado; `null`/`[]` explícitos limpam.
+    const { accountId, tags, ...fields } = input
     const keepAccount = accountId === undefined
-    const result = this.db
-      .prepare(
-        `UPDATE transactions
-         SET type = @type, description = @description, amount_cents = @amountCents,
-             category = @category, occurred_on = @occurredOn, recurring = @recurring,
-             account_id = ${keepAccount ? 'account_id' : '@accountId'}
-         WHERE id = @id AND user_id = @userId`,
-      )
-      .run({
-        ...fields,
-        id,
-        userId,
-        recurring: input.recurring ? 1 : 0,
-        ...(keepAccount ? {} : { accountId }),
-      })
-    return result.changes > 0 ? this.findById(userId, id) : undefined
+    const update = this.db.transaction(() => {
+      const result = this.db
+        .prepare(
+          `UPDATE transactions
+           SET type = @type, description = @description, amount_cents = @amountCents,
+               category = @category, occurred_on = @occurredOn, recurring = @recurring,
+               account_id = ${keepAccount ? 'account_id' : '@accountId'}
+           WHERE id = @id AND user_id = @userId`,
+        )
+        .run({
+          ...fields,
+          id,
+          userId,
+          recurring: input.recurring ? 1 : 0,
+          ...(keepAccount ? {} : { accountId }),
+        })
+      // Só mexe nas tags depois do UPDATE casar: id de outro usuário não ganha vínculo.
+      if (result.changes > 0 && tags !== undefined) {
+        this.replaceTags(userId, id, tags)
+      }
+      return result.changes > 0
+    })
+    return update() ? this.findById(userId, id) : undefined
   }
 
   deleteById(userId: number, id: number): boolean {
@@ -204,7 +270,7 @@ export class TransactionsRepository {
 
   list(
     userId: number,
-    { month, type, category, q, limit, offset }: ListTransactionsFilters,
+    { month, type, category, q, tag, limit, offset }: ListTransactionsFilters,
   ): TransactionPage {
     const conditions: string[] = ['user_id = ?']
     const params: Array<string | number> = [userId]
@@ -224,6 +290,14 @@ export class TransactionsRepository {
       conditions.push(`description LIKE ? ESCAPE '\\'`)
       params.push(`%${escapeLikeTerm(q)}%`)
     }
+    if (tag) {
+      // `tags.name` é NOCASE: o filtro "viagem" casa com a tag gravada como "Viagem".
+      conditions.push(
+        `id IN (SELECT tt.transaction_id FROM transaction_tags tt
+                JOIN tags tg ON tg.id = tt.tag_id WHERE tg.user_id = ? AND tg.name = ?)`,
+      )
+      params.push(userId, tag)
+    }
     const where = `WHERE ${conditions.join(' AND ')}`
     const rows = this.db
       .prepare(
@@ -233,7 +307,7 @@ export class TransactionsRepository {
     const { total } = this.db
       .prepare(`SELECT COUNT(*) AS total FROM transactions ${where}`)
       .get(...params) as { total: number }
-    return { items: rows.map(toRecord), total }
+    return { items: this.toRecords(rows), total }
   }
 
   /** Mês inteiro sem paginação, do dia 1 ao último: é a ordem natural de leitura num export. */
@@ -244,7 +318,22 @@ export class TransactionsRepository {
          ORDER BY occurred_on, id`,
       )
       .all(userId, `${month}-%`) as TransactionRow[]
-    return rows.map(toRecord)
+    return this.toRecords(rows)
+  }
+
+  /**
+   * Tags em uso por alguma transação do usuário. Tag que perdeu o último vínculo
+   * continua na tabela (é reaproveitada se voltar), mas some do filtro.
+   */
+  listTags(userId: number): string[] {
+    const rows = this.db
+      .prepare(
+        `SELECT DISTINCT tg.name FROM tags tg
+         JOIN transaction_tags tt ON tt.tag_id = tg.id
+         WHERE tg.user_id = ?`,
+      )
+      .all(userId) as Array<{ name: string }>
+    return rows.map((row) => row.name).sort(compareText)
   }
 
   listCategories(userId: number, month?: string): string[] {
@@ -260,7 +349,7 @@ export class TransactionsRepository {
             .all(userId)
     ) as Array<{ category: string }>
     // Ordena em JS: o ORDER BY do SQLite compara byte a byte e joga acentuados para o fim.
-    return rows.map((row) => row.category).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    return rows.map((row) => row.category).sort(compareText)
   }
 
   expensesByCategory(userId: number, month?: string): ExpensesByCategory {
@@ -385,12 +474,14 @@ export class TransactionsRepository {
    */
   generateRecurringForMonth(userId: number, month: string): TransactionRecord[] {
     const generate = this.db.transaction((): TransactionRecord[] => {
-      const templates = this.db
-        .prepare(
-          `SELECT * FROM transactions WHERE user_id = ? AND recurring = 1 AND occurred_on < ?
-           ORDER BY occurred_on DESC, id DESC`,
-        )
-        .all(userId, `${month}-01`) as TransactionRow[]
+      const templates = this.toRecords(
+        this.db
+          .prepare(
+            `SELECT * FROM transactions WHERE user_id = ? AND recurring = 1 AND occurred_on < ?
+             ORDER BY occurred_on DESC, id DESC`,
+          )
+          .all(userId, `${month}-01`) as TransactionRow[],
+      )
       const existing = this.db
         .prepare(
           `SELECT DISTINCT type || '|' || description || '|' || category AS key
@@ -406,17 +497,19 @@ export class TransactionsRepository {
           continue
         }
         done.add(key)
-        const day = Math.min(Number(template.occurred_on.slice(8, 10)), daysInMonth(month))
+        const day = Math.min(Number(template.occurredOn.slice(8, 10)), daysInMonth(month))
         created.push(
           this.create(userId, {
             type: template.type,
             description: template.description,
-            amountCents: template.amount_cents,
+            amountCents: template.amountCents,
             category: template.category,
             occurredOn: dayKey(month, day),
             recurring: true,
-            // A cópia do mês cai na mesma conta da série (aluguel sai sempre da corrente).
-            accountId: template.account_id,
+            // A cópia do mês cai na mesma conta da série (aluguel sai sempre da corrente)
+            // e leva as mesmas tags.
+            accountId: template.accountId,
+            tags: template.tags,
           }),
         )
       }

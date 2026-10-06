@@ -7,6 +7,7 @@ import {
   type Transaction,
   type TransactionType,
 } from '../lib/api'
+import { formatTagsInput, parseTagsInput, tagsWithinLimits } from '../lib/tags'
 import { useDeleteTransaction, useUpdateTransaction } from '../hooks/use-finance'
 import { Skeleton } from './Skeleton'
 
@@ -34,6 +35,7 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
   const [category, setCategory] = useState(transaction.category)
   const [occurredOn, setOccurredOn] = useState(transaction.occurredOn)
   const [recurring, setRecurring] = useState(transaction.recurring)
+  const [tagsText, setTagsText] = useState(formatTagsInput(transaction.tags))
   const [error, setError] = useState<string | null>(null)
   const updateTransaction = useUpdateTransaction()
 
@@ -52,6 +54,11 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
       setError(t.common.amountMustBePositive)
       return
     }
+    const tags = parseTagsInput(tagsText)
+    if (!tagsWithinLimits(tags)) {
+      setError(t.tags.invalid)
+      return
+    }
 
     updateTransaction.mutate(
       {
@@ -63,6 +70,8 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
           category: category.trim() || undefined,
           occurredOn,
           recurring,
+          // Sempre enviadas: o campo vem preenchido, então apagá-lo é remover as tags.
+          tags,
         },
       },
       {
@@ -106,6 +115,14 @@ function TransactionEditRow({ transaction, onDone }: EditRowProps) {
             maxLength={200}
           />
         </form>
+        <input
+          form={formId}
+          className="edit-tags"
+          aria-label={t.tags.field}
+          value={tagsText}
+          onChange={(e) => setTagsText(e.target.value)}
+          placeholder={t.tags.placeholder}
+        />
         <label className="checkbox-label">
           <input
             form={formId}
@@ -239,6 +256,15 @@ export function TransactionList({
                     <span className="recurring-tag" title={t.transactionList.recurringTitle}>
                       {t.transactionList.recurringTag}
                     </span>
+                  )}
+                  {transaction.tags.length > 0 && (
+                    <ul className="tag-list" aria-label={t.tags.field}>
+                      {transaction.tags.map((tag) => (
+                        <li key={tag} className="tag-chip">
+                          #{tag}
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </td>
                 <td>

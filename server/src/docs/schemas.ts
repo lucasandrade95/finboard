@@ -86,6 +86,12 @@ const transaction = {
       type: ['integer', 'null'],
       description: 'Preenchido nas duas pernas de uma transferência entre contas',
     },
+    tags: {
+      type: 'array',
+      items: { type: 'string' },
+      example: ['viagem', 'férias'],
+      description: 'Tags livres, em ordem alfabética',
+    },
     createdAt: { type: 'string', example: '2026-09-18 12:00:00' },
   },
 }
@@ -105,6 +111,14 @@ const transactionBody = {
       description:
         'Conta do próprio usuário (senão 400 em `accountId`). Na criação o padrão é null; ' +
         'na edição, omitir mantém a conta atual.',
+    },
+    tags: {
+      type: 'array',
+      maxItems: 10,
+      items: { type: 'string', minLength: 1, maxLength: 30, pattern: '^[^,]+$' },
+      description:
+        'Tags livres (até 10, sem vírgula). Repetidas sem diferenciar maiúsculas entram uma vez. ' +
+        'Na criação o padrão é nenhuma; na edição, omitir mantém as atuais e `[]` remove todas.',
     },
   },
 }
@@ -221,6 +235,11 @@ export const transactionDocs = {
         type: { type: 'string', enum: ['income', 'expense'] },
         category: { type: 'string', maxLength: 50 },
         q: { type: 'string', maxLength: 100, description: 'Busca na descrição' },
+        tag: {
+          type: 'string',
+          maxLength: 30,
+          description: 'Só transações com esta tag (sem diferenciar maiúsculas)',
+        },
         limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
         offset: { type: 'integer', minimum: 0, default: 0 },
       },
@@ -333,6 +352,20 @@ export const transactionDocs = {
         description: 'Categorias em ordem alfabética',
         type: 'object',
         properties: { categories: { type: 'array', items: { type: 'string' } } },
+      },
+      401: unauthorized,
+    },
+  } satisfies FastifySchema,
+
+  tags: {
+    ...authenticated,
+    tags: ['transações'],
+    summary: 'Tags em uso nas transações',
+    response: {
+      200: {
+        description: 'Tags ligadas a pelo menos uma transação, em ordem alfabética',
+        type: 'object',
+        properties: { tags: { type: 'array', items: { type: 'string' } } },
       },
       401: unauthorized,
     },

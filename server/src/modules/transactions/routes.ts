@@ -51,7 +51,7 @@ export function registerTransactionRoutes(
     '/api/transactions',
     { ...protectedRoute, schema: transactionDocs.list },
     async (request) => {
-      const { month, type, category, q, limit, offset } = listTransactionsQuerySchema.parse(
+      const { month, type, category, q, tag, limit, offset } = listTransactionsQuerySchema.parse(
         request.query,
       )
       const { items, total } = repository.list(ownerId(request), {
@@ -59,6 +59,7 @@ export function registerTransactionRoutes(
         type,
         category,
         q,
+        tag,
         limit,
         offset,
       })
@@ -163,6 +164,10 @@ export function registerTransactionRoutes(
       return { categories: repository.listCategories(ownerId(request), month) }
     },
   )
+
+  app.get('/api/tags', { ...protectedRoute, schema: transactionDocs.tags }, async (request) => ({
+    tags: repository.listTags(ownerId(request)),
+  }))
 
   app.get(
     '/api/expenses-by-category',
