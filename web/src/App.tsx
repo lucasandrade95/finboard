@@ -16,6 +16,7 @@ import { TagFilter } from './components/TagFilter'
 import { ThemeToggle } from './components/ThemeToggle'
 import { TransactionForm } from './components/TransactionForm'
 import { TransactionList } from './components/TransactionList'
+import { InstallmentsPanel } from './components/InstallmentsPanel'
 import { TransfersPanel } from './components/TransfersPanel'
 import { TypeFilter } from './components/TypeFilter'
 import { useToken } from './hooks/use-auth'
@@ -28,6 +29,7 @@ import {
   useDailyBalance,
   useExpensesByCategory,
   useGoals,
+  useInstallments,
   useSummary,
   useTags,
   useTransactions,
@@ -84,6 +86,7 @@ function Dashboard() {
   const catalog = useCategoryCatalog()
   const accounts = useAccounts()
   const transfers = useTransfers(month)
+  const installments = useInstallments()
   const tags = useTags()
   const categoryOptions = categories.data ?? []
 
@@ -158,6 +161,11 @@ function Dashboard() {
           transfers={transfers.data}
           accounts={accounts.data}
           loading={transfers.isPending || accounts.isPending}
+        />
+        <InstallmentsPanel
+          installments={installments.data}
+          accounts={accounts.data}
+          loading={installments.isPending}
         />
         <TransactionForm
           categories={categoryOptions}

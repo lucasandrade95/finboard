@@ -45,8 +45,9 @@ const validationError = {
 
 const noContent = { description: 'Removido', type: 'null' }
 
-const transferLeg = errorResponse(
-  'Lançamento faz parte de uma transferência: altere ou exclua pela transferência',
+const linkedEntry = errorResponse(
+  'Lançamento vinculado: altere ou exclua pela transferência (`transfer_leg`) ' +
+    'ou pelo parcelamento (`installment_part`)',
   'transfer_leg',
 )
 
@@ -85,6 +86,14 @@ const transaction = {
     transferId: {
       type: ['integer', 'null'],
       description: 'Preenchido nas duas pernas de uma transferência entre contas',
+    },
+    installmentId: {
+      type: ['integer', 'null'],
+      description: 'Preenchido nas parcelas de uma compra parcelada',
+    },
+    installmentNumber: {
+      type: ['integer', 'null'],
+      description: 'Posição da parcela (1 = primeira); null fora de parcelamento',
     },
     tags: {
       type: 'array',
@@ -282,7 +291,7 @@ export const transactionDocs = {
       400: validationError,
       401: unauthorized,
       404: notFound,
-      409: transferLeg,
+      409: linkedEntry,
     },
   } satisfies FastifySchema,
 
@@ -291,7 +300,7 @@ export const transactionDocs = {
     tags: ['transações'],
     summary: 'Exclui transação',
     params: { type: 'object', properties: { id: { type: 'integer' } } },
-    response: { 204: noContent, 401: unauthorized, 404: notFound, 409: transferLeg },
+    response: { 204: noContent, 401: unauthorized, 404: notFound, 409: linkedEntry },
   } satisfies FastifySchema,
 
   // Sem schema de resposta: o corpo é CSV, não JSON.
@@ -803,6 +812,74 @@ export const transferDocs = {
     tags: ['transferências'],
     summary: 'Desfaz transferência',
     description: 'Remove os dois lançamentos juntos.',
+    params: { type: 'object', properties: { id: { type: 'integer' } } },
+    response: { 204: noContent, 401: unauthorized, 404: notFound },
+  } satisfies FastifySchema,
+}
+
+const installment = {
+  type: 'object',
+  properties: {
+    id: { type: 'integer' },
+    description: { type: 'string', example: 'Notebook' },
+    totalCents: { type: 'integer', example: 350000 },
+    installmentCount: { type: 'integer', example: 10 },
+    category: { type: 'string', example: 'eletrônicos' },
+    accountId: { type: ['integer', 'null'], description: 'null = sem conta' },
+    firstDueOn: { type: 'string', pattern: DATE_PATTERN, example: '2026-10-15' },
+    lastDueOn: { type: 'string', pattern: DATE_PATTERN, example: '2027-07-15' },
+    createdAt: { type: 'string' },
+  },
+}
+
+export const installmentDocs = {
+  list: {
+    ...authenticated,
+    tags: ['parcelamentos'],
+    summary: 'Compras parceladas',
+    description: 'Todas as compras parceladas do usuário, da primeira parcela mais recente.',
+    response: {
+      200: {
+        description: 'Parcelamentos do usuário',
+        type: 'object',
+        properties: { items: { type: 'array', items: installment } },
+      },
+      401: unauthorized,
+    },
+  } satisfies FastifySchema,
+
+  create: {
+    ...authenticated,
+    tags: ['parcelamentos'],
+    summary: 'Registra compra parcelada',
+    description:
+      'Gera uma despesa por parcela, mês a mês a partir de `firstDueOn` (dia limitado ao fim ' +
+      'do mês). As parcelas somam exatamente o total; a sobra de centavos vai na primeira.',
+    body: {
+      type: 'object',
+      required: ['description', 'totalCents', 'installmentCount', 'firstDueOn'],
+      properties: {
+        description: { type: 'string', minLength: 1, maxLength: 190 },
+        totalCents: { type: 'integer', minimum: 2, description: 'Centavos, valor total da compra' },
+        installmentCount: { type: 'integer', minimum: 2, maximum: 48 },
+        firstDueOn: { type: 'string', pattern: DATE_PATTERN },
+        category: { type: 'string', minLength: 1, maxLength: 50, default: 'geral' },
+        accountId: { type: ['integer', 'null'], description: 'Conta do próprio usuário' },
+        tags: { type: 'array', maxItems: 10, items: { type: 'string', maxLength: 30 } },
+      },
+    },
+    response: {
+      201: { description: 'Parcelamento criado', ...installment },
+      400: validationError,
+      401: unauthorized,
+    },
+  } satisfies FastifySchema,
+
+  remove: {
+    ...authenticated,
+    tags: ['parcelamentos'],
+    summary: 'Cancela compra parcelada',
+    description: 'Remove o parcelamento e todas as parcelas juntos.',
     params: { type: 'object', properties: { id: { type: 'integer' } } },
     response: { 204: noContent, 401: unauthorized, 404: notFound },
   } satisfies FastifySchema,

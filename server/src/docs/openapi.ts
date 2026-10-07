@@ -32,6 +32,7 @@ export async function registerOpenApi(app: FastifyInstance): Promise<void> {
         { name: 'categorias', description: 'Catálogo de categorias com cor e ícone' },
         { name: 'contas', description: 'Contas/carteiras e saldo por conta' },
         { name: 'transferências', description: 'Transferências entre contas do usuário' },
+        { name: 'parcelamentos', description: 'Compras parceladas e suas parcelas futuras' },
       ],
       components: {
         securitySchemes: {

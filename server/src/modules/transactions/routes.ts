@@ -37,6 +37,14 @@ function sendTransferLeg(reply: FastifyReply) {
   return reply.code(409).send({ error: 'transfer_leg' })
 }
 
+/**
+ * Parcela só muda pelo parcelamento: excluir ou editar uma sozinha faria a soma
+ * das parcelas deixar de bater com o total da compra.
+ */
+function sendInstallmentPart(reply: FastifyReply) {
+  return reply.code(409).send({ error: 'installment_part' })
+}
+
 export function registerTransactionRoutes(
   app: FastifyInstance,
   repository: TransactionsRepository,
@@ -44,8 +52,13 @@ export function registerTransactionRoutes(
 ): void {
   const ownsAccount = (userId: number, accountId: number | null | undefined) =>
     accountId == null || accounts.belongsTo(userId, accountId)
-  const isTransferLeg = (userId: number, id: number) =>
-    repository.findById(userId, id)?.transferId != null
+  /** Lançamento vinculado a transferência ou parcelamento: muda só pelo vínculo. */
+  const linkedError = (userId: number, id: number, reply: FastifyReply) => {
+    const current = repository.findById(userId, id)
+    if (current?.transferId != null) return sendTransferLeg(reply)
+    if (current?.installmentId != null) return sendInstallmentPart(reply)
+    return undefined
+  }
 
   app.get(
     '/api/transactions',
@@ -129,8 +142,9 @@ export function registerTransactionRoutes(
       if (!ownsAccount(ownerId(request), input.accountId)) {
         return sendUnknownAccount(reply)
       }
-      if (isTransferLeg(ownerId(request), id)) {
-        return sendTransferLeg(reply)
+      const linked = linkedError(ownerId(request), id, reply)
+      if (linked) {
+        return linked
       }
       const updated = repository.updateById(ownerId(request), id, input)
       // Transação de outra conta cai aqui: o 404 não confirma que o id existe.
@@ -146,8 +160,9 @@ export function registerTransactionRoutes(
     { ...protectedRoute, schema: transactionDocs.remove },
     async (request, reply) => {
       const { id } = idParamSchema.parse(request.params)
-      if (isTransferLeg(ownerId(request), id)) {
-        return sendTransferLeg(reply)
+      const linked = linkedError(ownerId(request), id, reply)
+      if (linked) {
+        return linked
       }
       if (!repository.deleteById(ownerId(request), id)) {
         return reply.code(404).send({ error: 'not_found' })

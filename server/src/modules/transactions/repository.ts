@@ -12,6 +12,10 @@ export interface TransactionRecord {
   accountId: number | null
   /** Preenchido nas duas pernas de uma transferência entre contas. */
   transferId: number | null
+  /** Preenchido nas parcelas de uma compra parcelada. */
+  installmentId: number | null
+  /** Posição da parcela no parcelamento (1 = primeira); `null` fora de parcelamento. */
+  installmentNumber: number | null
   /** Tags livres da transação, em ordem alfabética. */
   tags: string[]
   createdAt: string
@@ -82,6 +86,8 @@ interface TransactionRow {
   recurring: 0 | 1
   account_id: number | null
   transfer_id: number | null
+  installment_id: number | null
+  installment_number: number | null
   created_at: string
 }
 
@@ -123,6 +129,8 @@ function toRecord(row: TransactionRow, tags: string[]): TransactionRecord {
     recurring: row.recurring === 1,
     accountId: row.account_id,
     transferId: row.transfer_id,
+    installmentId: row.installment_id,
+    installmentNumber: row.installment_number,
     tags,
     createdAt: row.created_at,
   }

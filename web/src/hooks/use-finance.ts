@@ -5,6 +5,7 @@ import {
   type CreateCategoryInput,
   type CreateGoalInput,
   type CreateTransactionInput,
+  type CreateInstallmentInput,
   type CreateTransferInput,
   type TransactionFilters,
 } from '../lib/api'
@@ -133,6 +134,7 @@ function invalidateTransactionQueries(queryClient: QueryClient): void {
     'budgets',
     'accounts',
     'transfers',
+    'installments',
     'tags',
   ]) {
     void queryClient.invalidateQueries({ queryKey: [key] })
@@ -184,6 +186,30 @@ export function useDeleteTransfer() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => api.deleteTransfer(id),
+    onSuccess: () => invalidateTransactionQueries(queryClient),
+  })
+}
+
+export function useInstallments() {
+  return useQuery({
+    queryKey: ['installments'],
+    queryFn: () => api.listInstallments(),
+  })
+}
+
+// Parcelamento cria/remove N despesas de uma vez: mesma invalidação de uma transação.
+export function useCreateInstallment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CreateInstallmentInput) => api.createInstallment(input),
+    onSuccess: () => invalidateTransactionQueries(queryClient),
+  })
+}
+
+export function useDeleteInstallment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.deleteInstallment(id),
     onSuccess: () => invalidateTransactionQueries(queryClient),
   })
 }

@@ -261,6 +261,36 @@ export const MIGRATIONS: readonly Migration[] = [
       `)
     },
   },
+  {
+    id: 13,
+    name: 'create_installments',
+    up: (db) => {
+      // O parcelamento guarda o que é da compra (descrição, total, nº de parcelas);
+      // data, valor, categoria e conta de cada mês ficam nas próprias parcelas, que
+      // são despesas comuns e entram no resumo do mês em que vencem.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS installments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id),
+          description TEXT NOT NULL,
+          total_cents INTEGER NOT NULL CHECK (total_cents > 0),
+          installment_count INTEGER NOT NULL CHECK (installment_count >= 2),
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `)
+      if (!hasColumn(db, 'transactions', 'installment_id')) {
+        db.exec(
+          'ALTER TABLE transactions ADD COLUMN installment_id INTEGER REFERENCES installments(id)',
+        )
+      }
+      if (!hasColumn(db, 'transactions', 'installment_number')) {
+        db.exec('ALTER TABLE transactions ADD COLUMN installment_number INTEGER')
+      }
+      db.exec(
+        'CREATE INDEX IF NOT EXISTS idx_transactions_installment ON transactions (installment_id)',
+      )
+    },
+  },
 ]
 
 /**

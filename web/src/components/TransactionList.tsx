@@ -272,6 +272,9 @@ export function TransactionList({
                   {transaction.transferId !== null && (
                     <span className="transfer-tag">{t.transactionList.transferTag}</span>
                   )}
+                  {transaction.installmentId !== null && (
+                    <span className="transfer-tag">{t.transactionList.installmentTag}</span>
+                  )}
                 </td>
                 <td className={`amount-col ${transaction.type}`}>
                   {transaction.type === 'expense' ? '−' : '+'}
@@ -281,6 +284,9 @@ export function TransactionList({
                   {transaction.transferId !== null ? (
                     // Editar uma perna sozinha desequilibraria as contas: a API responde 409.
                     <span className="transfer-hint">{t.transactionList.transferHint}</span>
+                  ) : transaction.installmentId !== null ? (
+                    // Mexer numa parcela sozinha descasaria a soma do total: a API responde 409.
+                    <span className="transfer-hint">{t.transactionList.installmentHint}</span>
                   ) : (
                     <>
                       <button

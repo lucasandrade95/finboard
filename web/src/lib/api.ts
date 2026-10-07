@@ -24,6 +24,9 @@ export interface Transaction {
   accountId: number | null
   /** Perna de transferência entre contas: só muda pela própria transferência. */
   transferId: number | null
+  /** Parcela de compra parcelada: só muda pelo próprio parcelamento. */
+  installmentId: number | null
+  installmentNumber: number | null
   /** Tags livres, em ordem alfabética. */
   tags: string[]
   createdAt: string
@@ -103,6 +106,32 @@ export interface CreateTransferInput {
   amountCents: number
   occurredOn: string
   description?: string
+}
+
+/** Compra parcelada: uma despesa por mês, de `firstDueOn` a `lastDueOn`. */
+export interface Installment {
+  id: number
+  description: string
+  totalCents: number
+  installmentCount: number
+  category: string
+  accountId: number | null
+  firstDueOn: string
+  lastDueOn: string
+  createdAt: string
+}
+
+export interface InstallmentList {
+  items: Installment[]
+}
+
+export interface CreateInstallmentInput {
+  description: string
+  totalCents: number
+  installmentCount: number
+  firstDueOn: string
+  category?: string
+  accountId?: number | null
 }
 
 /** Saldo de uma conta no fim do mês do resumo. */
@@ -402,6 +431,10 @@ export const api = {
   createTransfer: (input: CreateTransferInput) =>
     request<Transfer>('/api/transfers', { method: 'POST', body: JSON.stringify(input) }),
   deleteTransfer: (id: number) => request<void>(`/api/transfers/${id}`, { method: 'DELETE' }),
+  listInstallments: () => request<InstallmentList>('/api/installments').then((data) => data.items),
+  createInstallment: (input: CreateInstallmentInput) =>
+    request<Installment>('/api/installments', { method: 'POST', body: JSON.stringify(input) }),
+  deleteInstallment: (id: number) => request<void>(`/api/installments/${id}`, { method: 'DELETE' }),
   getSummary: (month: string) => request<MonthlySummary>(`/api/summary?month=${month}`),
   getExpensesByCategory: (month: string) =>
     request<ExpensesByCategory>(`/api/expenses-by-category?month=${month}`),
