@@ -401,6 +401,8 @@ describe('PUT /api/transactions/:id', () => {
       recurring: false,
       accountId: null,
       transferId: null,
+      installmentId: null,
+      installmentNumber: null,
       tags: [],
       createdAt,
     })

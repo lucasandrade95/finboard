@@ -17,6 +17,8 @@ const transaction: Transaction = {
   recurring: false,
   accountId: null,
   transferId: null,
+  installmentId: null,
+  installmentNumber: null,
   tags: [],
   createdAt: '2026-08-20 12:00:00',
 }
@@ -300,6 +302,25 @@ describe('TransactionList', () => {
     expect(screen.getByText('Altere pelo painel de transferências')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Editar Reserva' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Excluir Reserva' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Editar Mercado' })).toBeTruthy()
+  })
+
+  it('parcela ganha etiqueta e fica sem Editar/Excluir', () => {
+    renderList([
+      {
+        ...transaction,
+        id: 1,
+        description: 'Notebook (2/10)',
+        installmentId: 3,
+        installmentNumber: 2,
+      },
+      { ...transaction, id: 2, description: 'Mercado' },
+    ])
+
+    expect(screen.getByText('▦ parcela')).toBeTruthy()
+    expect(screen.getByText('Altere pelo painel de parcelamentos')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Editar Notebook (2/10)' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Excluir Notebook (2/10)' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Editar Mercado' })).toBeTruthy()
   })
 

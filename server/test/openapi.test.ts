@@ -91,6 +91,8 @@ describe('documento OpenAPI', () => {
       '/api/accounts/{id}',
       '/api/transfers',
       '/api/transfers/{id}',
+      '/api/installments',
+      '/api/installments/{id}',
     ]) {
       expect(doc.paths[path], `rota ${path} fora da documentação`).toBeDefined()
     }
@@ -155,6 +157,8 @@ describe('schema das rotas é só documentação', () => {
       'createdAt',
       'description',
       'id',
+      'installmentId',
+      'installmentNumber',
       'occurredOn',
       'recurring',
       'tags',

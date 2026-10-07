@@ -7,5 +7,7 @@ export default defineConfig({
     // Com os arquivos rodando em paralelo, um hash pode passar dos 5s padrão sem
     // que nada esteja travado: o limite acompanha o custo real do hash.
     testTimeout: 30_000,
+    // O `beforeEach` também cadastra (e faz hash): mesmo teto, senão estoura nos 10s padrão.
+    hookTimeout: 30_000,
   },
 })
