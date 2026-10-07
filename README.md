@@ -86,8 +86,8 @@ Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento Op
 | GET    | `/api/auth/me`                     | Usuário do token (`Authorization: Bearer <token>`; 401 sem token ou token inválido)                                                              |
 | GET    | `/api/transactions?month=`         | Lista paginada (`limit`/`offset`, filtros `type=`/`category=`/`tag=`, busca `q=` na descrição, devolve `{ items, total, limit, offset }`)        |
 | POST   | `/api/transactions`                | Cria transação (`amountCents` inteiro > 0; `recurring` gera cópia mensal no boot; `accountId` opcional, da própria conta; `tags` livres, até 10) |
-| PUT    | `/api/transactions/:id`            | Atualiza transação (200; 404 se não existe; 409 `transfer_leg`)                                                                                  |
-| DELETE | `/api/transactions/:id`            | Exclui transação (204; 404 se não existe; 409 `transfer_leg`)                                                                                    |
+| PUT    | `/api/transactions/:id`            | Atualiza transação (200; 404 se não existe; 409 `transfer_leg`/`installment_part`)                                                               |
+| DELETE | `/api/transactions/:id`            | Exclui transação (204; 404 se não existe; 409 `transfer_leg`/`installment_part`)                                                                 |
 | GET    | `/api/transactions/export.csv`     | Exporta as transações do mês em CSV (`month` obrigatório; `;` + vírgula decimal + BOM, abre direto no Excel pt-BR)                               |
 | POST   | `/api/transactions/import`         | Importa CSV no formato do export (corpo `text/csv`; 201 `{ imported }`; tudo ou nada — 400 `invalid_csv` com erros por linha/coluna)             |
 | GET    | `/api/categories?month=`           | Categorias distintas usadas no período (`{ categories: string[] }`)                                                                              |
@@ -103,6 +103,9 @@ Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento Op
 | GET    | `/api/transfers?month=`            | Transferências entre contas, mais recentes primeiro (`{ items }`: `fromAccountId`, `toAccountId`, `amountCents`, `occurredOn`)                   |
 | POST   | `/api/transfers`                   | Transfere entre duas contas do usuário (201): par de lançamentos vinculados, fora de receita/despesa; 400 se a conta não é sua                   |
 | DELETE | `/api/transfers/:id`               | Desfaz a transferência (204), removendo os dois lançamentos juntos                                                                               |
+| GET    | `/api/installments`                | Compras parceladas do usuário (`{ items }`: `totalCents`, `installmentCount`, `firstDueOn`, `lastDueOn`)                                         |
+| POST   | `/api/installments`                | Registra compra parcelada (201): gera uma despesa por mês (2–48 parcelas, soma exata, sobra de centavos na 1ª)                                   |
+| DELETE | `/api/installments/:id`            | Cancela o parcelamento (204), removendo todas as parcelas juntas                                                                                 |
 | GET    | `/api/daily-balance?month=`        | Saldo acumulado dia a dia do mês (`month` obrigatório; um ponto por dia, inclusive dias sem movimento)                                           |
 | GET    | `/api/summary?month=`              | Receitas, despesas e saldo (com `month`, `previous` do mês anterior); `accounts`: saldo de cada conta no fim do período                          |
 | GET    | `/api/expenses-by-category?month=` | Total de despesas por categoria, maior primeiro (`{ items, totalCents }`)                                                                        |
@@ -156,7 +159,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Contas/carteiras (tabela accounts) e saldo por conta no summary
 - [x] Transferência entre contas (par de lançamentos vinculados, fora de receita/despesa)
 - [x] Tags livres nas transações (N:N) + filtro por tag
-- [ ] Compras parceladas (parcelamento gera N transações futuras vinculadas)
+- [x] Compras parceladas (parcelamento gera N transações futuras vinculadas)
 - [ ] Projeção de saldo dos próximos 30 dias (recorrentes + parcelas)
 - [ ] Gráfico anual receitas × despesas por mês (barras SVG)
 - [ ] Filtro por período customizado (data inicial/final) na listagem e nos gráficos
