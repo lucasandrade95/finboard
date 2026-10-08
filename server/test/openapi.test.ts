@@ -93,6 +93,7 @@ describe('documento OpenAPI', () => {
       '/api/transfers/{id}',
       '/api/installments',
       '/api/installments/{id}',
+      '/api/projection',
     ]) {
       expect(doc.paths[path], `rota ${path} fora da documentação`).toBeDefined()
     }
