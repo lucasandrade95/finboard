@@ -106,6 +106,7 @@ Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento Op
 | GET    | `/api/installments`                | Compras parceladas do usuário (`{ items }`: `totalCents`, `installmentCount`, `firstDueOn`, `lastDueOn`)                                         |
 | POST   | `/api/installments`                | Registra compra parcelada (201): gera uma despesa por mês (2–48 parcelas, soma exata, sobra de centavos na 1ª)                                   |
 | DELETE | `/api/installments/:id`            | Cancela o parcelamento (204), removendo todas as parcelas juntas                                                                                 |
+| GET    | `/api/projection`                  | Saldo previsto dia a dia (`from`=hoje, `days`=30, até 90): saldo de hoje + lançamentos futuros, parcelas e próximas recorrentes                  |
 | GET    | `/api/daily-balance?month=`        | Saldo acumulado dia a dia do mês (`month` obrigatório; um ponto por dia, inclusive dias sem movimento)                                           |
 | GET    | `/api/summary?month=`              | Receitas, despesas e saldo (com `month`, `previous` do mês anterior); `accounts`: saldo de cada conta no fim do período                          |
 | GET    | `/api/expenses-by-category?month=` | Total de despesas por categoria, maior primeiro (`{ items, totalCents }`)                                                                        |
@@ -160,7 +161,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Transferência entre contas (par de lançamentos vinculados, fora de receita/despesa)
 - [x] Tags livres nas transações (N:N) + filtro por tag
 - [x] Compras parceladas (parcelamento gera N transações futuras vinculadas)
-- [ ] Projeção de saldo dos próximos 30 dias (recorrentes + parcelas)
+- [x] Projeção de saldo dos próximos 30 dias (recorrentes + parcelas)
 - [ ] Gráfico anual receitas × despesas por mês (barras SVG)
 - [ ] Filtro por período customizado (data inicial/final) na listagem e nos gráficos
 - [ ] Ordenação da tabela por coluna (data, valor, categoria) com indicador visual
