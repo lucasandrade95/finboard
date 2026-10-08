@@ -179,6 +179,30 @@ export interface DailyBalance {
   items: DailyBalancePoint[]
 }
 
+/** Parcela, lançamento já gravado com data futura ou cópia prevista de recorrente. */
+export type ProjectionSource = 'scheduled' | 'installment' | 'recurring'
+
+export interface ProjectionEvent {
+  date: string
+  type: TransactionType
+  description: string
+  category: string
+  amountCents: number
+  source: ProjectionSource
+}
+
+export interface BalanceProjection {
+  from: string
+  to: string
+  startingBalanceCents: number
+  endingBalanceCents: number
+  lowestBalanceCents: number
+  lowestBalanceOn: string
+  events: ProjectionEvent[]
+  /** Um ponto por dia depois de `from`, no mesmo formato da série diária do mês. */
+  items: DailyBalancePoint[]
+}
+
 export interface BudgetProgress {
   category: string
   budgetCents: number
@@ -439,6 +463,7 @@ export const api = {
   getExpensesByCategory: (month: string) =>
     request<ExpensesByCategory>(`/api/expenses-by-category?month=${month}`),
   getDailyBalance: (month: string) => request<DailyBalance>(`/api/daily-balance?month=${month}`),
+  getProjection: (from: string) => request<BalanceProjection>(`/api/projection?from=${from}`),
   createTransaction: (input: CreateTransactionInput) =>
     request<Transaction>('/api/transactions', { method: 'POST', body: JSON.stringify(input) }),
   updateTransaction: (id: number, input: CreateTransactionInput) =>

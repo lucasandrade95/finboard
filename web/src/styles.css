@@ -350,6 +350,7 @@ input:focus-visible + .import-csv {
 .accounts-panel,
 .transfers-panel,
 .installments-panel,
+.projection-panel,
 .account-balances {
   margin-bottom: 1.5rem;
 }
@@ -362,6 +363,8 @@ input:focus-visible + .import-csv {
 .accounts-panel h2,
 .transfers-panel h2,
 .installments-panel h2,
+.projection-panel h2,
+.projection-upcoming-title,
 .account-balances h2 {
   font-size: 0.8rem;
   font-weight: 600;
@@ -433,6 +436,57 @@ input:focus-visible + .import-csv {
 
 .line-summary dd.negative {
   color: var(--negative);
+}
+
+.projection-alert {
+  margin-bottom: 0.75rem;
+  color: var(--negative);
+  font-weight: 600;
+}
+
+.projection-upcoming-title {
+  margin-top: 1rem;
+}
+
+.projection-events {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.projection-events li {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+
+.projection-events li:last-child {
+  border-bottom: none;
+}
+
+.projection-date {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.projection-events .positive {
+  color: var(--positive);
+  font-variant-numeric: tabular-nums;
+}
+
+.projection-events .negative {
+  color: var(--negative);
+  font-variant-numeric: tabular-nums;
+}
+
+.projection-more {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 .donut-body {

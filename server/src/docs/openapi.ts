@@ -33,6 +33,7 @@ export async function registerOpenApi(app: FastifyInstance): Promise<void> {
         { name: 'contas', description: 'Contas/carteiras e saldo por conta' },
         { name: 'transferências', description: 'Transferências entre contas do usuário' },
         { name: 'parcelamentos', description: 'Compras parceladas e suas parcelas futuras' },
+        { name: 'projeção', description: 'Saldo previsto dos próximos dias' },
       ],
       components: {
         securitySchemes: {

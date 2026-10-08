@@ -17,6 +17,7 @@ import { ThemeToggle } from './components/ThemeToggle'
 import { TransactionForm } from './components/TransactionForm'
 import { TransactionList } from './components/TransactionList'
 import { InstallmentsPanel } from './components/InstallmentsPanel'
+import { ProjectionPanel } from './components/ProjectionPanel'
 import { TransfersPanel } from './components/TransfersPanel'
 import { TypeFilter } from './components/TypeFilter'
 import { useToken } from './hooks/use-auth'
@@ -30,6 +31,7 @@ import {
   useExpensesByCategory,
   useGoals,
   useInstallments,
+  useProjection,
   useSummary,
   useTags,
   useTransactions,
@@ -38,6 +40,7 @@ import {
 import { t } from './i18n'
 import { PAGE_SIZE, type TransactionType } from './lib/api'
 import { setToken } from './lib/auth'
+import { localToday } from './lib/projection'
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7)
@@ -81,6 +84,9 @@ function Dashboard() {
   const categories = useCategories(month)
   const expensesByCategory = useExpensesByCategory(month)
   const dailyBalance = useDailyBalance(month)
+  // A projeção parte sempre de hoje, não do mês escolhido no seletor.
+  const [today] = useState(localToday)
+  const projection = useProjection(today)
   const budgets = useBudgets(month)
   const goals = useGoals()
   const catalog = useCategoryCatalog()
@@ -152,6 +158,7 @@ function Dashboard() {
           </p>
         )}
         <BalanceLineChart data={dailyBalance.data} loading={dailyBalance.isPending} />
+        <ProjectionPanel data={projection.data} loading={projection.isPending} />
         <CategoryDonut data={expensesByCategory.data} loading={expensesByCategory.isPending} />
         <BudgetPanel data={budgets.data} loading={budgets.isPending} categories={categoryOptions} />
         <GoalsPanel goals={goals.data} loading={goals.isPending} />

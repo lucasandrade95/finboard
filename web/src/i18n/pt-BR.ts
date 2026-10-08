@@ -68,6 +68,24 @@ export const ptBR = {
     highest: (day: string) => `Pico (${day})`,
     lowest: (day: string) => `Fundo (${day})`,
   },
+  projection: {
+    title: 'Saldo previsto — próximos 30 dias',
+    loading: 'Carregando projeção de saldo…',
+    today: 'Saldo hoje',
+    ending: (day: string) => `Previsto em ${day}`,
+    lowest: (day: string) => `Menor saldo (${day})`,
+    negativeAlert: (day: string, amount: string) =>
+      `Atenção: o saldo previsto fica negativo em ${day} (${amount}).`,
+    upcoming: 'Próximos lançamentos',
+    empty: 'Nada previsto nos próximos 30 dias: sem parcelas, recorrentes ou lançamentos futuros.',
+    more: (count: number) =>
+      count === 1 ? 'e mais 1 lançamento previsto.' : `e mais ${count} lançamentos previstos.`,
+    sources: {
+      scheduled: 'agendado',
+      installment: '▦ parcela',
+      recurring: '↻ recorrente',
+    },
+  },
   donut: {
     title: 'Despesas por categoria',
     loading: 'Carregando despesas por categoria…',

@@ -74,7 +74,8 @@ export function useAccounts() {
 
 // Conta nova ou removida muda o saldo por conta do resumo: o summary entra junto.
 function invalidateAccountQueries(queryClient: QueryClient): void {
-  for (const key of ['accounts', 'summary', 'transactions']) {
+  // O saldo inicial da conta entra no saldo de partida da projeção.
+  for (const key of ['accounts', 'summary', 'transactions', 'projection']) {
     void queryClient.invalidateQueries({ queryKey: [key] })
   }
 }
@@ -109,6 +110,14 @@ export function useDailyBalance(month: string) {
   })
 }
 
+// `from` é o "hoje" do navegador: a projeção vira junto com o dia do usuário.
+export function useProjection(from: string) {
+  return useQuery({
+    queryKey: ['projection', from],
+    queryFn: () => api.getProjection(from),
+  })
+}
+
 export function useBudgets(month: string) {
   return useQuery({
     queryKey: ['budgets', month],
@@ -131,6 +140,7 @@ function invalidateTransactionQueries(queryClient: QueryClient): void {
     'categories',
     'expenses-by-category',
     'daily-balance',
+    'projection',
     'budgets',
     'accounts',
     'transfers',

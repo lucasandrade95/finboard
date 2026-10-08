@@ -884,3 +884,73 @@ export const installmentDocs = {
     response: { 204: noContent, 401: unauthorized, 404: notFound },
   } satisfies FastifySchema,
 }
+
+const dailyPoint = {
+  type: 'object',
+  properties: {
+    date: { type: 'string', pattern: DATE_PATTERN },
+    incomeCents: { type: 'integer' },
+    expenseCents: { type: 'integer' },
+    netCents: { type: 'integer', description: 'Resultado previsto do dia' },
+    balanceCents: { type: 'integer', description: 'Saldo previsto ao fim do dia' },
+  },
+}
+
+const projectionEvent = {
+  type: 'object',
+  properties: {
+    date: { type: 'string', pattern: DATE_PATTERN },
+    type: { type: 'string', enum: ['income', 'expense'] },
+    description: { type: 'string' },
+    category: { type: 'string' },
+    amountCents: { type: 'integer' },
+    source: {
+      type: 'string',
+      enum: ['scheduled', 'installment', 'recurring'],
+      description:
+        '`scheduled`: lançamento já gravado com data futura; `installment`: parcela; ' +
+        '`recurring`: cópia prevista de série recorrente, ainda não gravada',
+    },
+  },
+}
+
+export const projectionDocs = {
+  get: {
+    ...authenticated,
+    tags: ['projeção'],
+    summary: 'Projeção de saldo dos próximos dias',
+    description:
+      'Parte do saldo de hoje (saldo inicial das contas + lançamentos até `from`) e soma, dia a dia, os lançamentos já ' +
+      'gravados com data futura (parcelas incluídas) e as próximas cópias das séries ' +
+      'recorrentes. Transferências entre contas ficam fora. Nada previsto é gravado.',
+    querystring: {
+      type: 'object',
+      properties: {
+        from: {
+          type: 'string',
+          pattern: DATE_PATTERN,
+          description: 'Dia de referência ("hoje"); default: data local do servidor',
+        },
+        days: { type: 'integer', minimum: 1, maximum: 90, default: 30 },
+      },
+    },
+    response: {
+      200: {
+        description: 'Saldo previsto',
+        type: 'object',
+        properties: {
+          from: { type: 'string', pattern: DATE_PATTERN },
+          to: { type: 'string', pattern: DATE_PATTERN },
+          startingBalanceCents: { type: 'integer' },
+          endingBalanceCents: { type: 'integer' },
+          lowestBalanceCents: { type: 'integer' },
+          lowestBalanceOn: { type: 'string', pattern: DATE_PATTERN },
+          events: { type: 'array', items: projectionEvent },
+          items: { type: 'array', items: dailyPoint },
+        },
+      },
+      400: validationError,
+      401: unauthorized,
+    },
+  } satisfies FastifySchema,
+}
