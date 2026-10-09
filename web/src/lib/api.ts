@@ -179,6 +179,22 @@ export interface DailyBalance {
   items: DailyBalancePoint[]
 }
 
+export interface MonthlyTotals {
+  month: string
+  incomeCents: number
+  expenseCents: number
+  netCents: number
+}
+
+/** Sempre 12 meses, de janeiro a dezembro, com os totais do ano ao lado. */
+export interface YearlySummary {
+  year: string
+  items: MonthlyTotals[]
+  incomeCents: number
+  expenseCents: number
+  netCents: number
+}
+
 /** Parcela, lançamento já gravado com data futura ou cópia prevista de recorrente. */
 export type ProjectionSource = 'scheduled' | 'installment' | 'recurring'
 
@@ -463,6 +479,7 @@ export const api = {
   getExpensesByCategory: (month: string) =>
     request<ExpensesByCategory>(`/api/expenses-by-category?month=${month}`),
   getDailyBalance: (month: string) => request<DailyBalance>(`/api/daily-balance?month=${month}`),
+  getYearlySummary: (year: string) => request<YearlySummary>(`/api/yearly-summary?year=${year}`),
   getProjection: (from: string) => request<BalanceProjection>(`/api/projection?from=${from}`),
   createTransaction: (input: CreateTransactionInput) =>
     request<Transaction>('/api/transactions', { method: 'POST', body: JSON.stringify(input) }),

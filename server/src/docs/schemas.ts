@@ -10,6 +10,7 @@ import type { FastifySchema } from 'fastify'
 
 const MONTH_PATTERN = '^\\d{4}-\\d{2}$'
 const DATE_PATTERN = '^\\d{4}-\\d{2}-\\d{2}$'
+const YEAR_PATTERN = '^\\d{4}$'
 
 const authenticated = { security: [{ bearerAuth: [] }] }
 
@@ -429,6 +430,47 @@ export const transactionDocs = {
               },
             },
           },
+        },
+      },
+      401: unauthorized,
+    },
+  } satisfies FastifySchema,
+
+  yearlySummary: {
+    ...authenticated,
+    tags: ['transações'],
+    summary: 'Receitas × despesas por mês do ano',
+    description:
+      'Sempre 12 meses, de janeiro a dezembro, inclusive os sem movimento. ' +
+      'Transferências entre contas ficam de fora.',
+    querystring: {
+      type: 'object',
+      required: ['year'],
+      properties: {
+        year: { type: 'string', pattern: YEAR_PATTERN, example: '2026', description: 'Ano (YYYY)' },
+      },
+    },
+    response: {
+      200: {
+        description: 'Totais mensais e do ano',
+        type: 'object',
+        properties: {
+          year: { type: 'string', pattern: YEAR_PATTERN },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                month: { type: 'string', pattern: MONTH_PATTERN },
+                incomeCents: { type: 'integer' },
+                expenseCents: { type: 'integer' },
+                netCents: { type: 'integer', description: 'Resultado do mês' },
+              },
+            },
+          },
+          incomeCents: { type: 'integer' },
+          expenseCents: { type: 'integer' },
+          netCents: { type: 'integer' },
         },
       },
       401: unauthorized,

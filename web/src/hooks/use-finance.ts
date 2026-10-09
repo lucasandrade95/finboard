@@ -110,6 +110,13 @@ export function useDailyBalance(month: string) {
   })
 }
 
+export function useYearlySummary(year: string) {
+  return useQuery({
+    queryKey: ['yearly-summary', year],
+    queryFn: () => api.getYearlySummary(year),
+  })
+}
+
 // `from` é o "hoje" do navegador: a projeção vira junto com o dia do usuário.
 export function useProjection(from: string) {
   return useQuery({
@@ -140,6 +147,7 @@ function invalidateTransactionQueries(queryClient: QueryClient): void {
     'categories',
     'expenses-by-category',
     'daily-balance',
+    'yearly-summary',
     'projection',
     'budgets',
     'accounts',

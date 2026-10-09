@@ -76,6 +76,23 @@ export interface DailyBalance {
   items: DailyBalancePoint[]
 }
 
+export interface MonthlyTotals {
+  month: string
+  incomeCents: number
+  expenseCents: number
+  /** Resultado do mês (receitas − despesas). */
+  netCents: number
+}
+
+export interface YearlySummary {
+  year: string
+  /** Sempre 12 itens, de janeiro a dezembro, inclusive meses sem movimento. */
+  items: MonthlyTotals[]
+  incomeCents: number
+  expenseCents: number
+  netCents: number
+}
+
 interface TransactionRow {
   id: number
   type: TransactionType
@@ -418,6 +435,45 @@ export class TransactionsRepository {
       items.push({ date, incomeCents, expenseCents, netCents, balanceCents })
     }
     return { month, items }
+  }
+
+  /**
+   * Receitas e despesas de cada mês do ano, para o gráfico de barras anual. Os 12 meses
+   * vêm sempre preenchidos: mês vazio é zero, e o eixo do gráfico não pula meses.
+   * Pernas de transferência ficam de fora, como no resumo mensal.
+   */
+  yearlySummary(userId: number, year: string): YearlySummary {
+    const rows = this.db
+      .prepare(
+        `SELECT substr(occurred_on, 1, 7) AS month, type, COALESCE(SUM(amount_cents), 0) AS total
+         FROM transactions WHERE user_id = ? AND occurred_on LIKE ? AND transfer_id IS NULL
+         GROUP BY month, type`,
+      )
+      .all(userId, `${year}-%`) as Array<{ month: string; type: TransactionType; total: number }>
+
+    const byMonth = new Map<string, { incomeCents: number; expenseCents: number }>()
+    for (const row of rows) {
+      const totals = byMonth.get(row.month) ?? { incomeCents: 0, expenseCents: 0 }
+      if (row.type === 'income') {
+        totals.incomeCents = row.total
+      } else {
+        totals.expenseCents = row.total
+      }
+      byMonth.set(row.month, totals)
+    }
+
+    const items: MonthlyTotals[] = []
+    for (let monthNumber = 1; monthNumber <= 12; monthNumber += 1) {
+      const month = `${year}-${String(monthNumber).padStart(2, '0')}`
+      const { incomeCents, expenseCents } = byMonth.get(month) ?? {
+        incomeCents: 0,
+        expenseCents: 0,
+      }
+      items.push({ month, incomeCents, expenseCents, netCents: incomeCents - expenseCents })
+    }
+    const incomeCents = items.reduce((sum, item) => sum + item.incomeCents, 0)
+    const expenseCents = items.reduce((sum, item) => sum + item.expenseCents, 0)
+    return { year, items, incomeCents, expenseCents, netCents: incomeCents - expenseCents }
   }
 
   /**

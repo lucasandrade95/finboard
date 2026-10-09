@@ -18,6 +18,7 @@ import { TransactionForm } from './components/TransactionForm'
 import { TransactionList } from './components/TransactionList'
 import { InstallmentsPanel } from './components/InstallmentsPanel'
 import { ProjectionPanel } from './components/ProjectionPanel'
+import { YearlyBarsChart } from './components/YearlyBarsChart'
 import { TransfersPanel } from './components/TransfersPanel'
 import { TypeFilter } from './components/TypeFilter'
 import { useToken } from './hooks/use-auth'
@@ -28,6 +29,7 @@ import {
   useCategories,
   useCategoryCatalog,
   useDailyBalance,
+  useYearlySummary,
   useExpensesByCategory,
   useGoals,
   useInstallments,
@@ -84,6 +86,9 @@ function Dashboard() {
   const categories = useCategories(month)
   const expensesByCategory = useExpensesByCategory(month)
   const dailyBalance = useDailyBalance(month)
+  // O gráfico anual segue o ano do mês escolhido no seletor.
+  const year = month.slice(0, 4)
+  const yearlySummary = useYearlySummary(year)
   // A projeção parte sempre de hoje, não do mês escolhido no seletor.
   const [today] = useState(localToday)
   const projection = useProjection(today)
@@ -158,6 +163,7 @@ function Dashboard() {
           </p>
         )}
         <BalanceLineChart data={dailyBalance.data} loading={dailyBalance.isPending} />
+        <YearlyBarsChart year={year} data={yearlySummary.data} loading={yearlySummary.isPending} />
         <ProjectionPanel data={projection.data} loading={projection.isPending} />
         <CategoryDonut data={expensesByCategory.data} loading={expensesByCategory.isPending} />
         <BudgetPanel data={budgets.data} loading={budgets.isPending} categories={categoryOptions} />

@@ -12,6 +12,7 @@ import {
   monthQuerySchema,
   requiredMonthQuerySchema,
   updateTransactionSchema,
+  yearQuerySchema,
 } from './schemas.js'
 
 // Um arquivo inteiro errado geraria milhares de linhas no relatório: a UI mostra as primeiras.
@@ -199,6 +200,15 @@ export function registerTransactionRoutes(
     async (request) => {
       const { month } = requiredMonthQuerySchema.parse(request.query)
       return repository.dailyBalance(ownerId(request), month)
+    },
+  )
+
+  app.get(
+    '/api/yearly-summary',
+    { ...protectedRoute, schema: transactionDocs.yearlySummary },
+    async (request) => {
+      const { year } = yearQuerySchema.parse(request.query)
+      return repository.yearlySummary(ownerId(request), year)
     },
   )
 

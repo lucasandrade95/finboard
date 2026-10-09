@@ -68,6 +68,18 @@ export const ptBR = {
     highest: (day: string) => `Pico (${day})`,
     lowest: (day: string) => `Fundo (${day})`,
   },
+  yearlyBars: {
+    title: (year: string) => `Receitas × despesas em ${year}`,
+    loading: 'Carregando gráfico anual…',
+    empty: 'Sem lançamentos neste ano.',
+    income: 'Receitas',
+    expense: 'Despesas',
+    month: 'Mês',
+    yearNet: 'Resultado do ano',
+    topExpense: (month: string) => `Maior despesa (${month})`,
+    bestNet: (month: string) => `Melhor mês (${month})`,
+    months: ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'],
+  },
   projection: {
     title: 'Saldo previsto — próximos 30 dias',
     loading: 'Carregando projeção de saldo…',

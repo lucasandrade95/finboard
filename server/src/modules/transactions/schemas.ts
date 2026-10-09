@@ -45,6 +45,11 @@ export const requiredMonthQuerySchema = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/, 'mês esperado no formato YYYY-MM'),
 })
 
+// O gráfico anual sempre olha um ano fechado: sem default implícito no servidor.
+export const yearQuerySchema = z.object({
+  year: z.string().regex(/^\d{4}$/, 'ano esperado no formato YYYY'),
+})
+
 export const listTransactionsQuerySchema = monthQuerySchema.extend({
   type: transactionTypeSchema.optional(),
   category: z.string().trim().min(1).max(50).optional(),
