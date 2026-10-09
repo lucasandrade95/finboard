@@ -731,6 +731,103 @@ describe('GET /api/daily-balance', () => {
   })
 })
 
+describe('GET /api/yearly-summary', () => {
+  it('soma receitas e despesas por mês e preenche os 12 meses do ano', async () => {
+    const entries = [
+      { type: 'income', amountCents: 500000, occurredOn: '2026-01-05' },
+      { type: 'expense', amountCents: 120000, occurredOn: '2026-01-10' },
+      { type: 'expense', amountCents: 30000, occurredOn: '2026-01-31' },
+      { type: 'expense', amountCents: 80000, occurredOn: '2026-03-15' },
+      // Fora do ano pedido: não entra em nenhum mês nem no total.
+      { type: 'income', amountCents: 999900, occurredOn: '2025-12-31' },
+      { type: 'expense', amountCents: 999900, occurredOn: '2027-01-01' },
+    ]
+    for (const entry of entries) {
+      await inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+    }
+
+    const response = await inject({ method: 'GET', url: '/api/yearly-summary?year=2026' })
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.year).toBe('2026')
+    expect(body.items).toHaveLength(12)
+    expect(body.items[0]).toEqual({
+      month: '2026-01',
+      incomeCents: 500000,
+      expenseCents: 150000,
+      netCents: 350000,
+    })
+    // Mês sem movimento aparece zerado, para o eixo não pular fevereiro.
+    expect(body.items[1]).toEqual({
+      month: '2026-02',
+      incomeCents: 0,
+      expenseCents: 0,
+      netCents: 0,
+    })
+    expect(body.items[2]).toMatchObject({ month: '2026-03', expenseCents: 80000, netCents: -80000 })
+    expect(body.items[11].month).toBe('2026-12')
+    expect(body).toMatchObject({ incomeCents: 500000, expenseCents: 230000, netCents: 270000 })
+  })
+
+  it('deixa transferências entre contas fora de receitas e despesas', async () => {
+    const accountIds: number[] = []
+    for (const name of ['Corrente', 'Poupança']) {
+      const response = await inject({ method: 'POST', url: '/api/accounts', payload: { name } })
+      expect(response.statusCode).toBe(201)
+      accountIds.push(response.json().id)
+    }
+    const transfer = await inject({
+      method: 'POST',
+      url: '/api/transfers',
+      payload: {
+        fromAccountId: accountIds[0],
+        toAccountId: accountIds[1],
+        amountCents: 50000,
+        occurredOn: '2026-05-10',
+      },
+    })
+    expect(transfer.statusCode).toBe(201)
+
+    const body = (await inject({ method: 'GET', url: '/api/yearly-summary?year=2026' })).json()
+    expect(body.items[4]).toEqual({
+      month: '2026-05',
+      incomeCents: 0,
+      expenseCents: 0,
+      netCents: 0,
+    })
+    expect(body.netCents).toBe(0)
+  })
+
+  it('só soma lançamentos do próprio usuário', async () => {
+    await inject({ method: 'POST', url: '/api/transactions', payload: validPayload() })
+    const otherAuth = await registerAndAuthorize(app, OTHER)
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/yearly-summary?year=2026',
+      headers: { authorization: otherAuth },
+    })
+    expect(response.statusCode).toBe(200)
+    expect(response.json().expenseCents).toBe(0)
+  })
+
+  it('exige o ano e rejeita formato inválido', async () => {
+    const semAno = await inject({ method: 'GET', url: '/api/yearly-summary' })
+    expect(semAno.statusCode).toBe(400)
+    expect(semAno.json().error).toBe('validation_error')
+
+    for (const year of ['26', '2026-01', 'abcd']) {
+      const invalido = await inject({ method: 'GET', url: `/api/yearly-summary?year=${year}` })
+      expect(invalido.statusCode).toBe(400)
+    }
+  })
+
+  it('exige autenticação', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/yearly-summary?year=2026' })
+    expect(response.statusCode).toBe(401)
+  })
+})
+
 describe('transações recorrentes', () => {
   // Geração acontece no boot: precisa de banco em arquivo para sobreviver ao close/reopen.
   let dir: string
