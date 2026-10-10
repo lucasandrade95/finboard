@@ -78,47 +78,47 @@ Fora `/health` e `/api/auth/register|login`, toda rota exige `Authorization: Bea
 
 Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento OpenAPI cru em `/docs/json`): dá para autenticar com o token do login e disparar as chamadas pela própria página.
 
-| Método | Rota                               | Descrição                                                                                                                                        |
-| ------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| GET    | `/health`                          | Health check                                                                                                                                     |
-| POST   | `/api/auth/register`               | Cria conta (`email`, `password` 8–128) e devolve `{ user, token }` (201; 409 `email_taken`)                                                      |
-| POST   | `/api/auth/login`                  | Troca e-mail/senha por `{ user, token }` (401 `invalid_credentials`, igual para e-mail inexistente e senha errada)                               |
-| GET    | `/api/auth/me`                     | Usuário do token (`Authorization: Bearer <token>`; 401 sem token ou token inválido)                                                              |
-| GET    | `/api/transactions?month=`         | Lista paginada (`limit`/`offset`, filtros `type=`/`category=`/`tag=`, busca `q=` na descrição, devolve `{ items, total, limit, offset }`)        |
-| POST   | `/api/transactions`                | Cria transação (`amountCents` inteiro > 0; `recurring` gera cópia mensal no boot; `accountId` opcional, da própria conta; `tags` livres, até 10) |
-| PUT    | `/api/transactions/:id`            | Atualiza transação (200; 404 se não existe; 409 `transfer_leg`/`installment_part`)                                                               |
-| DELETE | `/api/transactions/:id`            | Exclui transação (204; 404 se não existe; 409 `transfer_leg`/`installment_part`)                                                                 |
-| GET    | `/api/transactions/export.csv`     | Exporta as transações do mês em CSV (`month` obrigatório; `;` + vírgula decimal + BOM, abre direto no Excel pt-BR)                               |
-| POST   | `/api/transactions/import`         | Importa CSV no formato do export (corpo `text/csv`; 201 `{ imported }`; tudo ou nada — 400 `invalid_csv` com erros por linha/coluna)             |
-| GET    | `/api/categories?month=`           | Categorias distintas usadas no período (`{ categories: string[] }`)                                                                              |
-| GET    | `/api/tags`                        | Tags em uso nas transações da conta (`{ tags: string[] }`), em ordem alfabética                                                                  |
-| GET    | `/api/categories/catalog`          | Catálogo de categorias da conta (`{ items }`: `name`, `color` #rrggbb, `icon` opcional), em ordem alfabética                                     |
-| POST   | `/api/categories/catalog`          | Cadastra categoria (201; 409 `category_exists` se o nome já existe na conta, sem diferenciar maiúsculas)                                         |
-| PUT    | `/api/categories/catalog/:id`      | Atualiza categoria; renomear leva o nome novo para as transações e o orçamento da conta (404/409)                                                |
-| DELETE | `/api/categories/catalog/:id`      | Remove do catálogo (204); as transações mantêm o nome                                                                                            |
-| GET    | `/api/accounts`                    | Contas/carteiras do usuário (`{ items }`: `name`, `openingBalanceCents`, `balanceCents` atual), em ordem alfabética                              |
-| POST   | `/api/accounts`                    | Cadastra conta (`name`, `openingBalanceCents` opcional, pode ser negativo; 201; 409 `account_exists`)                                            |
-| PUT    | `/api/accounts/:id`                | Renomeia conta ou ajusta o saldo inicial (404/409)                                                                                               |
-| DELETE | `/api/accounts/:id`                | Remove conta (204); os lançamentos dela ficam sem conta, nada é apagado                                                                          |
-| GET    | `/api/transfers?month=`            | Transferências entre contas, mais recentes primeiro (`{ items }`: `fromAccountId`, `toAccountId`, `amountCents`, `occurredOn`)                   |
-| POST   | `/api/transfers`                   | Transfere entre duas contas do usuário (201): par de lançamentos vinculados, fora de receita/despesa; 400 se a conta não é sua                   |
-| DELETE | `/api/transfers/:id`               | Desfaz a transferência (204), removendo os dois lançamentos juntos                                                                               |
-| GET    | `/api/installments`                | Compras parceladas do usuário (`{ items }`: `totalCents`, `installmentCount`, `firstDueOn`, `lastDueOn`)                                         |
-| POST   | `/api/installments`                | Registra compra parcelada (201): gera uma despesa por mês (2–48 parcelas, soma exata, sobra de centavos na 1ª)                                   |
-| DELETE | `/api/installments/:id`            | Cancela o parcelamento (204), removendo todas as parcelas juntas                                                                                 |
-| GET    | `/api/projection`                  | Saldo previsto dia a dia (`from`=hoje, `days`=30, até 90): saldo de hoje + lançamentos futuros, parcelas e próximas recorrentes                  |
-| GET    | `/api/daily-balance?month=`        | Saldo acumulado dia a dia do mês (`month` obrigatório; um ponto por dia, inclusive dias sem movimento)                                           |
-| GET    | `/api/yearly-summary?year=`        | Receitas e despesas de cada mês do ano (`year` obrigatório; sempre 12 meses, sem transferências) + totais do ano                                 |
-| GET    | `/api/summary?month=`              | Receitas, despesas e saldo (com `month`, `previous` do mês anterior); `accounts`: saldo de cada conta no fim do período                          |
-| GET    | `/api/expenses-by-category?month=` | Total de despesas por categoria, maior primeiro (`{ items, totalCents }`)                                                                        |
-| GET    | `/api/budgets?month=`              | Orçamentos com gasto do mês por categoria (`month` obrigatório; `{ month, items: [{ category, budgetCents, spentCents }] }`)                     |
-| PUT    | `/api/budgets/:category`           | Define/atualiza orçamento mensal da categoria (upsert; `{ amountCents }` inteiro > 0)                                                            |
-| DELETE | `/api/budgets/:category`           | Remove orçamento da categoria (204; 404 se não existe)                                                                                           |
-| GET    | `/api/goals`                       | Metas de economia (`{ items }`), prazo mais próximo primeiro e sem prazo por último                                                              |
-| POST   | `/api/goals`                       | Cria meta (`name`, `targetCents` > 0, `savedCents` ≥ 0 opcional, `deadline` YYYY-MM-DD ou null)                                                  |
-| PUT    | `/api/goals/:id`                   | Atualiza meta (200; 404 se não existe)                                                                                                           |
-| POST   | `/api/goals/:id/contributions`     | Registra aporte (`{ amountCents }` > 0) somando ao guardado no banco; devolve a meta atualizada                                                  |
-| DELETE | `/api/goals/:id`                   | Remove meta (204; 404 se não existe)                                                                                                             |
+| Método | Rota                               | Descrição                                                                                                                                                                            |
+| ------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/health`                          | Health check                                                                                                                                                                         |
+| POST   | `/api/auth/register`               | Cria conta (`email`, `password` 8–128) e devolve `{ user, token }` (201; 409 `email_taken`)                                                                                          |
+| POST   | `/api/auth/login`                  | Troca e-mail/senha por `{ user, token }` (401 `invalid_credentials`, igual para e-mail inexistente e senha errada)                                                                   |
+| GET    | `/api/auth/me`                     | Usuário do token (`Authorization: Bearer <token>`; 401 sem token ou token inválido)                                                                                                  |
+| GET    | `/api/transactions?month=`         | Lista paginada (`limit`/`offset`, período `from=`/`to=` no lugar de `month`, filtros `type=`/`category=`/`tag=`, busca `q=` na descrição, devolve `{ items, total, limit, offset }`) |
+| POST   | `/api/transactions`                | Cria transação (`amountCents` inteiro > 0; `recurring` gera cópia mensal no boot; `accountId` opcional, da própria conta; `tags` livres, até 10)                                     |
+| PUT    | `/api/transactions/:id`            | Atualiza transação (200; 404 se não existe; 409 `transfer_leg`/`installment_part`)                                                                                                   |
+| DELETE | `/api/transactions/:id`            | Exclui transação (204; 404 se não existe; 409 `transfer_leg`/`installment_part`)                                                                                                     |
+| GET    | `/api/transactions/export.csv`     | Exporta as transações do mês em CSV (`month` obrigatório; `;` + vírgula decimal + BOM, abre direto no Excel pt-BR)                                                                   |
+| POST   | `/api/transactions/import`         | Importa CSV no formato do export (corpo `text/csv`; 201 `{ imported }`; tudo ou nada — 400 `invalid_csv` com erros por linha/coluna)                                                 |
+| GET    | `/api/categories?month=`           | Categorias distintas usadas no período (`{ categories: string[] }`)                                                                                                                  |
+| GET    | `/api/tags`                        | Tags em uso nas transações da conta (`{ tags: string[] }`), em ordem alfabética                                                                                                      |
+| GET    | `/api/categories/catalog`          | Catálogo de categorias da conta (`{ items }`: `name`, `color` #rrggbb, `icon` opcional), em ordem alfabética                                                                         |
+| POST   | `/api/categories/catalog`          | Cadastra categoria (201; 409 `category_exists` se o nome já existe na conta, sem diferenciar maiúsculas)                                                                             |
+| PUT    | `/api/categories/catalog/:id`      | Atualiza categoria; renomear leva o nome novo para as transações e o orçamento da conta (404/409)                                                                                    |
+| DELETE | `/api/categories/catalog/:id`      | Remove do catálogo (204); as transações mantêm o nome                                                                                                                                |
+| GET    | `/api/accounts`                    | Contas/carteiras do usuário (`{ items }`: `name`, `openingBalanceCents`, `balanceCents` atual), em ordem alfabética                                                                  |
+| POST   | `/api/accounts`                    | Cadastra conta (`name`, `openingBalanceCents` opcional, pode ser negativo; 201; 409 `account_exists`)                                                                                |
+| PUT    | `/api/accounts/:id`                | Renomeia conta ou ajusta o saldo inicial (404/409)                                                                                                                                   |
+| DELETE | `/api/accounts/:id`                | Remove conta (204); os lançamentos dela ficam sem conta, nada é apagado                                                                                                              |
+| GET    | `/api/transfers?month=`            | Transferências entre contas, mais recentes primeiro (`{ items }`: `fromAccountId`, `toAccountId`, `amountCents`, `occurredOn`)                                                       |
+| POST   | `/api/transfers`                   | Transfere entre duas contas do usuário (201): par de lançamentos vinculados, fora de receita/despesa; 400 se a conta não é sua                                                       |
+| DELETE | `/api/transfers/:id`               | Desfaz a transferência (204), removendo os dois lançamentos juntos                                                                                                                   |
+| GET    | `/api/installments`                | Compras parceladas do usuário (`{ items }`: `totalCents`, `installmentCount`, `firstDueOn`, `lastDueOn`)                                                                             |
+| POST   | `/api/installments`                | Registra compra parcelada (201): gera uma despesa por mês (2–48 parcelas, soma exata, sobra de centavos na 1ª)                                                                       |
+| DELETE | `/api/installments/:id`            | Cancela o parcelamento (204), removendo todas as parcelas juntas                                                                                                                     |
+| GET    | `/api/projection`                  | Saldo previsto dia a dia (`from`=hoje, `days`=30, até 90): saldo de hoje + lançamentos futuros, parcelas e próximas recorrentes                                                      |
+| GET    | `/api/daily-balance?month=`        | Saldo acumulado dia a dia do mês (`month` obrigatório; um ponto por dia, inclusive dias sem movimento)                                                                               |
+| GET    | `/api/yearly-summary?year=`        | Receitas e despesas de cada mês do ano (`year` obrigatório; sempre 12 meses, sem transferências) + totais do ano                                                                     |
+| GET    | `/api/summary?month=`              | Receitas, despesas e saldo (com `month`, `previous` do mês anterior); `accounts`: saldo de cada conta no fim do período                                                              |
+| GET    | `/api/expenses-by-category?month=` | Total de despesas por categoria, maior primeiro (`{ items, totalCents }`; aceita `from=`/`to=` no lugar de `month`)                                                                  |
+| GET    | `/api/budgets?month=`              | Orçamentos com gasto do mês por categoria (`month` obrigatório; `{ month, items: [{ category, budgetCents, spentCents }] }`)                                                         |
+| PUT    | `/api/budgets/:category`           | Define/atualiza orçamento mensal da categoria (upsert; `{ amountCents }` inteiro > 0)                                                                                                |
+| DELETE | `/api/budgets/:category`           | Remove orçamento da categoria (204; 404 se não existe)                                                                                                                               |
+| GET    | `/api/goals`                       | Metas de economia (`{ items }`), prazo mais próximo primeiro e sem prazo por último                                                                                                  |
+| POST   | `/api/goals`                       | Cria meta (`name`, `targetCents` > 0, `savedCents` ≥ 0 opcional, `deadline` YYYY-MM-DD ou null)                                                                                      |
+| PUT    | `/api/goals/:id`                   | Atualiza meta (200; 404 se não existe)                                                                                                                                               |
+| POST   | `/api/goals/:id/contributions`     | Registra aporte (`{ amountCents }` > 0) somando ao guardado no banco; devolve a meta atualizada                                                                                      |
+| DELETE | `/api/goals/:id`                   | Remove meta (204; 404 se não existe)                                                                                                                                                 |
 
 ## Roadmap
 
@@ -164,7 +164,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Compras parceladas (parcelamento gera N transações futuras vinculadas)
 - [x] Projeção de saldo dos próximos 30 dias (recorrentes + parcelas)
 - [x] Gráfico anual receitas × despesas por mês (barras SVG)
-- [ ] Filtro por período customizado (data inicial/final) na listagem e nos gráficos
+- [x] Filtro por período customizado (data inicial/final) na listagem e nos gráficos
 - [ ] Ordenação da tabela por coluna (data, valor, categoria) com indicador visual
 - [ ] Atalhos de teclado (n = nova transação, / = busca, ? = ajuda)
 - [ ] Anexo de comprovante na transação (upload local, limite de tamanho, preview)
