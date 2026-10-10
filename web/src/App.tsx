@@ -17,6 +17,7 @@ import { ThemeToggle } from './components/ThemeToggle'
 import { TransactionForm } from './components/TransactionForm'
 import { TransactionList } from './components/TransactionList'
 import { InstallmentsPanel } from './components/InstallmentsPanel'
+import { PeriodFilter } from './components/PeriodFilter'
 import { ProjectionPanel } from './components/ProjectionPanel'
 import { YearlyBarsChart } from './components/YearlyBarsChart'
 import { TransfersPanel } from './components/TransfersPanel'
@@ -42,6 +43,7 @@ import {
 import { t } from './i18n'
 import { PAGE_SIZE, type TransactionType } from './lib/api'
 import { setToken } from './lib/auth'
+import { type DateRange, EMPTY_RANGE, isRangeInverted } from './lib/period'
 import { localToday } from './lib/projection'
 
 function currentMonth(): string {
@@ -74,9 +76,14 @@ function Dashboard() {
   const [type, setType] = useState<TransactionType | ''>('')
   const [search, setSearch] = useState('')
   const [tag, setTag] = useState('')
+  const [range, setRange] = useState<DateRange>(EMPTY_RANGE)
+  // Intervalo invertido não vai para a API (seria 400): lista e donut seguem no mês até corrigir.
+  const appliedRange = isRangeInverted(range) ? EMPTY_RANGE : range
   // Digitar não dispara requisição a cada tecla: a busca só vai para a API após a pausa.
   const searchTerm = useDebouncedValue(search.trim(), 300)
   const transactions = useTransactions(month, page, {
+    from: appliedRange.from || undefined,
+    to: appliedRange.to || undefined,
     type: type || undefined,
     category: category || undefined,
     q: searchTerm || undefined,
@@ -84,7 +91,7 @@ function Dashboard() {
   })
   const summary = useSummary(month)
   const categories = useCategories(month)
-  const expensesByCategory = useExpensesByCategory(month)
+  const expensesByCategory = useExpensesByCategory(month, appliedRange)
   const dailyBalance = useDailyBalance(month)
   // O gráfico anual segue o ano do mês escolhido no seletor.
   const year = month.slice(0, 4)
@@ -137,6 +144,11 @@ function Dashboard() {
     setPage(1)
   }
 
+  function handleRangeChange(value: DateRange) {
+    setRange(value)
+    setPage(1)
+  }
+
   return (
     <div className="layout">
       {/* Primeiro item do Tab: pula o topo e vai direto ao dashboard. */}
@@ -165,6 +177,8 @@ function Dashboard() {
         <BalanceLineChart data={dailyBalance.data} loading={dailyBalance.isPending} />
         <YearlyBarsChart year={year} data={yearlySummary.data} loading={yearlySummary.isPending} />
         <ProjectionPanel data={projection.data} loading={projection.isPending} />
+        {/* Período customizado vale para o donut e para a lista; os demais gráficos são do mês/ano. */}
+        <PeriodFilter value={range} onChange={handleRangeChange} />
         <CategoryDonut data={expensesByCategory.data} loading={expensesByCategory.isPending} />
         <BudgetPanel data={budgets.data} loading={budgets.isPending} categories={categoryOptions} />
         <GoalsPanel goals={goals.data} loading={goals.isPending} />

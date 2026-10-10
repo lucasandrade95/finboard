@@ -254,6 +254,13 @@ export const ptBR = {
     incomes: 'Receitas',
     expenses: 'Despesas',
   },
+  period: {
+    legend: 'Período',
+    from: 'De',
+    to: 'Até',
+    clear: 'Limpar período',
+    inverted: 'A data final é anterior à inicial: usando o mês selecionado.',
+  },
   csv: {
     export: 'Exportar CSV',
     exporting: 'Exportando…',

@@ -59,6 +59,22 @@ const monthParam = {
   description: 'Mês no formato YYYY-MM',
 }
 
+// Período customizado: não combina com `month` (400 se vierem juntos).
+const periodParams = {
+  from: {
+    type: 'string',
+    pattern: DATE_PATTERN,
+    example: '2026-09-01',
+    description: 'Data inicial (inclusiva), YYYY-MM-DD',
+  },
+  to: {
+    type: 'string',
+    pattern: DATE_PATTERN,
+    example: '2026-09-15',
+    description: 'Data final (inclusiva), YYYY-MM-DD',
+  },
+}
+
 const user = {
   type: 'object',
   properties: {
@@ -242,6 +258,7 @@ export const transactionDocs = {
       type: 'object',
       properties: {
         month: monthParam,
+        ...periodParams,
         type: { type: 'string', enum: ['income', 'expense'] },
         category: { type: 'string', maxLength: 50 },
         q: { type: 'string', maxLength: 100, description: 'Busca na descrição' },
@@ -385,7 +402,7 @@ export const transactionDocs = {
     ...authenticated,
     tags: ['transações'],
     summary: 'Total de despesas por categoria',
-    querystring: { type: 'object', properties: { month: monthParam } },
+    querystring: { type: 'object', properties: { month: monthParam, ...periodParams } },
     response: {
       200: {
         description: 'Categorias da maior despesa para a menor',

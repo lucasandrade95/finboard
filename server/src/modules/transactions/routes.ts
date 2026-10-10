@@ -10,6 +10,7 @@ import {
   importCsvBodySchema,
   listTransactionsQuerySchema,
   monthQuerySchema,
+  periodQuerySchema,
   requiredMonthQuerySchema,
   updateTransactionSchema,
   yearQuerySchema,
@@ -65,11 +66,12 @@ export function registerTransactionRoutes(
     '/api/transactions',
     { ...protectedRoute, schema: transactionDocs.list },
     async (request) => {
-      const { month, type, category, q, tag, limit, offset } = listTransactionsQuerySchema.parse(
-        request.query,
-      )
+      const { month, from, to, type, category, q, tag, limit, offset } =
+        listTransactionsQuerySchema.parse(request.query)
       const { items, total } = repository.list(ownerId(request), {
         month,
+        from,
+        to,
         type,
         category,
         q,
@@ -189,8 +191,8 @@ export function registerTransactionRoutes(
     '/api/expenses-by-category',
     { ...protectedRoute, schema: transactionDocs.expensesByCategory },
     async (request) => {
-      const { month } = monthQuerySchema.parse(request.query)
-      return repository.expensesByCategory(ownerId(request), month)
+      const { month, from, to } = periodQuerySchema.parse(request.query)
+      return repository.expensesByCategory(ownerId(request), { month, from, to })
     },
   )
 

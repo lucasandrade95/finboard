@@ -1,5 +1,6 @@
 import { locale, t } from '../i18n'
 import { getToken, setToken } from './auth'
+import { type DateRange, periodParams } from './period'
 
 export type TransactionType = 'income' | 'expense'
 
@@ -269,6 +270,9 @@ export interface CreateTransactionInput {
 }
 
 export interface TransactionFilters {
+  /** Período customizado: com alguma ponta preenchida, substitui o mês na consulta. */
+  from?: string
+  to?: string
   type?: TransactionType
   category?: string
   q?: string
@@ -435,7 +439,7 @@ export const api = {
   login: (email: string, password: string) => authenticate('/api/auth/login', email, password),
   listTransactions: (month: string, page: number, filters: TransactionFilters = {}) => {
     const params = new URLSearchParams({
-      month,
+      ...periodParams(month, filters),
       limit: String(PAGE_SIZE),
       offset: String((page - 1) * PAGE_SIZE),
     })
@@ -476,8 +480,10 @@ export const api = {
     request<Installment>('/api/installments', { method: 'POST', body: JSON.stringify(input) }),
   deleteInstallment: (id: number) => request<void>(`/api/installments/${id}`, { method: 'DELETE' }),
   getSummary: (month: string) => request<MonthlySummary>(`/api/summary?month=${month}`),
-  getExpensesByCategory: (month: string) =>
-    request<ExpensesByCategory>(`/api/expenses-by-category?month=${month}`),
+  getExpensesByCategory: (month: string, range?: DateRange) =>
+    request<ExpensesByCategory>(
+      `/api/expenses-by-category?${new URLSearchParams(periodParams(month, range)).toString()}`,
+    ),
   getDailyBalance: (month: string) => request<DailyBalance>(`/api/daily-balance?month=${month}`),
   getYearlySummary: (year: string) => request<YearlySummary>(`/api/yearly-summary?year=${year}`),
   getProjection: (from: string) => request<BalanceProjection>(`/api/projection?from=${from}`),

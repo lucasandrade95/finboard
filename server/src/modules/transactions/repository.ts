@@ -26,8 +26,14 @@ export interface TransactionPage {
   total: number
 }
 
-export interface ListTransactionsFilters {
+/** Recorte por data: o mês inteiro ou um intervalo `from`–`to` inclusivo (pontas opcionais). */
+export interface PeriodFilter {
   month?: string
+  from?: string
+  to?: string
+}
+
+export interface ListTransactionsFilters extends PeriodFilter {
   type?: TransactionType
   category?: string
   q?: string
@@ -129,6 +135,28 @@ export function previousMonth(month: string): string {
 
 function dayKey(month: string, day: number): string {
   return `${month}-${String(day).padStart(2, '0')}`
+}
+
+// `occurred_on` é TEXT ISO (YYYY-MM-DD): comparar como texto já é comparar como data.
+function periodConditions({ month, from, to }: PeriodFilter): {
+  conditions: string[]
+  params: string[]
+} {
+  const conditions: string[] = []
+  const params: string[] = []
+  if (month) {
+    conditions.push('occurred_on LIKE ?')
+    params.push(`${month}-%`)
+  }
+  if (from) {
+    conditions.push('occurred_on >= ?')
+    params.push(from)
+  }
+  if (to) {
+    conditions.push('occurred_on <= ?')
+    params.push(to)
+  }
+  return { conditions, params }
 }
 
 function compareText(a: string, b: string): number {
@@ -295,14 +323,11 @@ export class TransactionsRepository {
 
   list(
     userId: number,
-    { month, type, category, q, tag, limit, offset }: ListTransactionsFilters,
+    { type, category, q, tag, limit, offset, ...period }: ListTransactionsFilters,
   ): TransactionPage {
-    const conditions: string[] = ['user_id = ?']
-    const params: Array<string | number> = [userId]
-    if (month) {
-      conditions.push('occurred_on LIKE ?')
-      params.push(`${month}-%`)
-    }
+    const range = periodConditions(period)
+    const conditions: string[] = ['user_id = ?', ...range.conditions]
+    const params: Array<string | number> = [userId, ...range.params]
     if (type) {
       conditions.push('type = ?')
       params.push(type)
@@ -377,14 +402,16 @@ export class TransactionsRepository {
     return rows.map((row) => row.category).sort(compareText)
   }
 
-  expensesByCategory(userId: number, month?: string): ExpensesByCategory {
+  expensesByCategory(userId: number, period: PeriodFilter = {}): ExpensesByCategory {
     // Transferência não é gasto: as pernas ficam fora do gráfico por categoria.
-    const conditions = ['user_id = ?', "type = 'expense'", 'transfer_id IS NULL']
-    const params: Array<string | number> = [userId]
-    if (month) {
-      conditions.push('occurred_on LIKE ?')
-      params.push(`${month}-%`)
-    }
+    const range = periodConditions(period)
+    const conditions = [
+      'user_id = ?',
+      "type = 'expense'",
+      'transfer_id IS NULL',
+      ...range.conditions,
+    ]
+    const params: Array<string | number> = [userId, ...range.params]
     const rows = this.db
       .prepare(
         `SELECT category, COALESCE(SUM(amount_cents), 0) AS total

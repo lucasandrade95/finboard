@@ -9,13 +9,24 @@ import {
   type CreateTransferInput,
   type TransactionFilters,
 } from '../lib/api'
+import type { DateRange } from '../lib/period'
 
 export function useTransactions(month: string, page: number, filters: TransactionFilters = {}) {
-  const { type, category, q, tag } = filters
+  const { from, to, type, category, q, tag } = filters
   return useQuery({
     // Chave só com primitivos: o objeto de filtros muda de referência a cada render.
-    queryKey: ['transactions', month, page, type ?? null, category ?? null, q ?? null, tag ?? null],
-    queryFn: () => api.listTransactions(month, page, { type, category, q, tag }),
+    queryKey: [
+      'transactions',
+      month,
+      page,
+      from ?? null,
+      to ?? null,
+      type ?? null,
+      category ?? null,
+      q ?? null,
+      tag ?? null,
+    ],
+    queryFn: () => api.listTransactions(month, page, { from, to, type, category, q, tag }),
   })
 }
 
@@ -96,10 +107,12 @@ export function useDeleteAccount() {
   })
 }
 
-export function useExpensesByCategory(month: string) {
+export function useExpensesByCategory(month: string, range?: DateRange) {
+  const from = range?.from ?? ''
+  const to = range?.to ?? ''
   return useQuery({
-    queryKey: ['expenses-by-category', month],
-    queryFn: () => api.getExpensesByCategory(month),
+    queryKey: ['expenses-by-category', month, from, to],
+    queryFn: () => api.getExpensesByCategory(month, { from, to }),
   })
 }
 
