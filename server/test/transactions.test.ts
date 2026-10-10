@@ -368,6 +368,93 @@ describe('GET /api/transactions', () => {
     expect(response.statusCode).toBe(400)
     expect(response.json().error).toBe('validation_error')
   })
+  describe('período customizado (from/to)', () => {
+    async function seedDays() {
+      for (const [description, occurredOn] of [
+        ['fim de julho', '2026-07-31'],
+        ['primeiro de agosto', '2026-08-01'],
+        ['meio de agosto', '2026-08-15'],
+        ['setembro', '2026-09-02'],
+      ] as const) {
+        await inject({
+          method: 'POST',
+          url: '/api/transactions',
+          payload: validPayload({ description, occurredOn }),
+        })
+      }
+    }
+
+    const descriptions = (body: { items: Array<{ description: string }> }) =>
+      body.items.map((t) => t.description)
+
+    it('inclui as duas pontas do intervalo, atravessando meses', async () => {
+      await seedDays()
+
+      const response = await inject({
+        method: 'GET',
+        url: '/api/transactions?from=2026-07-31&to=2026-08-15',
+      })
+      expect(response.statusCode).toBe(200)
+      expect(response.json().total).toBe(3)
+      expect(descriptions(response.json())).toEqual([
+        'meio de agosto',
+        'primeiro de agosto',
+        'fim de julho',
+      ])
+    })
+
+    it('aceita intervalo aberto numa das pontas', async () => {
+      await seedDays()
+
+      const fromOnly = await inject({ method: 'GET', url: '/api/transactions?from=2026-08-15' })
+      expect(descriptions(fromOnly.json())).toEqual(['setembro', 'meio de agosto'])
+
+      const toOnly = await inject({ method: 'GET', url: '/api/transactions?to=2026-07-31' })
+      expect(descriptions(toOnly.json())).toEqual(['fim de julho'])
+    })
+
+    it('combina com os demais filtros e com a paginação', async () => {
+      await seedDays()
+      await inject({
+        method: 'POST',
+        url: '/api/transactions',
+        payload: validPayload({ type: 'income', description: 'salário', occurredOn: '2026-08-05' }),
+      })
+
+      const response = await inject({
+        method: 'GET',
+        url: '/api/transactions?from=2026-08-01&to=2026-08-31&type=expense&limit=1',
+      })
+      expect(response.json().total).toBe(2)
+      expect(descriptions(response.json())).toEqual(['meio de agosto'])
+    })
+
+    it('rejeita data final antes da inicial', async () => {
+      const response = await inject({
+        method: 'GET',
+        url: '/api/transactions?from=2026-08-15&to=2026-08-01',
+      })
+      expect(response.statusCode).toBe(400)
+      expect(response.json().issues).toEqual([
+        { path: 'to', message: 'data final antes da inicial' },
+      ])
+    })
+
+    it('rejeita dia que não existe no calendário', async () => {
+      const response = await inject({ method: 'GET', url: '/api/transactions?from=2026-02-30' })
+      expect(response.statusCode).toBe(400)
+      expect(response.json().issues).toEqual([{ path: 'from', message: 'data inexistente' }])
+    })
+
+    it('rejeita mês e período na mesma requisição', async () => {
+      const response = await inject({
+        method: 'GET',
+        url: '/api/transactions?month=2026-08&from=2026-08-01',
+      })
+      expect(response.statusCode).toBe(400)
+      expect(response.json().issues[0].path).toBe('month')
+    })
+  })
 })
 
 describe('PUT /api/transactions/:id', () => {
@@ -601,6 +688,39 @@ describe('GET /api/expenses-by-category', () => {
     })
     expect(response.statusCode).toBe(400)
     expect(response.json().error).toBe('validation_error')
+  })
+  it('restringe ao período customizado, com as duas pontas inclusivas', async () => {
+    const entries = [
+      { category: 'transporte', amountCents: 1000, occurredOn: '2026-07-31' },
+      { category: 'alimentação', amountCents: 2000, occurredOn: '2026-08-10' },
+      { category: 'transporte', amountCents: 3000, occurredOn: '2026-08-20' },
+      { category: 'lazer', amountCents: 9000, occurredOn: '2026-08-21' },
+    ]
+    for (const entry of entries) {
+      await inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+    }
+
+    const response = await inject({
+      method: 'GET',
+      url: '/api/expenses-by-category?from=2026-07-31&to=2026-08-20',
+    })
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      items: [
+        { category: 'transporte', totalCents: 4000 },
+        { category: 'alimentação', totalCents: 2000 },
+      ],
+      totalCents: 6000,
+    })
+  })
+
+  it('rejeita período invertido', async () => {
+    const response = await inject({
+      method: 'GET',
+      url: '/api/expenses-by-category?from=2026-08-20&to=2026-08-01',
+    })
+    expect(response.statusCode).toBe(400)
+    expect(response.json().issues[0].path).toBe('to')
   })
 })
 

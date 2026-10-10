@@ -39,6 +39,20 @@ describe('api.listTransactions', () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/transactions?month=2026-08&limit=20&offset=20')
   })
 
+  it('troca o mês pelo período customizado quando há datas', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    await api.listTransactions('2026-08', 1, { from: '2026-07-20', to: '2026-08-10' })
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      '/api/transactions?from=2026-07-20&to=2026-08-10&limit=20&offset=0',
+    )
+  })
+
+  it('manda só a ponta preenchida de um período aberto', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    await api.listTransactions('2026-08', 1, { from: '2026-07-20' })
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/transactions?from=2026-07-20&limit=20&offset=0')
+  })
+
   it('inclui categoria codificada quando informada', async () => {
     vi.stubGlobal('fetch', fetchMock)
     await api.listTransactions('2026-08', 1, { category: 'alimentação' })
@@ -200,5 +214,32 @@ describe('api.login e api.register', () => {
       'Já existe uma conta com esse e-mail.',
     )
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/auth/register')
+  })
+})
+
+describe('api.getExpensesByCategory', () => {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: async () => ({ items: [], totalCents: 0 }),
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    fetchMock.mockClear()
+  })
+
+  it('consulta pelo mês sem período', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    await api.getExpensesByCategory('2026-08')
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/expenses-by-category?month=2026-08')
+  })
+
+  it('consulta pelo período quando há datas', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    await api.getExpensesByCategory('2026-08', { from: '2026-08-01', to: '2026-08-15' })
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      '/api/expenses-by-category?from=2026-08-01&to=2026-08-15',
+    )
   })
 })
