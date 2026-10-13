@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { delay, http, HttpResponse, type JsonBodyType } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Transaction } from '../lib/api'
+import type { TransactionSort } from '../lib/sort'
 import { pathOf, recordRequests, server } from '../test/msw'
 import { TransactionList } from './TransactionList'
 
@@ -419,6 +420,62 @@ describe('TransactionList', () => {
     renderList([transaction], { page: 1, total: 1, onPageChange: vi.fn() })
 
     expect(screen.queryByRole('navigation', { name: 'Paginação' })).toBeNull()
+  })
+
+  describe('ordenação por coluna', () => {
+    function renderSortable(sort: TransactionSort, onSortChange = vi.fn()) {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TransactionList
+            transactions={[transaction]}
+            loading={false}
+            sort={sort}
+            onSortChange={onSortChange}
+          />
+        </QueryClientProvider>,
+      )
+      return onSortChange
+    }
+
+    function header(name: string): HTMLElement {
+      return screen.getByRole('columnheader', { name: new RegExp(name) })
+    }
+
+    it('marca só a coluna ordenada com aria-sort e seta do sentido', () => {
+      renderSortable({ column: 'amount', direction: 'asc' })
+
+      expect(header('Valor').getAttribute('aria-sort')).toBe('ascending')
+      expect(header('Valor').textContent).toContain('▲')
+      expect(header('Data').getAttribute('aria-sort')).toBe('none')
+      expect(header('Categoria').getAttribute('aria-sort')).toBe('none')
+      // Descrição não é ordenável: nem botão nem aria-sort.
+      expect(header('Descrição').hasAttribute('aria-sort')).toBe(false)
+      expect(screen.queryByRole('button', { name: /Descrição/ })).toBeNull()
+    })
+
+    it('clicar na coluna ordenada inverte o sentido', () => {
+      const onSortChange = renderSortable({ column: 'date', direction: 'desc' })
+
+      fireEvent.click(screen.getByRole('button', { name: /Data/ }))
+
+      expect(onSortChange).toHaveBeenCalledWith({ column: 'date', direction: 'asc' })
+    })
+
+    it('clicar em outra coluna começa pelo sentido padrão dela', () => {
+      const onSortChange = renderSortable({ column: 'date', direction: 'desc' })
+
+      fireEvent.click(screen.getByRole('button', { name: /Categoria/ }))
+
+      expect(onSortChange).toHaveBeenCalledWith({ column: 'category', direction: 'asc' })
+    })
+
+    it('sem onSortChange o cabeçalho fica estático', () => {
+      renderList([transaction])
+
+      expect(screen.queryByRole('button', { name: /Data/ })).toBeNull()
+      expect(header('Data').hasAttribute('aria-sort')).toBe(false)
+    })
   })
 
   it('mostra skeleton de lista enquanto carrega, sem a tabela vazia', () => {

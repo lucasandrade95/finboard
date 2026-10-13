@@ -61,6 +61,16 @@ describe('api.listTransactions', () => {
     )
   })
 
+  it('manda sort/order só quando a ordenação não é a padrão', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    await api.listTransactions('2026-08', 1, { sort: { column: 'date', direction: 'desc' } })
+    await api.listTransactions('2026-08', 1, { sort: { column: 'amount', direction: 'asc' } })
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/transactions?month=2026-08&limit=20&offset=0')
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(
+      '/api/transactions?month=2026-08&limit=20&offset=0&sort=amount&order=asc',
+    )
+  })
+
   it('inclui o tipo quando informado', async () => {
     vi.stubGlobal('fetch', fetchMock)
     await api.listTransactions('2026-08', 1, { type: 'income' })

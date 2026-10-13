@@ -455,6 +455,108 @@ describe('GET /api/transactions', () => {
       expect(response.json().issues[0].path).toBe('month')
     })
   })
+
+  describe('ordenação (sort/order)', () => {
+    async function seedForSorting() {
+      const entries = [
+        {
+          description: 'aluguel',
+          amountCents: 150000,
+          category: 'moradia',
+          occurredOn: '2026-08-05',
+        },
+        {
+          description: 'café',
+          amountCents: 900,
+          category: 'Alimentação',
+          occurredOn: '2026-08-20',
+        },
+        {
+          description: 'ônibus',
+          amountCents: 900,
+          category: 'transporte',
+          occurredOn: '2026-08-12',
+        },
+        {
+          description: 'feira',
+          amountCents: 8000,
+          category: 'alimentação',
+          occurredOn: '2026-08-01',
+        },
+      ]
+      for (const entry of entries) {
+        await inject({ method: 'POST', url: '/api/transactions', payload: validPayload(entry) })
+      }
+    }
+
+    async function descriptions(query: string): Promise<string[]> {
+      const response = await inject({ method: 'GET', url: `/api/transactions?${query}` })
+      expect(response.statusCode).toBe(200)
+      return response.json().items.map((t: { description: string }) => t.description)
+    }
+
+    it('sem sort mantém data mais recente primeiro', async () => {
+      await seedForSorting()
+      expect(await descriptions('month=2026-08')).toEqual(['café', 'ônibus', 'aluguel', 'feira'])
+    })
+
+    it('ordena por data crescente', async () => {
+      await seedForSorting()
+      expect(await descriptions('month=2026-08&sort=date&order=asc')).toEqual([
+        'feira',
+        'aluguel',
+        'ônibus',
+        'café',
+      ])
+    })
+
+    it('ordena por valor e desempata pela data mais recente', async () => {
+      await seedForSorting()
+      expect(await descriptions('month=2026-08&sort=amount&order=desc')).toEqual([
+        'aluguel',
+        'feira',
+        'café',
+        'ônibus',
+      ])
+      expect(await descriptions('month=2026-08&sort=amount&order=asc')).toEqual([
+        'café',
+        'ônibus',
+        'feira',
+        'aluguel',
+      ])
+    })
+
+    it('ordena por categoria sem diferenciar maiúsculas', async () => {
+      await seedForSorting()
+      expect(await descriptions('month=2026-08&sort=category&order=asc')).toEqual([
+        'café',
+        'feira',
+        'aluguel',
+        'ônibus',
+      ])
+      expect(await descriptions('month=2026-08&sort=category&order=desc')).toEqual([
+        'ônibus',
+        'aluguel',
+        'café',
+        'feira',
+      ])
+    })
+
+    it('ordena antes de paginar: a segunda página continua a ordem da primeira', async () => {
+      await seedForSorting()
+      expect(await descriptions('month=2026-08&sort=amount&order=desc&limit=2&offset=2')).toEqual([
+        'café',
+        'ônibus',
+      ])
+    })
+
+    it('rejeita coluna ou sentido fora da lista', async () => {
+      for (const query of ['sort=description', 'sort=amount;DROP', 'order=up']) {
+        const response = await inject({ method: 'GET', url: `/api/transactions?${query}` })
+        expect(response.statusCode).toBe(400)
+      }
+    })
+  })
 })
 
 describe('PUT /api/transactions/:id', () => {
