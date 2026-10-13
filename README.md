@@ -166,7 +166,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Gráfico anual receitas × despesas por mês (barras SVG)
 - [x] Filtro por período customizado (data inicial/final) na listagem e nos gráficos
 - [x] Ordenação da tabela por coluna (data, valor, categoria) com indicador visual
-- [ ] Atalhos de teclado (n = nova transação, / = busca, ? = ajuda)
+- [x] Atalhos de teclado (n = nova transação, / = busca, ? = ajuda)
 - [ ] Anexo de comprovante na transação (upload local, limite de tamanho, preview)
 - [ ] Relatório mensal em PDF (resumo, gráficos, top categorias)
 - [ ] Auditoria: histórico de alterações por transação (quem, quando, o quê)
