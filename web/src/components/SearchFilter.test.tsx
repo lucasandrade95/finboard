@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { createRef } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SearchFilter } from './SearchFilter'
 
@@ -26,5 +27,14 @@ describe('SearchFilter', () => {
 
     fireEvent.change(screen.getByLabelText('Buscar'), { target: { value: '' } })
     expect(onChange).toHaveBeenCalledWith('')
+  })
+
+  it('expõe o campo pelo inputRef e anuncia o atalho "/"', () => {
+    const inputRef = createRef<HTMLInputElement>()
+    render(<SearchFilter value="" onChange={vi.fn()} inputRef={inputRef} />)
+
+    const input = screen.getByLabelText('Buscar')
+    expect(inputRef.current).toBe(input)
+    expect(input.getAttribute('aria-keyshortcuts')).toBe('/')
   })
 })
