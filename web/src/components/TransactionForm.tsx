@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type Ref } from 'react'
 import { useCreateTransaction } from '../hooks/use-finance'
 import { t } from '../i18n'
 import { parseReaisToCents, type Account, type Category, type TransactionType } from '../lib/api'
@@ -15,12 +15,15 @@ interface TransactionFormProps {
   catalog?: Category[]
   /** Contas do usuário: com pelo menos uma cadastrada, aparece o select de conta. */
   accounts?: Account[]
+  /** Campo de descrição: o atalho "n" foca aqui para começar a digitar direto. */
+  descriptionRef?: Ref<HTMLInputElement>
 }
 
 export function TransactionForm({
   categories = [],
   catalog = [],
   accounts = [],
+  descriptionRef,
 }: TransactionFormProps) {
   const [type, setType] = useState<TransactionType>('expense')
   const [description, setDescription] = useState('')
@@ -95,6 +98,8 @@ export function TransactionForm({
         <label>
           {t.common.description}
           <input
+            ref={descriptionRef}
+            aria-keyshortcuts="n"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder={t.transactionForm.descriptionPlaceholder}

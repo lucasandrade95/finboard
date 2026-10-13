@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AccountsPanel } from './components/AccountsPanel'
 import { AuthScreen } from './components/AuthScreen'
 import { BalanceLineChart } from './components/BalanceLineChart'
@@ -11,6 +11,7 @@ import { ExportCsvButton } from './components/ExportCsvButton'
 import { GoalsPanel } from './components/GoalsPanel'
 import { ImportCsvButton } from './components/ImportCsvButton'
 import { SearchFilter } from './components/SearchFilter'
+import { ShortcutsHelp } from './components/ShortcutsHelp'
 import { SummaryCards } from './components/SummaryCards'
 import { TagFilter } from './components/TagFilter'
 import { ThemeToggle } from './components/ThemeToggle'
@@ -24,6 +25,7 @@ import { TransfersPanel } from './components/TransfersPanel'
 import { TypeFilter } from './components/TypeFilter'
 import { useToken } from './hooks/use-auth'
 import { useDebouncedValue } from './hooks/use-debounced-value'
+import { useKeyboardShortcuts } from './hooks/use-keyboard-shortcuts'
 import {
   useAccounts,
   useBudgets,
@@ -79,6 +81,9 @@ function Dashboard() {
   const [tag, setTag] = useState('')
   const [range, setRange] = useState<DateRange>(EMPTY_RANGE)
   const [sort, setSort] = useState<TransactionSort>(DEFAULT_SORT)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const descriptionRef = useRef<HTMLInputElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
   // Intervalo invertido não vai para a API (seria 400): lista e donut seguem no mês até corrigir.
   const appliedRange = isRangeInverted(range) ? EMPTY_RANGE : range
   // Digitar não dispara requisição a cada tecla: a busca só vai para a API após a pausa.
@@ -158,6 +163,16 @@ function Dashboard() {
     setPage(1)
   }
 
+  const closeHelp = useCallback(() => setHelpOpen(false), [])
+
+  // Com a ajuda aberta, "n" e "/" ficam desligados: focar algo atrás do modal
+  // deixaria o usuário perdido. O "?" segue alternando a ajuda.
+  useKeyboardShortcuts({
+    newTransaction: helpOpen ? undefined : () => descriptionRef.current?.focus(),
+    search: helpOpen ? undefined : () => searchRef.current?.focus(),
+    help: () => setHelpOpen((open) => !open),
+  })
+
   return (
     <div className="layout">
       {/* Primeiro item do Tab: pula o topo e vai direto ao dashboard. */}
@@ -171,6 +186,16 @@ function Dashboard() {
           <input type="month" value={month} onChange={(e) => handleMonthChange(e.target.value)} />
         </label>
         <ThemeToggle />
+        <button
+          type="button"
+          className="shortcuts-toggle"
+          aria-label={t.shortcuts.open}
+          aria-keyshortcuts="?"
+          title={t.shortcuts.open}
+          onClick={() => setHelpOpen(true)}
+        >
+          <span aria-hidden="true">?</span>
+        </button>
         <button type="button" className="logout" onClick={() => setToken(null)}>
           {t.dashboard.logout}
         </button>
@@ -207,9 +232,10 @@ function Dashboard() {
           categories={categoryOptions}
           catalog={catalog.data}
           accounts={accounts.data}
+          descriptionRef={descriptionRef}
         />
         <div className="list-toolbar">
-          <SearchFilter value={search} onChange={setSearch} />
+          <SearchFilter value={search} onChange={setSearch} inputRef={searchRef} />
           <TypeFilter value={type} onChange={handleTypeChange} />
           <CategoryFilter
             value={category}
@@ -230,6 +256,7 @@ function Dashboard() {
           onSortChange={handleSortChange}
         />
       </main>
+      {helpOpen && <ShortcutsHelp onClose={closeHelp} />}
     </div>
   )
 }

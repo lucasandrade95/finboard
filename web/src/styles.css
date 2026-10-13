@@ -110,7 +110,8 @@ body {
   margin-left: auto;
 }
 
-.theme-toggle {
+.theme-toggle,
+.shortcuts-toggle {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -121,7 +122,8 @@ body {
   cursor: pointer;
 }
 
-.theme-toggle:hover {
+.theme-toggle:hover,
+.shortcuts-toggle:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -1339,4 +1341,58 @@ main:focus {
   margin-left: 0.4rem;
   font-size: 0.75rem;
   color: var(--muted);
+}
+
+/* Ajuda de atalhos: modal centrado sobre um véu que fecha no clique. */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 0.45);
+}
+
+.modal {
+  width: min(100%, 22rem);
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.modal h2 {
+  font-size: 1.05rem;
+  margin-bottom: 0.9rem;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+}
+
+.shortcut-row dt {
+  min-width: 2.5rem;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.6rem;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.shortcuts-note {
+  margin: 0.75rem 0 1rem;
+  color: var(--muted);
+  font-size: 0.8rem;
 }

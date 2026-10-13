@@ -275,6 +275,19 @@ export const ptBR = {
     moreErrors: (count: number) => `…e mais ${count} erro(s).`,
     importError: 'Falha ao importar o arquivo. Tente de novo.',
   },
+  shortcuts: {
+    open: 'Atalhos de teclado',
+    title: 'Atalhos de teclado',
+    actions: {
+      newTransaction: 'Nova transação',
+      search: 'Buscar transações',
+      help: 'Mostrar esta ajuda',
+    },
+    escKey: 'Esc',
+    closeHint: 'Fechar esta ajuda',
+    note: 'Os atalhos não disparam enquanto você digita num campo.',
+    close: 'Fechar',
+  },
 }
 
 export type Messages = typeof ptBR
