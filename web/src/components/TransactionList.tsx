@@ -7,6 +7,7 @@ import {
   type Transaction,
   type TransactionType,
 } from '../lib/api'
+import { ariaSort, nextSort, type SortColumn, type TransactionSort } from '../lib/sort'
 import { formatTagsInput, parseTagsInput, tagsWithinLimits } from '../lib/tags'
 import { useDeleteTransaction, useUpdateTransaction } from '../hooks/use-finance'
 import { Skeleton } from './Skeleton'
@@ -17,6 +18,40 @@ interface TransactionListProps {
   page?: number
   total?: number
   onPageChange?: (page: number) => void
+  /** Sem `onSortChange` o cabeçalho fica estático (a ordem é a que a API devolveu). */
+  sort?: TransactionSort
+  onSortChange?: (sort: TransactionSort) => void
+}
+
+interface SortableHeaderProps {
+  column: SortColumn
+  label: string
+  sort: TransactionSort | undefined
+  onSortChange: ((sort: TransactionSort) => void) | undefined
+  className?: string
+}
+
+/** Cabeçalho clicável: o `aria-sort` no `th` anuncia o sentido, a seta é só visual. */
+function SortableHeader({ column, label, sort, onSortChange, className }: SortableHeaderProps) {
+  if (!sort || !onSortChange) {
+    return <th className={className}>{label}</th>
+  }
+  const state = ariaSort(sort, column)
+  const arrow = state === 'ascending' ? '▲' : state === 'descending' ? '▼' : '↕'
+  return (
+    <th className={className} aria-sort={state}>
+      <button
+        type="button"
+        className={`sort-button${state === 'none' ? '' : ' sort-active'}`}
+        onClick={() => onSortChange(nextSort(sort, column))}
+      >
+        {label}
+        <span className="sort-indicator" aria-hidden="true">
+          {arrow}
+        </span>
+      </button>
+    </th>
+  )
 }
 
 function centsToReaisInput(cents: number): string {
@@ -192,6 +227,8 @@ export function TransactionList({
   page = 1,
   total = 0,
   onPageChange,
+  sort,
+  onSortChange,
 }: TransactionListProps) {
   const [editingId, setEditingId] = useState<number | null>(null)
   const deleteTransaction = useDeleteTransaction()
@@ -227,10 +264,26 @@ export function TransactionList({
       <table className="transaction-table">
         <thead>
           <tr>
-            <th>{t.common.date}</th>
+            <SortableHeader
+              column="date"
+              label={t.common.date}
+              sort={sort}
+              onSortChange={onSortChange}
+            />
             <th>{t.common.description}</th>
-            <th>{t.common.category}</th>
-            <th className="amount-col">{t.common.amount}</th>
+            <SortableHeader
+              column="category"
+              label={t.common.category}
+              sort={sort}
+              onSortChange={onSortChange}
+            />
+            <SortableHeader
+              column="amount"
+              label={t.common.amount}
+              sort={sort}
+              onSortChange={onSortChange}
+              className="amount-col"
+            />
             <th className="actions-col">
               <span className="visually-hidden">{t.transactionList.actions}</span>
             </th>

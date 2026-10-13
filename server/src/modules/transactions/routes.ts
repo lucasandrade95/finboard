@@ -66,7 +66,7 @@ export function registerTransactionRoutes(
     '/api/transactions',
     { ...protectedRoute, schema: transactionDocs.list },
     async (request) => {
-      const { month, from, to, type, category, q, tag, limit, offset } =
+      const { month, from, to, type, category, q, tag, limit, offset, sort, order } =
         listTransactionsQuerySchema.parse(request.query)
       const { items, total } = repository.list(ownerId(request), {
         month,
@@ -78,6 +78,8 @@ export function registerTransactionRoutes(
         tag,
         limit,
         offset,
+        sort,
+        order,
       })
       return { items, total, limit, offset }
     },

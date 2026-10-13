@@ -91,6 +91,9 @@ function checkPeriod(
   }
 }
 
+export const transactionSortSchema = z.enum(['date', 'amount', 'category'])
+export const sortOrderSchema = z.enum(['asc', 'desc'])
+
 export const periodQuerySchema = monthQuerySchema.extend(periodQueryShape).superRefine(checkPeriod)
 
 export const listTransactionsQuerySchema = monthQuerySchema
@@ -102,6 +105,9 @@ export const listTransactionsQuerySchema = monthQuerySchema
     tag: tagNameSchema.optional(),
     limit: z.coerce.number().int().min(1).max(100).default(20),
     offset: z.coerce.number().int().min(0).default(0),
+    // Coluna e sentido vêm de listas fechadas: nunca chegam crus ao ORDER BY.
+    sort: transactionSortSchema.default('date'),
+    order: sortOrderSchema.default('desc'),
   })
   .superRefine(checkPeriod)
 
@@ -109,5 +115,7 @@ export const listTransactionsQuerySchema = monthQuerySchema
 export const importCsvBodySchema = z.string({ message: 'envie o arquivo como text/csv' }).min(1)
 
 export type TransactionType = z.infer<typeof transactionTypeSchema>
+export type TransactionSort = z.infer<typeof transactionSortSchema>
+export type SortOrder = z.infer<typeof sortOrderSchema>
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>
 export type UpdateTransactionInput = z.infer<typeof updateTransactionSchema>

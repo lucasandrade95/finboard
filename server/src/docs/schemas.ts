@@ -269,6 +269,13 @@ export const transactionDocs = {
         },
         limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
         offset: { type: 'integer', minimum: 0, default: 0 },
+        sort: {
+          type: 'string',
+          enum: ['date', 'amount', 'category'],
+          default: 'date',
+          description: 'Coluna da ordenação; empates caem na data mais recente',
+        },
+        order: { type: 'string', enum: ['asc', 'desc'], default: 'desc' },
       },
     },
     response: {

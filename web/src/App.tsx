@@ -45,6 +45,7 @@ import { PAGE_SIZE, type TransactionType } from './lib/api'
 import { setToken } from './lib/auth'
 import { type DateRange, EMPTY_RANGE, isRangeInverted } from './lib/period'
 import { localToday } from './lib/projection'
+import { DEFAULT_SORT, type TransactionSort } from './lib/sort'
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7)
@@ -77,6 +78,7 @@ function Dashboard() {
   const [search, setSearch] = useState('')
   const [tag, setTag] = useState('')
   const [range, setRange] = useState<DateRange>(EMPTY_RANGE)
+  const [sort, setSort] = useState<TransactionSort>(DEFAULT_SORT)
   // Intervalo invertido não vai para a API (seria 400): lista e donut seguem no mês até corrigir.
   const appliedRange = isRangeInverted(range) ? EMPTY_RANGE : range
   // Digitar não dispara requisição a cada tecla: a busca só vai para a API após a pausa.
@@ -88,6 +90,7 @@ function Dashboard() {
     category: category || undefined,
     q: searchTerm || undefined,
     tag: tag || undefined,
+    sort,
   })
   const summary = useSummary(month)
   const categories = useCategories(month)
@@ -146,6 +149,12 @@ function Dashboard() {
 
   function handleRangeChange(value: DateRange) {
     setRange(value)
+    setPage(1)
+  }
+
+  // Nova ordem embaralha as páginas: a página 3 de antes não é a 3 de agora.
+  function handleSortChange(value: TransactionSort) {
+    setSort(value)
     setPage(1)
   }
 
@@ -217,6 +226,8 @@ function Dashboard() {
           page={page}
           total={transactions.data?.total ?? 0}
           onPageChange={setPage}
+          sort={sort}
+          onSortChange={handleSortChange}
         />
       </main>
     </div>

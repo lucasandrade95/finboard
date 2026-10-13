@@ -1,5 +1,11 @@
 import type { AppDatabase } from '../../db/connection.js'
-import type { CreateTransactionInput, TransactionType, UpdateTransactionInput } from './schemas.js'
+import type {
+  CreateTransactionInput,
+  SortOrder,
+  TransactionSort,
+  TransactionType,
+  UpdateTransactionInput,
+} from './schemas.js'
 
 export interface TransactionRecord {
   id: number
@@ -40,6 +46,25 @@ export interface ListTransactionsFilters extends PeriodFilter {
   tag?: string
   limit: number
   offset: number
+  /** Coluna da ordenação; omitida segue data, a mais recente primeiro. */
+  sort?: TransactionSort
+  order?: SortOrder
+}
+
+// Só fragmentos fixos entram no SQL. Valor e categoria empatam muito: o desempate pela
+// data mais recente (e id) mantém a página estável entre uma requisição e outra.
+const SORT_COLUMNS: Record<TransactionSort, string> = {
+  date: 'occurred_on',
+  amount: 'amount_cents',
+  category: 'category COLLATE NOCASE',
+}
+
+function orderByClause(sort: TransactionSort, order: SortOrder): string {
+  const direction = order === 'asc' ? 'ASC' : 'DESC'
+  if (sort === 'date') {
+    return `occurred_on ${direction}, id ${direction}`
+  }
+  return `${SORT_COLUMNS[sort]} ${direction}, occurred_on DESC, id DESC`
 }
 
 export interface MonthlySummary {
@@ -323,7 +348,17 @@ export class TransactionsRepository {
 
   list(
     userId: number,
-    { type, category, q, tag, limit, offset, ...period }: ListTransactionsFilters,
+    {
+      type,
+      category,
+      q,
+      tag,
+      limit,
+      offset,
+      sort = 'date',
+      order = 'desc',
+      ...period
+    }: ListTransactionsFilters,
   ): TransactionPage {
     const range = periodConditions(period)
     const conditions: string[] = ['user_id = ?', ...range.conditions]
@@ -351,7 +386,7 @@ export class TransactionsRepository {
     const where = `WHERE ${conditions.join(' AND ')}`
     const rows = this.db
       .prepare(
-        `SELECT * FROM transactions ${where} ORDER BY occurred_on DESC, id DESC LIMIT ? OFFSET ?`,
+        `SELECT * FROM transactions ${where} ORDER BY ${orderByClause(sort, order)} LIMIT ? OFFSET ?`,
       )
       .all(...params, limit, offset) as TransactionRow[]
     const { total } = this.db

@@ -938,6 +938,36 @@ button[type='submit']:disabled {
   font-variant-numeric: tabular-nums;
 }
 
+/* Botão do cabeçalho ordenável: herda o visual do `th`, só ganha cursor e seta. */
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sort-button:hover,
+.sort-active {
+  color: var(--text);
+}
+
+.sort-indicator {
+  font-size: 0.7rem;
+  opacity: 0.5;
+}
+
+.sort-active .sort-indicator {
+  color: var(--accent);
+  opacity: 1;
+}
+
 .amount-col.income {
   color: var(--positive);
 }

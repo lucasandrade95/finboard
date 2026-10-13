@@ -12,7 +12,7 @@ import {
 import type { DateRange } from '../lib/period'
 
 export function useTransactions(month: string, page: number, filters: TransactionFilters = {}) {
-  const { from, to, type, category, q, tag } = filters
+  const { from, to, type, category, q, tag, sort } = filters
   return useQuery({
     // Chave só com primitivos: o objeto de filtros muda de referência a cada render.
     queryKey: [
@@ -25,8 +25,10 @@ export function useTransactions(month: string, page: number, filters: Transactio
       category ?? null,
       q ?? null,
       tag ?? null,
+      sort?.column ?? null,
+      sort?.direction ?? null,
     ],
-    queryFn: () => api.listTransactions(month, page, { from, to, type, category, q, tag }),
+    queryFn: () => api.listTransactions(month, page, { from, to, type, category, q, tag, sort }),
   })
 }
 

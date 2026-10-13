@@ -1,6 +1,7 @@
 import { locale, t } from '../i18n'
 import { getToken, setToken } from './auth'
 import { type DateRange, periodParams } from './period'
+import { isDefaultSort, type TransactionSort } from './sort'
 
 export type TransactionType = 'income' | 'expense'
 
@@ -277,6 +278,8 @@ export interface TransactionFilters {
   category?: string
   q?: string
   tag?: string
+  /** Ordenação da tabela; omitida ou padrão não vai na URL (a API já ordena por data). */
+  sort?: TransactionSort
 }
 
 export interface CsvImportRowError {
@@ -454,6 +457,10 @@ export const api = {
     }
     if (filters.tag) {
       params.set('tag', filters.tag)
+    }
+    if (filters.sort && !isDefaultSort(filters.sort)) {
+      params.set('sort', filters.sort.column)
+      params.set('order', filters.sort.direction)
     }
     return request<TransactionPage>(`/api/transactions?${params.toString()}`)
   },
