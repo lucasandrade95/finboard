@@ -90,6 +90,9 @@ Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento Op
 | DELETE | `/api/transactions/:id`            | Exclui transação (204; 404 se não existe; 409 `transfer_leg`/`installment_part`)                                                                               |
 | GET    | `/api/transactions/export.csv`     | Exporta as transações do mês em CSV (`month` obrigatório; `;` + vírgula decimal + BOM, abre direto no Excel pt-BR)                                             |
 | POST   | `/api/transactions/import`         | Importa CSV no formato do export (corpo `text/csv`; 201 `{ imported }`; tudo ou nada — 400 `invalid_csv` com erros por linha/coluna)                           |
+| PUT    | `/api/transactions/:id/attachment` | Anexa/troca o comprovante (corpo binário PNG/JPEG/WebP/PDF até 2 MB; 413 acima, 415 tipo fora da lista, 400 `invalid_file` se os bytes não batem com o tipo)   |
+| GET    | `/api/transactions/:id/attachment` | Baixa o comprovante (`Content-Type` do arquivo, `inline`, `Cache-Control: private, no-store`; 404 se não há)                                                   |
+| DELETE | `/api/transactions/:id/attachment` | Remove o comprovante (204; 404 se não há). Excluir a transação apaga o comprovante junto                                                                       |
 | GET    | `/api/categories?month=`           | Categorias distintas usadas no período (`{ categories: string[] }`)                                                                                            |
 | GET    | `/api/tags`                        | Tags em uso nas transações da conta (`{ tags: string[] }`), em ordem alfabética                                                                                |
 | GET    | `/api/categories/catalog`          | Catálogo de categorias da conta (`{ items }`: `name`, `color` #rrggbb, `icon` opcional), em ordem alfabética                                                   |
@@ -167,7 +170,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Filtro por período customizado (data inicial/final) na listagem e nos gráficos
 - [x] Ordenação da tabela por coluna (data, valor, categoria) com indicador visual
 - [x] Atalhos de teclado (n = nova transação, / = busca, ? = ajuda)
-- [ ] Anexo de comprovante na transação (upload local, limite de tamanho, preview)
+- [x] Anexo de comprovante na transação (upload local, limite de tamanho, preview)
 - [ ] Relatório mensal em PDF (resumo, gráficos, top categorias)
 - [ ] Auditoria: histórico de alterações por transação (quem, quando, o quê)
 - [ ] Refresh token com rotação + logout de todos os dispositivos
