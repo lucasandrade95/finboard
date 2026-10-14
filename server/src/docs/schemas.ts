@@ -118,6 +118,10 @@ const transaction = {
       example: ['viagem', 'férias'],
       description: 'Tags livres, em ordem alfabética',
     },
+    hasAttachment: {
+      type: 'boolean',
+      description: 'Há comprovante em /api/transactions/{id}/attachment',
+    },
     createdAt: { type: 'string', example: '2026-09-18 12:00:00' },
   },
 }
@@ -536,6 +540,58 @@ export const transactionDocs = {
       },
       401: unauthorized,
     },
+  } satisfies FastifySchema,
+}
+
+const attachmentTypes = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf']
+const transactionIdParam = { type: 'object', properties: { id: { type: 'integer' } } }
+
+export const attachmentDocs = {
+  upload: {
+    ...authenticated,
+    tags: ['transações'],
+    summary: 'Anexa (ou troca) o comprovante da transação',
+    description:
+      'Corpo binário cru com o Content-Type do arquivo (PNG, JPEG, WebP ou PDF), até 2 MB. ' +
+      'Os primeiros bytes precisam bater com o tipo declarado.',
+    consumes: attachmentTypes,
+    params: transactionIdParam,
+    body: { type: 'string', format: 'binary' },
+    response: {
+      200: {
+        description: 'Comprovante salvo',
+        type: 'object',
+        properties: {
+          transactionId: { type: 'integer' },
+          mimeType: { type: 'string', enum: attachmentTypes },
+          sizeBytes: { type: 'integer', example: 184320 },
+          uploadedAt: { type: 'string', example: '2026-10-14 12:00:00' },
+        },
+      },
+      400: errorResponse('Arquivo vazio ou conteúdo diferente do tipo declarado', 'invalid_file'),
+      401: unauthorized,
+      404: notFound,
+      413: errorResponse('Arquivo acima de 2 MB', 'payload_too_large'),
+      415: errorResponse('Tipo fora de PNG, JPEG, WebP ou PDF', 'unsupported_media_type'),
+    },
+  } satisfies FastifySchema,
+
+  // Sem schema no 200: o corpo é o próprio arquivo, não JSON.
+  download: {
+    ...authenticated,
+    tags: ['transações'],
+    summary: 'Baixa o comprovante da transação',
+    produces: attachmentTypes,
+    params: transactionIdParam,
+    response: { 401: unauthorized, 404: notFound },
+  } satisfies FastifySchema,
+
+  remove: {
+    ...authenticated,
+    tags: ['transações'],
+    summary: 'Remove o comprovante da transação',
+    params: transactionIdParam,
+    response: { 204: noContent, 401: unauthorized, 404: notFound },
   } satisfies FastifySchema,
 }
 

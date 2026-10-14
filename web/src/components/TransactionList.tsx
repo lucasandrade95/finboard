@@ -11,6 +11,7 @@ import { ariaSort, nextSort, type SortColumn, type TransactionSort } from '../li
 import { formatTagsInput, parseTagsInput, tagsWithinLimits } from '../lib/tags'
 import { useDeleteTransaction, useUpdateTransaction } from '../hooks/use-finance'
 import { Skeleton } from './Skeleton'
+import { TransactionAttachment } from './TransactionAttachment'
 
 interface TransactionListProps {
   transactions: Transaction[] | undefined
@@ -334,6 +335,8 @@ export function TransactionList({
                   {formatBRL(transaction.amountCents)}
                 </td>
                 <td className="actions-col">
+                  {/* Comprovante não mexe em valores: vale até para perna e parcela. */}
+                  <TransactionAttachment transaction={transaction} />
                   {transaction.transferId !== null ? (
                     // Editar uma perna sozinha desequilibraria as contas: a API responde 409.
                     <span className="transfer-hint">{t.transactionList.transferHint}</span>

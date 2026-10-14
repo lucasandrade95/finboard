@@ -291,6 +291,24 @@ export const MIGRATIONS: readonly Migration[] = [
       )
     },
   },
+  {
+    id: 14,
+    name: 'create_transaction_attachments',
+    up: (db) => {
+      // Um comprovante por transação, guardado no próprio SQLite: o CASCADE apaga o
+      // arquivo junto com a transação (inclusive por transferência ou parcelamento),
+      // sem arquivo órfão em disco, e o backup continua sendo um arquivo só.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS transaction_attachments (
+          transaction_id INTEGER PRIMARY KEY REFERENCES transactions(id) ON DELETE CASCADE,
+          mime_type TEXT NOT NULL,
+          size_bytes INTEGER NOT NULL CHECK (size_bytes > 0),
+          content BLOB NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `)
+    },
+  },
 ]
 
 /**

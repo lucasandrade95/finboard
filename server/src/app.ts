@@ -10,6 +10,8 @@ import { registerOpenApi } from './docs/openapi.js'
 import { healthDocs } from './docs/schemas.js'
 import { AccountsRepository } from './modules/accounts/repository.js'
 import { registerAccountRoutes } from './modules/accounts/routes.js'
+import { AttachmentsRepository } from './modules/attachments/repository.js'
+import { registerAttachmentRoutes } from './modules/attachments/routes.js'
 import { UsersRepository } from './modules/auth/repository.js'
 import { registerAuthRoutes } from './modules/auth/routes.js'
 import { BudgetsRepository } from './modules/budgets/repository.js'
@@ -57,6 +59,15 @@ export interface BuildAppOptions {
   rateLimit?: RateLimitSettings | false
   /** Confia no `x-forwarded-for` para `request.ip` (rate limit por cliente atrás do nginx). */
   trustProxy?: boolean
+}
+
+/**
+ * Erros que o próprio Fastify levanta antes do handler (corpo grande demais, tipo
+ * sem parser) saem com o mesmo código curto das rotas, não com a frase em inglês.
+ */
+const FRAMEWORK_ERRORS: Record<string, string> = {
+  FST_ERR_CTP_BODY_TOO_LARGE: 'payload_too_large',
+  FST_ERR_CTP_INVALID_MEDIA_TYPE: 'unsupported_media_type',
 }
 
 // Mês local, não UTC: a virada de mês deve seguir o relógio do usuário.
@@ -122,14 +133,15 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       })
     }
     request.log.error(error)
-    const fastifyError = error as { statusCode?: number; message?: string }
+    const fastifyError = error as { statusCode?: number; message?: string; code?: string }
     const statusCode =
       typeof fastifyError.statusCode === 'number' && fastifyError.statusCode >= 400
         ? fastifyError.statusCode
         : 500
-    return reply
-      .code(statusCode)
-      .send({ error: statusCode >= 500 ? 'internal_error' : (fastifyError.message ?? 'erro') })
+    const known = fastifyError.code ? FRAMEWORK_ERRORS[fastifyError.code] : undefined
+    return reply.code(statusCode).send({
+      error: statusCode >= 500 ? 'internal_error' : (known ?? fastifyError.message ?? 'erro'),
+    })
   })
 
   app.get('/health', { schema: healthDocs }, async () => ({ status: 'ok' }))
@@ -144,6 +156,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   )
   const accounts = new AccountsRepository(db)
   registerTransactionRoutes(app, repository, accounts)
+  registerAttachmentRoutes(app, new AttachmentsRepository(db))
   registerBudgetRoutes(app, new BudgetsRepository(db))
   registerGoalRoutes(app, new GoalsRepository(db))
   registerCategoryRoutes(app, new CategoriesRepository(db))

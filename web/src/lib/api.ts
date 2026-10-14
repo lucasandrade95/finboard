@@ -31,6 +31,8 @@ export interface Transaction {
   installmentNumber: number | null
   /** Tags livres, em ordem alfabética. */
   tags: string[]
+  /** Há comprovante anexado (o arquivo vem de `/api/transactions/:id/attachment`). */
+  hasAttachment: boolean
   createdAt: string
 }
 
@@ -436,6 +438,33 @@ async function importTransactionsCsv(csv: string): Promise<CsvImportResult> {
   return response.json() as Promise<CsvImportResult>
 }
 
+// Bytes crus com o Content-Type do arquivo: o server confere tipo e assinatura. Ler antes
+// (no máximo 2 MB, já validado) dá um ArrayBuffer que qualquer `fetch` aceita como corpo,
+// inclusive o do Node nos testes, onde o File do jsdom viraria "[object File]".
+async function uploadAttachment(id: number, file: File): Promise<void> {
+  const response = await fetch(`/api/transactions/${id}/attachment`, {
+    method: 'PUT',
+    headers: authHeaders(file.type),
+    body: await file.arrayBuffer(),
+  })
+  failIfUnauthorized(response)
+  if (!response.ok) {
+    throw new Error(`API ${response.status}: ${await response.text()}`)
+  }
+}
+
+/** Como no export: a rota exige o header, então o preview usa blob, não `<img src>` direto. */
+async function fetchAttachment(id: number): Promise<Blob> {
+  const response = await fetch(`/api/transactions/${id}/attachment`, {
+    headers: authHeaders('application/json'),
+  })
+  failIfUnauthorized(response)
+  if (!response.ok) {
+    throw new Error(`API ${response.status}: ${await response.text()}`)
+  }
+  return response.blob()
+}
+
 export const api = {
   register: (email: string, password: string) =>
     authenticate('/api/auth/register', email, password),
@@ -502,6 +531,10 @@ export const api = {
       body: JSON.stringify(input),
     }),
   deleteTransaction: (id: number) => request<void>(`/api/transactions/${id}`, { method: 'DELETE' }),
+  uploadAttachment,
+  fetchAttachment,
+  deleteAttachment: (id: number) =>
+    request<void>(`/api/transactions/${id}/attachment`, { method: 'DELETE' }),
   exportTransactionsCsv,
   importTransactionsCsv,
   listBudgets: (month: string) => request<BudgetProgressList>(`/api/budgets?month=${month}`),

@@ -199,6 +199,35 @@ export function useDeleteTransaction() {
   })
 }
 
+// Comprovante não mexe em valores: basta a lista (marca 📎) e o próprio arquivo em cache.
+function invalidateAttachment(queryClient: QueryClient, id: number): Promise<unknown> {
+  queryClient.removeQueries({ queryKey: ['attachment', id] })
+  return queryClient.invalidateQueries({ queryKey: ['transactions'] })
+}
+
+export function useAttachment(id: number) {
+  return useQuery({
+    queryKey: ['attachment', id],
+    queryFn: () => api.fetchAttachment(id),
+  })
+}
+
+export function useUploadAttachment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, file }: { id: number; file: File }) => api.uploadAttachment(id, file),
+    onSuccess: (_data, { id }) => invalidateAttachment(queryClient, id),
+  })
+}
+
+export function useDeleteAttachment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.deleteAttachment(id),
+    onSuccess: (_data, id) => invalidateAttachment(queryClient, id),
+  })
+}
+
 export function useTransfers(month: string) {
   return useQuery({
     queryKey: ['transfers', month],

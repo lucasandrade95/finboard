@@ -24,6 +24,8 @@ export interface TransactionRecord {
   installmentNumber: number | null
   /** Tags livres da transação, em ordem alfabética. */
   tags: string[]
+  /** Há comprovante anexado (o arquivo em si sai por `/api/transactions/:id/attachment`). */
+  hasAttachment: boolean
   createdAt: string
 }
 
@@ -188,7 +190,7 @@ function compareText(a: string, b: string): number {
   return a.localeCompare(b, 'pt-BR')
 }
 
-function toRecord(row: TransactionRow, tags: string[]): TransactionRecord {
+function toRecord(row: TransactionRow, tags: string[], hasAttachment: boolean): TransactionRecord {
   return {
     id: row.id,
     type: row.type,
@@ -202,6 +204,7 @@ function toRecord(row: TransactionRow, tags: string[]): TransactionRecord {
     installmentId: row.installment_id,
     installmentNumber: row.installment_number,
     tags,
+    hasAttachment,
     createdAt: row.created_at,
   }
 }
@@ -263,20 +266,21 @@ export class TransactionsRepository {
   }
 
   /**
-   * Tags de todas as linhas numa consulta só (sem N+1 na página). Os ids vão como
+   * Tags e marca de comprovante de todas as linhas numa consulta cada (sem N+1 na página). Os ids vão como
    * um array JSON lido por `json_each`: não esbarra no limite de parâmetros do SQLite.
    */
   private toRecords(rows: TransactionRow[]): TransactionRecord[] {
     if (rows.length === 0) {
       return []
     }
+    const ids = JSON.stringify(rows.map((row) => row.id))
     const links = this.db
       .prepare(
         `SELECT tt.transaction_id AS transactionId, tg.name
          FROM transaction_tags tt JOIN tags tg ON tg.id = tt.tag_id
          WHERE tt.transaction_id IN (SELECT value FROM json_each(?))`,
       )
-      .all(JSON.stringify(rows.map((row) => row.id))) as Array<{
+      .all(ids) as Array<{
       transactionId: number
       name: string
     }>
@@ -284,7 +288,20 @@ export class TransactionsRepository {
     for (const { transactionId, name } of links) {
       tagsById.set(transactionId, [...(tagsById.get(transactionId) ?? []), name])
     }
-    return rows.map((row) => toRecord(row, (tagsById.get(row.id) ?? []).sort(compareText)))
+    // Só o id: o conteúdo do comprovante (até 2 MB) nunca é lido para montar a lista.
+    const withAttachment = new Set(
+      (
+        this.db
+          .prepare(
+            `SELECT transaction_id AS id FROM transaction_attachments
+             WHERE transaction_id IN (SELECT value FROM json_each(?))`,
+          )
+          .all(ids) as Array<{ id: number }>
+      ).map(({ id }) => id),
+    )
+    return rows.map((row) =>
+      toRecord(row, (tagsById.get(row.id) ?? []).sort(compareText), withAttachment.has(row.id)),
+    )
   }
 
   /**
