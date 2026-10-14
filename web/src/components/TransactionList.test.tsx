@@ -21,6 +21,7 @@ const transaction: Transaction = {
   installmentId: null,
   installmentNumber: null,
   tags: [],
+  hasAttachment: false,
   createdAt: '2026-08-20 12:00:00',
 }
 
@@ -96,6 +97,25 @@ describe('TransactionList', () => {
     expect(expenseRow.querySelector('.amount-col.expense')?.textContent).toMatch(/^−R\$\s159,90$/)
     expect(incomeRow.textContent).toContain('05/08/2026')
     expect(incomeRow.querySelector('.amount-col.income')?.textContent).toMatch(/^\+R\$\s5\.000,00$/)
+  })
+
+  it('oferece anexar ou ver o comprovante conforme a linha, inclusive em parcela', () => {
+    renderList([
+      transaction,
+      {
+        ...transaction,
+        id: 2,
+        description: 'Notebook',
+        installmentId: 1,
+        installmentNumber: 1,
+        hasAttachment: true,
+      },
+    ])
+
+    expect(screen.getByLabelText('Anexar comprovante a Mercado')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Ver comprovante de Mercado' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Ver comprovante de Notebook' })).toBeTruthy()
+    expect(screen.queryByLabelText('Anexar comprovante a Notebook')).toBeNull()
   })
 
   it('mostra estado vazio em vez de tabela quando não há transações', () => {

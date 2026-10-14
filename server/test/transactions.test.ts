@@ -593,6 +593,7 @@ describe('PUT /api/transactions/:id', () => {
       installmentId: null,
       installmentNumber: null,
       tags: [],
+      hasAttachment: false,
       createdAt,
     })
 
