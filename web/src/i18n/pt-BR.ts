@@ -279,6 +279,11 @@ export const ptBR = {
     clear: 'Limpar período',
     inverted: 'A data final é anterior à inicial: usando o mês selecionado.',
   },
+  report: {
+    download: 'Relatório PDF',
+    generating: 'Gerando…',
+    error: 'Falha ao gerar o relatório. Tente de novo.',
+  },
   csv: {
     export: 'Exportar CSV',
     exporting: 'Exportando…',

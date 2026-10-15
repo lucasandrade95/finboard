@@ -10,6 +10,7 @@ import { CategoryFilter } from './components/CategoryFilter'
 import { ExportCsvButton } from './components/ExportCsvButton'
 import { GoalsPanel } from './components/GoalsPanel'
 import { ImportCsvButton } from './components/ImportCsvButton'
+import { MonthlyReportButton } from './components/MonthlyReportButton'
 import { SearchFilter } from './components/SearchFilter'
 import { ShortcutsHelp } from './components/ShortcutsHelp'
 import { SummaryCards } from './components/SummaryCards'
@@ -244,6 +245,7 @@ function Dashboard() {
           />
           <TagFilter value={tag} options={tags.data ?? []} onChange={handleTagChange} />
           <ExportCsvButton month={month} />
+          <MonthlyReportButton month={month} />
           <ImportCsvButton />
         </div>
         <TransactionList

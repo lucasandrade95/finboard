@@ -389,29 +389,33 @@ async function authenticate(path: string, email: string, password: string): Prom
   throw new Error(`API ${response.status}: ${await response.text()}`)
 }
 
-export interface CsvExport {
+export interface FileDownload {
   blob: Blob
   filename: string
 }
 
 /**
- * O export virou rota autenticada, então não dá mais para apontar uma âncora
- * direto para a URL: o arquivo é buscado com o header e entregue como blob para
- * o componente disparar o download.
+ * Exports são rotas autenticadas, então não dá para apontar uma âncora direto
+ * para a URL: o arquivo é buscado com o header e entregue como blob para o
+ * componente disparar o download.
  */
-async function exportTransactionsCsv(month: string): Promise<CsvExport> {
-  const response = await fetch(`/api/transactions/export.csv?month=${month}`, {
-    headers: authHeaders('application/json'),
-  })
+async function downloadFile(path: string, fallbackFilename: string): Promise<FileDownload> {
+  const response = await fetch(path, { headers: authHeaders('application/json') })
   failIfUnauthorized(response)
   if (!response.ok) {
     throw new Error(`API ${response.status}: ${await response.text()}`)
   }
   // Nome vindo do Content-Disposition do server; o fallback cobre proxy que corta o header.
   const disposition = response.headers.get('content-disposition') ?? ''
-  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? `transacoes-${month}.csv`
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? fallbackFilename
   return { blob: await response.blob(), filename }
 }
+
+const exportTransactionsCsv = (month: string) =>
+  downloadFile(`/api/transactions/export.csv?month=${month}`, `transacoes-${month}.csv`)
+
+const exportMonthlyReport = (month: string) =>
+  downloadFile(`/api/reports/monthly.pdf?month=${month}`, `relatorio-${month}.pdf`)
 
 // Fora do `request`: o 400 aqui não é falha genérica, é o relatório de erros do arquivo.
 async function importTransactionsCsv(csv: string): Promise<CsvImportResult> {
@@ -536,6 +540,7 @@ export const api = {
   deleteAttachment: (id: number) =>
     request<void>(`/api/transactions/${id}/attachment`, { method: 'DELETE' }),
   exportTransactionsCsv,
+  exportMonthlyReport,
   importTransactionsCsv,
   listBudgets: (month: string) => request<BudgetProgressList>(`/api/budgets?month=${month}`),
   upsertBudget: (category: string, amountCents: number) =>

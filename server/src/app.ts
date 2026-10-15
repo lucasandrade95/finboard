@@ -24,6 +24,7 @@ import { InstallmentsRepository } from './modules/installments/repository.js'
 import { registerInstallmentRoutes } from './modules/installments/routes.js'
 import { ProjectionRepository } from './modules/projection/repository.js'
 import { registerProjectionRoutes } from './modules/projection/routes.js'
+import { registerReportRoutes } from './modules/reports/routes.js'
 import { TransactionsRepository } from './modules/transactions/repository.js'
 import { registerTransactionRoutes } from './modules/transactions/routes.js'
 import { TransfersRepository } from './modules/transfers/repository.js'
@@ -164,6 +165,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   registerTransferRoutes(app, new TransfersRepository(db), accounts)
   registerInstallmentRoutes(app, new InstallmentsRepository(db, repository), accounts)
   registerProjectionRoutes(app, new ProjectionRepository(db))
+  registerReportRoutes(app, repository)
 
   // Uma passada por dono: cada conta tem as próprias séries recorrentes.
   const month = options.recurringMonth ?? currentMonth()

@@ -1036,6 +1036,21 @@ const projectionEvent = {
   },
 }
 
+export const reportDocs = {
+  // Sem schema no 200: o corpo é o próprio PDF, não JSON.
+  monthlyPdf: {
+    ...authenticated,
+    tags: ['relatórios'],
+    summary: 'Relatório mensal em PDF',
+    description:
+      'Uma página A4 com resumo (e variação contra o mês anterior), receitas × despesas, ' +
+      'saldo dia a dia e as 5 maiores categorias de despesa.',
+    produces: ['application/pdf'],
+    querystring: { type: 'object', required: ['month'], properties: { month: monthParam } },
+    response: { 400: validationError, 401: unauthorized },
+  } satisfies FastifySchema,
+}
+
 export const projectionDocs = {
   get: {
     ...authenticated,

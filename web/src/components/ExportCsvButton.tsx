@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { t } from '../i18n'
 import { api } from '../lib/api'
+import { saveBlob } from '../lib/download'
 
 interface ExportCsvButtonProps {
   month: string
@@ -20,13 +21,7 @@ export function ExportCsvButton({ month }: ExportCsvButtonProps) {
     setFailed(false)
     try {
       const { blob, filename } = await api.exportTransactionsCsv(month)
-      const url = URL.createObjectURL(blob)
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = filename
-      anchor.click()
-      // Sem o revoke o blob fica retido na memória da aba até o reload.
-      URL.revokeObjectURL(url)
+      saveBlob(blob, filename)
     } catch {
       setFailed(true)
     } finally {
