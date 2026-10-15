@@ -112,6 +112,7 @@ Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento Op
 | GET    | `/api/projection`                  | Saldo previsto dia a dia (`from`=hoje, `days`=30, até 90): saldo de hoje + lançamentos futuros, parcelas e próximas recorrentes                                |
 | GET    | `/api/daily-balance?month=`        | Saldo acumulado dia a dia do mês (`month` obrigatório; um ponto por dia, inclusive dias sem movimento)                                                         |
 | GET    | `/api/yearly-summary?year=`        | Receitas e despesas de cada mês do ano (`year` obrigatório; sempre 12 meses, sem transferências) + totais do ano                                               |
+| GET    | `/api/reports/monthly.pdf?month=`  | Relatório do mês em PDF de uma página (`month` obrigatório): resumo com variação vs mês anterior, receitas × despesas, saldo dia a dia e top 5 categorias      |
 | GET    | `/api/summary?month=`              | Receitas, despesas e saldo (com `month`, `previous` do mês anterior); `accounts`: saldo de cada conta no fim do período                                        |
 | GET    | `/api/expenses-by-category?month=` | Total de despesas por categoria, maior primeiro (`{ items, totalCents }`; aceita `from=`/`to=` no lugar de `month`)                                            |
 | GET    | `/api/budgets?month=`              | Orçamentos com gasto do mês por categoria (`month` obrigatório; `{ month, items: [{ category, budgetCents, spentCents }] }`)                                   |
@@ -171,7 +172,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Ordenação da tabela por coluna (data, valor, categoria) com indicador visual
 - [x] Atalhos de teclado (n = nova transação, / = busca, ? = ajuda)
 - [x] Anexo de comprovante na transação (upload local, limite de tamanho, preview)
-- [ ] Relatório mensal em PDF (resumo, gráficos, top categorias)
+- [x] Relatório mensal em PDF (resumo, gráficos, top categorias)
 - [ ] Auditoria: histórico de alterações por transação (quem, quando, o quê)
 - [ ] Refresh token com rotação + logout de todos os dispositivos
 - [ ] Recuperação de senha por e-mail (token expirável, template pt-BR)
