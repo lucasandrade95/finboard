@@ -1,4 +1,5 @@
 import type { AppDatabase } from '../../db/connection.js'
+import { type AuditAction, type AuditEntry, diffTransactions, type FieldChange } from './audit.js'
 import type {
   CreateTransactionInput,
   SortOrder,
@@ -238,13 +239,14 @@ export class TransactionsRepository {
         })
       const id = Number(result.lastInsertRowid)
       this.replaceTags(userId, id, tags)
-      return id
+      const created = this.findById(userId, id)
+      if (!created) {
+        throw new Error('transação recém-criada não encontrada')
+      }
+      this.recordAudit(userId, id, 'created', diffTransactions(undefined, created))
+      return created
     })
-    const created = this.findById(userId, insert())
-    if (!created) {
-      throw new Error('transação recém-criada não encontrada')
-    }
-    return created
+    return insert()
   }
 
   /** Tudo ou nada: numa transação do SQLite, uma falha no meio desfaz as linhas já inseridas. */
@@ -331,8 +333,13 @@ export class TransactionsRepository {
     // `accountId` e `tags` omitidos mantêm o que já está gravado; `null`/`[]` explícitos limpam.
     const { accountId, tags, ...fields } = input
     const keepAccount = accountId === undefined
-    const update = this.db.transaction(() => {
-      const result = this.db
+    const update = this.db.transaction((): TransactionRecord | undefined => {
+      // Estado anterior lido dentro da mesma transação: o diff não pega escrita de outro request.
+      const before = this.findById(userId, id)
+      if (!before) {
+        return undefined
+      }
+      this.db
         .prepare(
           `UPDATE transactions
            SET type = @type, description = @description, amount_cents = @amountCents,
@@ -347,20 +354,83 @@ export class TransactionsRepository {
           recurring: input.recurring ? 1 : 0,
           ...(keepAccount ? {} : { accountId }),
         })
-      // Só mexe nas tags depois do UPDATE casar: id de outro usuário não ganha vínculo.
-      if (result.changes > 0 && tags !== undefined) {
+      // Só mexe nas tags depois de achar a transação: id de outro usuário não ganha vínculo.
+      if (tags !== undefined) {
         this.replaceTags(userId, id, tags)
       }
-      return result.changes > 0
+      const after = this.findById(userId, id)
+      if (!after) {
+        throw new Error('transação recém-editada não encontrada')
+      }
+      // Salvar sem mudar nada não polui o histórico.
+      const changes = diffTransactions(before, after)
+      if (changes.length > 0) {
+        this.recordAudit(userId, id, 'updated', changes)
+      }
+      return after
     })
-    return update() ? this.findById(userId, id) : undefined
+    return update()
   }
 
   deleteById(userId: number, id: number): boolean {
-    const result = this.db
-      .prepare('DELETE FROM transactions WHERE id = ? AND user_id = ?')
-      .run(id, userId)
-    return result.changes > 0
+    const remove = this.db.transaction((): boolean => {
+      const before = this.findById(userId, id)
+      if (!before) {
+        return false
+      }
+      this.db.prepare('DELETE FROM transactions WHERE id = ? AND user_id = ?').run(id, userId)
+      // A exclusão guarda o último estado: dá para saber o que foi apagado.
+      this.recordAudit(userId, id, 'deleted', diffTransactions(before, undefined))
+      return true
+    })
+    return remove()
+  }
+
+  /**
+   * Registro de auditoria gravado na mesma transação do SQLite que a alteração:
+   * não existe mudança sem histórico nem histórico de mudança que não aconteceu.
+   */
+  private recordAudit(
+    userId: number,
+    transactionId: number,
+    action: AuditAction,
+    changes: FieldChange[],
+  ): void {
+    this.db
+      .prepare(
+        `INSERT INTO transaction_audit (transaction_id, user_id, action, changes)
+         VALUES (?, ?, ?, ?)`,
+      )
+      .run(transactionId, userId, action, JSON.stringify(changes))
+  }
+
+  /** Histórico da transação, do mais recente ao mais antigo — inclusive depois de excluída. */
+  history(userId: number, transactionId: number): AuditEntry[] {
+    const rows = this.db
+      .prepare(
+        `SELECT a.id, a.transaction_id AS transactionId, a.action, a.changes,
+                a.created_at AS at, u.id AS actorId, u.email AS actorEmail
+         FROM transaction_audit a JOIN users u ON u.id = a.user_id
+         WHERE a.user_id = ? AND a.transaction_id = ?
+         ORDER BY a.id DESC`,
+      )
+      .all(userId, transactionId) as Array<{
+      id: number
+      transactionId: number
+      action: AuditAction
+      changes: string
+      at: string
+      actorId: number
+      actorEmail: string
+    }>
+    return rows.map((row) => ({
+      id: row.id,
+      transactionId: row.transactionId,
+      action: row.action,
+      changes: JSON.parse(row.changes) as FieldChange[],
+      actor: { id: row.actorId, email: row.actorEmail },
+      at: row.at,
+    }))
   }
 
   list(

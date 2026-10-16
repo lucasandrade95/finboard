@@ -36,6 +36,40 @@ export interface Transaction {
   createdAt: string
 }
 
+export type AuditAction = 'created' | 'updated' | 'deleted'
+
+export type AuditedField =
+  | 'type'
+  | 'description'
+  | 'amountCents'
+  | 'category'
+  | 'occurredOn'
+  | 'recurring'
+  | 'accountId'
+  | 'tags'
+
+export type AuditValue = string | number | boolean | string[] | null
+
+export interface FieldChange {
+  field: AuditedField
+  from: AuditValue
+  to: AuditValue
+}
+
+/** Um registro do histórico: `at` é UTC em ISO, `changes` traz só os campos que mudaram. */
+export interface AuditEntry {
+  id: number
+  transactionId: number
+  action: AuditAction
+  changes: FieldChange[]
+  actor: { id: number; email: string }
+  at: string
+}
+
+export interface TransactionHistory {
+  items: AuditEntry[]
+}
+
 export interface TransactionPage {
   items: Transaction[]
   total: number
@@ -535,6 +569,8 @@ export const api = {
       body: JSON.stringify(input),
     }),
   deleteTransaction: (id: number) => request<void>(`/api/transactions/${id}`, { method: 'DELETE' }),
+  getTransactionHistory: (id: number) =>
+    request<TransactionHistory>(`/api/transactions/${id}/history`).then((data) => data.items),
   uploadAttachment,
   fetchAttachment,
   deleteAttachment: (id: number) =>

@@ -12,6 +12,7 @@ import { formatTagsInput, parseTagsInput, tagsWithinLimits } from '../lib/tags'
 import { useDeleteTransaction, useUpdateTransaction } from '../hooks/use-finance'
 import { Skeleton } from './Skeleton'
 import { TransactionAttachment } from './TransactionAttachment'
+import { TransactionHistory } from './TransactionHistory'
 
 interface TransactionListProps {
   transactions: Transaction[] | undefined
@@ -337,6 +338,8 @@ export function TransactionList({
                 <td className="actions-col">
                   {/* Comprovante não mexe em valores: vale até para perna e parcela. */}
                   <TransactionAttachment transaction={transaction} />
+                  {/* Histórico só lê: aparece em toda linha, inclusive perna e parcela. */}
+                  <TransactionHistory transaction={transaction} />
                   {transaction.transferId !== null ? (
                     // Editar uma perna sozinha desequilibraria as contas: a API responde 409.
                     <span className="transfer-hint">{t.transactionList.transferHint}</span>

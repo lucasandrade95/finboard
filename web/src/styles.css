@@ -1407,6 +1407,49 @@ kbd {
   text-align: center;
 }
 
+/* Histórico de alterações: lista rolável, um bloco por registro, de/para lado a lado. */
+.modal.transaction-history {
+  width: min(100%, 32rem);
+}
+
+.history-list {
+  max-height: 60vh;
+  margin: 0 0 1rem;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.history-entry {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.history-changes div {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.history-changes dt {
+  min-width: 6rem;
+  color: var(--muted);
+}
+
+.history-changes del {
+  color: var(--muted);
+}
+
+.history-changes ins {
+  text-decoration: none;
+  font-weight: 600;
+}
+
 /* Preview do comprovante: mais largo que a ajuda, com a imagem/PDF limitada à tela. */
 .modal.attachment-preview {
   width: min(100%, 40rem);

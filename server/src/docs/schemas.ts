@@ -332,6 +332,56 @@ export const transactionDocs = {
     response: { 204: noContent, 401: unauthorized, 404: notFound, 409: linkedEntry },
   } satisfies FastifySchema,
 
+  history: {
+    ...authenticated,
+    tags: ['transações'],
+    summary: 'Histórico de alterações da transação (quem, quando, o quê)',
+    description:
+      'Do mais recente ao mais antigo. Continua disponível depois que a transação é excluída.',
+    params: { type: 'object', properties: { id: { type: 'integer' } } },
+    response: {
+      200: {
+        description: 'Registros de auditoria',
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'integer' },
+                transactionId: { type: 'integer' },
+                action: { type: 'string', enum: ['created', 'updated', 'deleted'] },
+                changes: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      field: { type: 'string', example: 'amountCents' },
+                      // Sem `type`: o valor segue o campo (texto, centavos, booleano, lista ou null).
+                      from: { description: 'Valor anterior (null na criação)', example: 4590 },
+                      to: { description: 'Valor novo (null na exclusão)', example: 5290 },
+                    },
+                  },
+                },
+                actor: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'integer' },
+                    email: { type: 'string', format: 'email', example: 'lucas@example.com' },
+                  },
+                },
+                at: { type: 'string', example: '2026-10-16T12:00:00Z' },
+              },
+            },
+          },
+        },
+      },
+      401: unauthorized,
+      404: notFound,
+    },
+  } satisfies FastifySchema,
+
   // Sem schema de resposta: o corpo é CSV, não JSON.
   exportCsv: {
     ...authenticated,

@@ -177,6 +177,20 @@ export function registerTransactionRoutes(
   )
 
   app.get(
+    '/api/transactions/:id/history',
+    { ...protectedRoute, schema: transactionDocs.history },
+    async (request, reply) => {
+      const { id } = idParamSchema.parse(request.params)
+      const items = repository.history(ownerId(request), id)
+      // Sem registro é id inexistente ou de outra conta: mesmo 404 das outras rotas.
+      if (items.length === 0) {
+        return reply.code(404).send({ error: 'not_found' })
+      }
+      return { items }
+    },
+  )
+
+  app.get(
     '/api/categories',
     { ...protectedRoute, schema: transactionDocs.categories },
     async (request) => {

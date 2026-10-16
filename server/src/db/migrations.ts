@@ -309,6 +309,27 @@ export const MIGRATIONS: readonly Migration[] = [
       `)
     },
   },
+  {
+    id: 15,
+    name: 'create_transaction_audit',
+    up: (db) => {
+      // Sem FK para transactions: o histórico sobrevive à exclusão (é justamente quando
+      // ele mais interessa). O AUTOINCREMENT de transactions garante que um id apagado
+      // nunca é reaproveitado, então o histórico de um id não mistura dois lançamentos.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS transaction_audit (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          transaction_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          action TEXT NOT NULL CHECK (action IN ('created', 'updated', 'deleted')),
+          changes TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_transaction_audit_owner
+          ON transaction_audit (user_id, transaction_id);
+      `)
+    },
+  },
 ]
 
 /**

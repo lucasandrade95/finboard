@@ -169,6 +169,7 @@ function invalidateTransactionQueries(queryClient: QueryClient): void {
     'transfers',
     'installments',
     'tags',
+    'transaction-history',
   ]) {
     void queryClient.invalidateQueries({ queryKey: [key] })
   }
@@ -196,6 +197,14 @@ export function useDeleteTransaction() {
   return useMutation({
     mutationFn: (id: number) => api.deleteTransaction(id),
     onSuccess: () => invalidateTransactionQueries(queryClient),
+  })
+}
+
+// Só busca quando o diálogo abre: a tabela não faz uma requisição por linha.
+export function useTransactionHistory(id: number) {
+  return useQuery({
+    queryKey: ['transaction-history', id],
+    queryFn: () => api.getTransactionHistory(id),
   })
 }
 
