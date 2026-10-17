@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api, formatBRL, parseReaisToCents, UnauthorizedError } from './api'
-import { getToken, setToken } from './auth'
+import { getRefreshToken, getToken, setSession, setToken } from './auth'
 
 describe('formatBRL', () => {
   it('formata centavos como moeda brasileira', () => {
@@ -188,6 +188,162 @@ describe('autorização das rotas de dados', () => {
   })
 })
 
+describe('renovação da sessão', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    setToken(null)
+  })
+
+  const renewed = {
+    user: { id: 1, email: 'lucas@example.com' },
+    token: 'token-novo',
+    refreshToken: 'refresh-novo',
+  }
+
+  function jsonResponse(status: number, payload: unknown) {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      json: async () => payload,
+      text: async () => JSON.stringify(payload),
+    }
+  }
+
+  /** API falsa: o JWT antigo toma 401, o novo passa, e o /refresh responde `refreshStatus`. */
+  function stubApi(refreshStatus = 200) {
+    const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
+      if (path === '/api/auth/refresh') {
+        return refreshStatus === 200
+          ? jsonResponse(200, renewed)
+          : jsonResponse(refreshStatus, { error: 'invalid_refresh_token' })
+      }
+      const headers = (init?.headers ?? {}) as Record<string, string>
+      return headers.Authorization === 'Bearer token-novo'
+        ? jsonResponse(200, { categories: ['mercado'] })
+        : jsonResponse(401, { error: 'unauthorized' })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  it('JWT vencido: renova com o refresh token e repete o pedido', async () => {
+    const fetchMock = stubApi()
+    setSession({ token: 'token-velho', refreshToken: 'refresh-velho' })
+
+    await expect(api.listCategories('2026-08')).resolves.toEqual(['mercado'])
+
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+      '/api/categories?month=2026-08',
+      '/api/auth/refresh',
+      '/api/categories?month=2026-08',
+    ])
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toEqual({
+      refreshToken: 'refresh-velho',
+    })
+    expect(getToken()).toBe('token-novo')
+    expect(getRefreshToken()).toBe('refresh-novo')
+  })
+
+  it('vários 401 ao mesmo tempo disparam um único /refresh', async () => {
+    const fetchMock = stubApi()
+    setSession({ token: 'token-velho', refreshToken: 'refresh-velho' })
+
+    await Promise.all([
+      api.listCategories('2026-08'),
+      api.listCategories('2026-09'),
+      api.listCategories('2026-10'),
+    ])
+
+    const refreshes = fetchMock.mock.calls.filter((call) => call[0] === '/api/auth/refresh')
+    expect(refreshes).toHaveLength(1)
+  })
+
+  it('refresh recusado encerra a sessão e volta ao login', async () => {
+    stubApi(401)
+    setSession({ token: 'token-velho', refreshToken: 'refresh-roubado' })
+
+    await expect(api.listCategories('2026-08')).rejects.toBeInstanceOf(UnauthorizedError)
+    expect(getToken()).toBeNull()
+    expect(getRefreshToken()).toBeNull()
+  })
+
+  it('falha de rede no refresh não desloga', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (path: string) => {
+        if (path === '/api/auth/refresh') {
+          throw new TypeError('Failed to fetch')
+        }
+        return jsonResponse(401, { error: 'unauthorized' })
+      }),
+    )
+    setSession({ token: 'token-velho', refreshToken: 'refresh-velho' })
+
+    await expect(api.listCategories('2026-08')).rejects.toThrow('Failed to fetch')
+    expect(getToken()).toBe('token-velho')
+    expect(getRefreshToken()).toBe('refresh-velho')
+  })
+})
+
+describe('api.logout e api.logoutAll', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    setToken(null)
+  })
+
+  it('logout encerra a sessão local e revoga o refresh token no server', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 204 })
+    vi.stubGlobal('fetch', fetchMock)
+    setSession({ token: 'token-123', refreshToken: 'refresh-123' })
+
+    await api.logout()
+
+    expect(getToken()).toBeNull()
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/auth/logout')
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1].body))).toEqual({
+      refreshToken: 'refresh-123',
+    })
+  })
+
+  it('logout sem rede ainda encerra a sessão local', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+    setSession({ token: 'token-123', refreshToken: 'refresh-123' })
+
+    await expect(api.logout()).resolves.toBeUndefined()
+    expect(getToken()).toBeNull()
+  })
+
+  it('logoutAll chama a rota autenticada e só então encerra a sessão local', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ revokedSessions: 3 }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    setSession({ token: 'token-123', refreshToken: 'refresh-123' })
+
+    await expect(api.logoutAll()).resolves.toBe(3)
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/auth/logout-all')
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: 'POST',
+      headers: { Authorization: 'Bearer token-123' },
+    })
+    expect(getToken()).toBeNull()
+  })
+
+  it('logoutAll com falha no server mantém a sessão para tentar de novo', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 500, text: async () => 'erro' }),
+    )
+    setSession({ token: 'token-123', refreshToken: 'refresh-123' })
+
+    await expect(api.logoutAll()).rejects.toThrow('API 500')
+    expect(getToken()).toBe('token-123')
+  })
+})
+
 describe('api.login e api.register', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -195,7 +351,11 @@ describe('api.login e api.register', () => {
   })
 
   it('devolve a sessão em caso de sucesso', async () => {
-    const session = { user: { id: 1, email: 'lucas@example.com' }, token: 'token-123' }
+    const session = {
+      user: { id: 1, email: 'lucas@example.com' },
+      token: 'token-123',
+      refreshToken: 'refresh-123',
+    }
     const fetchMock = vi
       .fn()
       .mockResolvedValue({ ok: true, status: 200, json: async () => session })

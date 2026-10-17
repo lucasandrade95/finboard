@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getToken, setToken, subscribeToToken } from './auth'
+import { getRefreshToken, getToken, setSession, setToken, subscribeToToken } from './auth'
 
 afterEach(() => {
   setToken(null)
@@ -36,5 +36,22 @@ describe('store do token', () => {
     unsubscribe()
     setToken('outro-token')
     expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('guarda o par da sessão e o fim de sessão leva o refresh token junto', () => {
+    setSession({ token: 'token-123', refreshToken: 'refresh-123' })
+    expect(getToken()).toBe('token-123')
+    expect(getRefreshToken()).toBe('refresh-123')
+    expect(localStorage.getItem('finboard.refreshToken')).toBe('refresh-123')
+
+    setToken(null)
+    expect(getRefreshToken()).toBeNull()
+    expect(localStorage.getItem('finboard.refreshToken')).toBeNull()
+  })
+
+  it('renovar só o JWT preserva o refresh token', () => {
+    setSession({ token: 'token-123', refreshToken: 'refresh-123' })
+    setToken('token-456')
+    expect(getRefreshToken()).toBe('refresh-123')
   })
 })

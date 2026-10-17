@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getToken, setToken } from '../lib/auth'
+import { getRefreshToken, getToken, setToken } from '../lib/auth'
 import { AuthScreen } from './AuthScreen'
 
 afterEach(() => {
@@ -29,10 +29,11 @@ function fillCredentials(password = 'senha-forte-123') {
 }
 
 describe('AuthScreen', () => {
-  it('faz login e guarda o token da sessão', async () => {
+  it('faz login e guarda o par de tokens da sessão', async () => {
     const fetchMock = mockFetch(200, {
       user: { id: 1, email: 'lucas@example.com' },
       token: 'token-123',
+      refreshToken: 'refresh-123',
     })
     render(<AuthScreen />)
 
@@ -40,6 +41,7 @@ describe('AuthScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Entrar' }))
 
     await vi.waitFor(() => expect(getToken()).toBe('token-123'))
+    expect(getRefreshToken()).toBe('refresh-123')
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/auth/login')
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1].body))).toEqual({
       email: 'lucas@example.com',
@@ -65,6 +67,7 @@ describe('AuthScreen', () => {
     const fetchMock = mockFetch(201, {
       user: { id: 2, email: 'lucas@example.com' },
       token: 'token-novo',
+      refreshToken: 'refresh-novo',
     })
     render(<AuthScreen />)
 

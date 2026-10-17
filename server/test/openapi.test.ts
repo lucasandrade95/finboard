@@ -71,6 +71,9 @@ describe('documento OpenAPI', () => {
       '/api/auth/register',
       '/api/auth/login',
       '/api/auth/me',
+      '/api/auth/refresh',
+      '/api/auth/logout',
+      '/api/auth/logout-all',
       '/api/transactions',
       '/api/transactions/{id}',
       '/api/transactions/export.csv',
@@ -108,8 +111,11 @@ describe('documento OpenAPI', () => {
     expect(isPublic(operationOf(doc, '/health', 'get'))).toBe(true)
     expect(isPublic(operationOf(doc, '/api/auth/register', 'post'))).toBe(true)
     expect(isPublic(operationOf(doc, '/api/auth/login', 'post'))).toBe(true)
+    expect(isPublic(operationOf(doc, '/api/auth/refresh', 'post'))).toBe(true)
+    expect(isPublic(operationOf(doc, '/api/auth/logout', 'post'))).toBe(true)
 
     expect(operationOf(doc, '/api/auth/me', 'get').security).toEqual([{ bearerAuth: [] }])
+    expect(operationOf(doc, '/api/auth/logout-all', 'post').security).toEqual([{ bearerAuth: [] }])
     expect(operationOf(doc, '/api/transactions', 'post').security).toEqual([{ bearerAuth: [] }])
     expect(operationOf(doc, '/api/goals', 'get').security).toEqual([{ bearerAuth: [] }])
     expect(operationOf(doc, '/api/budgets', 'get').security).toEqual([{ bearerAuth: [] }])
