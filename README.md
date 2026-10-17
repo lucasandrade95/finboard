@@ -44,7 +44,7 @@ Decisões:
 - **`buildApp()` separado do `listen`** — testes usam `app.inject()` com banco `:memory:`, zero rede.
 - **Validação Zod na borda** — handler faz `schema.parse`; error handler central converte `ZodError` em 400 com detalhes por campo.
 - **Migrações versionadas no boot** — cada passo tem id fixo e é registrado em `schema_migrations`; roda uma vez só, dentro de uma transação (falhou, nada entra). Bancos antigos, sem a tabela de controle, são adotados na primeira subida porque os passos continuam idempotentes.
-- **Auth com argon2id + JWT stateless** — senha só existe como hash argon2id; login devolve JWT HS256 (7 dias) e rotas protegidas usam o preHandler `authenticate`. Senha errada e e-mail inexistente respondem o mesmo 401, com o mesmo custo de hash.
+- **Auth com argon2id + JWT stateless** — senha só existe como hash argon2id; login devolve JWT HS256 de 15 minutos e rotas protegidas usam o preHandler `authenticate`. A sessão longa fica num refresh token opaco de 30 dias e uso único (só o SHA-256 vai para o banco): cada `/refresh` troca por outro da mesma família, e um token já trocado que reaparece é tratado como roubo e derruba aquela família inteira. O SPA renova sozinho no primeiro 401, com um único `/refresh` para todas as queries que falharam juntas. Senha errada e e-mail inexistente respondem o mesmo 401, com o mesmo custo de hash.
 - **Tudo escopado por usuário** — transações, orçamentos e metas: o `user_id` entra no `WHERE` de toda consulta do repositório, inclusive nas de escrita, e id de outra conta responde 404 (e não 403, que confirmaria a existência). Em orçamento a chave é o par `(user_id, category)`, então duas contas podem ter teto para "mercado" sem uma sobrescrever a outra. O token guardado no SPA é o que libera as rotas; 401 derruba a sessão e devolve a tela de login.
 - **Cabeçalhos de segurança e rate limit por IP** — helmet é o primeiro plugin registrado, então `nosniff`, anti-clickjacking e HSTS valem inclusive nas respostas de erro; o CORP fica em `cross-origin` porque a API é consumida de outra origem. O rate limit tem dois níveis: teto global folgado (300/min por IP — uma tela do dashboard já dispara meia dúzia de chamadas) e teto apertado em registro e login (10/min por rota), que é onde força bruta bate. Cada rota conta no próprio balde, e o 429 sai no formato de erro do resto da API (`{ error: 'rate_limit_exceeded' }`) com `retry-after`.
 
@@ -74,16 +74,19 @@ O `Dockerfile` é multi-stage: um estágio instala o workspace e compila API (`t
 
 ## API
 
-Fora `/health` e `/api/auth/register|login`, toda rota exige `Authorization: Bearer <token>` e responde só com os dados da conta do token (401 sem token válido). Qualquer rota responde 429 `rate_limit_exceeded` quando o IP passa do teto da janela de 1 minuto — 300 requisições no geral, 10 em registro e em login.
+Fora `/health` e `/api/auth/register|login|refresh|logout`, toda rota exige `Authorization: Bearer <token>` e responde só com os dados da conta do token (401 sem token válido). Qualquer rota responde 429 `rate_limit_exceeded` quando o IP passa do teto da janela de 1 minuto — 300 requisições no geral, 10 em registro, login e refresh.
 
 Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento OpenAPI cru em `/docs/json`): dá para autenticar com o token do login e disparar as chamadas pela própria página.
 
 | Método | Rota                               | Descrição                                                                                                                                                                                                  |
 | ------ | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | GET    | `/health`                          | Health check                                                                                                                                                                                               |
-| POST   | `/api/auth/register`               | Cria conta (`email`, `password` 8–128) e devolve `{ user, token }` (201; 409 `email_taken`)                                                                                                                |
-| POST   | `/api/auth/login`                  | Troca e-mail/senha por `{ user, token }` (401 `invalid_credentials`, igual para e-mail inexistente e senha errada)                                                                                         |
+| POST   | `/api/auth/register`               | Cria conta (`email`, `password` 8–128) e devolve `{ user, token, refreshToken }` (201; 409 `email_taken`)                                                                                                  |
+| POST   | `/api/auth/login`                  | Troca e-mail/senha por `{ user, token, refreshToken }` (401 `invalid_credentials`, igual para e-mail inexistente e senha errada)                                                                           |
 | GET    | `/api/auth/me`                     | Usuário do token (`Authorization: Bearer <token>`; 401 sem token ou token inválido)                                                                                                                        |
+| POST   | `/api/auth/refresh`                | Troca `refreshToken` por um par novo (rotação: o antigo deixa de valer; reapresentar um já trocado revoga a sessão do dispositivo; 401 `invalid_refresh_token`)                                            |
+| POST   | `/api/auth/logout`                 | Revoga o `refreshToken` deste dispositivo, sem exigir JWT (204, também para token desconhecido)                                                                                                            |
+| POST   | `/api/auth/logout-all`             | Revoga as sessões de todos os dispositivos da conta e devolve `{ revokedSessions }`                                                                                                                        |
 | GET    | `/api/transactions?month=`         | Lista paginada (`limit`/`offset`, período `from=`/`to=` no lugar de `month`, filtros `type=`/`category=`/`tag=`, busca `q=` na descrição, ordenação `sort=date                                             | amount | category`+`order=asc | desc`, devolve `{ items, total, limit, offset }`) |
 | POST   | `/api/transactions`                | Cria transação (`amountCents` inteiro > 0; `recurring` gera cópia mensal no boot; `accountId` opcional, da própria conta; `tags` livres, até 10)                                                           |
 | PUT    | `/api/transactions/:id`            | Atualiza transação (200; 404 se não existe; 409 `transfer_leg`/`installment_part`)                                                                                                                         |
@@ -175,7 +178,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Anexo de comprovante na transação (upload local, limite de tamanho, preview)
 - [x] Relatório mensal em PDF (resumo, gráficos, top categorias)
 - [x] Auditoria: histórico de alterações por transação (quem, quando, o quê)
-- [ ] Refresh token com rotação + logout de todos os dispositivos
+- [x] Refresh token com rotação + logout de todos os dispositivos
 - [ ] Recuperação de senha por e-mail (token expirável, template pt-BR)
 - [ ] Exportar todos os meus dados (JSON) e excluir conta (LGPD)
 - [ ] Notificação por e-mail quando orçamento passa de 80% e 100%
