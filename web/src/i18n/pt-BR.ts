@@ -48,6 +48,13 @@ export const ptBR = {
     logout: 'Sair',
     loadError: 'Falha ao carregar dados. A API está rodando?',
   },
+  session: {
+    logoutAll: 'Sair de todos os dispositivos',
+    logoutAllPending: 'Saindo…',
+    confirmLogoutAll:
+      'Encerrar a sessão em todos os dispositivos, inclusive neste? Será preciso entrar de novo com a senha.',
+    logoutAllError: 'Não foi possível sair dos outros dispositivos. Tente de novo.',
+  },
   theme: {
     useLight: 'Usar tema claro',
     useDark: 'Usar tema escuro',

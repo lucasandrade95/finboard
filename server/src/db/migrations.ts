@@ -330,6 +330,29 @@ export const MIGRATIONS: readonly Migration[] = [
       `)
     },
   },
+  {
+    id: 16,
+    name: 'create_refresh_tokens',
+    up: (db) => {
+      // Só o SHA-256 do token vai para o banco: quem lê o arquivo não consegue abrir
+      // sessão. `family_id` agrupa todas as rotações de um mesmo login (um dispositivo),
+      // e `used_at` marca o token já trocado — apresentá-lo de novo é sinal de roubo.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS refresh_tokens (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          token_hash TEXT NOT NULL UNIQUE,
+          family_id TEXT NOT NULL,
+          expires_at TEXT NOT NULL,
+          used_at TEXT,
+          revoked_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_refresh_tokens_family ON refresh_tokens (family_id);
+        CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens (user_id);
+      `)
+    },
+  },
 ]
 
 /**

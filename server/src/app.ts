@@ -12,6 +12,7 @@ import { AccountsRepository } from './modules/accounts/repository.js'
 import { registerAccountRoutes } from './modules/accounts/routes.js'
 import { AttachmentsRepository } from './modules/attachments/repository.js'
 import { registerAttachmentRoutes } from './modules/attachments/routes.js'
+import { RefreshTokensRepository } from './modules/auth/refresh-tokens.js'
 import { UsersRepository } from './modules/auth/repository.js'
 import { registerAuthRoutes } from './modules/auth/routes.js'
 import { BudgetsRepository } from './modules/budgets/repository.js'
@@ -33,7 +34,7 @@ import { registerTransferRoutes } from './modules/transfers/routes.js'
 export interface RateLimitSettings {
   /** Teto de requisições por IP, por janela, em qualquer rota. */
   max: number
-  /** Teto por IP, por janela, só em registro e login. */
+  /** Teto por IP, por janela, só em registro, login e refresh. */
   authMax: number
   /** Janela de contagem (ms ou texto tipo `'1 minute'`). */
   timeWindow: number | string
@@ -41,13 +42,16 @@ export interface RateLimitSettings {
 
 /**
  * Teto global folgado — uma tela do dashboard já dispara meia dúzia de chamadas —
- * e teto apertado no par registro/login, que é onde força bruta bate.
+ * e teto apertado em registro, login e refresh, que é onde força bruta bate.
  */
 export const DEFAULT_RATE_LIMIT: RateLimitSettings = {
   max: 300,
   authMax: 10,
   timeWindow: '1 minute',
 }
+
+/** Validade do JWT de acesso: é a janela máxima de um token vazado ou de uma sessão já revogada. */
+export const ACCESS_TOKEN_TTL = '15m'
 
 export interface BuildAppOptions {
   dbPath: string
@@ -120,7 +124,9 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await app.register(cors, { origin: true })
   await app.register(jwt, {
     secret: options.jwtSecret ?? DEV_JWT_SECRET,
-    sign: { expiresIn: '7d' },
+    // Curto de propósito: o JWT não é consultado no banco, então "sair de todos os
+    // dispositivos" só o derruba quando vence. O refresh token renova em silêncio.
+    sign: { expiresIn: ACCESS_TOKEN_TTL },
   })
 
   app.setErrorHandler((error, request, reply) => {
@@ -151,6 +157,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   registerAuthRoutes(
     app,
     new UsersRepository(db),
+    new RefreshTokensRepository(db),
     rateLimitSettings === false
       ? undefined
       : { max: rateLimitSettings.authMax, timeWindow: rateLimitSettings.timeWindow },

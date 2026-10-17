@@ -1,5 +1,5 @@
 import { locale, t } from '../i18n'
-import { getToken, setToken } from './auth'
+import { getRefreshToken, getToken, setSession, setToken } from './auth'
 import { type DateRange, periodParams } from './period'
 import { isDefaultSort, type TransactionSort } from './sort'
 
@@ -12,7 +12,10 @@ export interface AuthUser {
 
 export interface AuthSession {
   user: AuthUser
+  /** JWT de acesso, 15 minutos. */
   token: string
+  /** Uso único: cada renovação devolve outro (ver `refreshSession`). */
+  refreshToken: string
 }
 
 export interface Transaction {
@@ -371,24 +374,62 @@ function authHeaders(contentType: string): Record<string, string> {
     : { 'Content-Type': contentType }
 }
 
+let pendingRefresh: Promise<boolean> | null = null
+
 /**
- * 401 numa rota de dados significa sessão morta: descarta o token guardado, o
- * que faz a UI voltar sozinha para a tela de login em vez de insistir em pedir
- * dados que nunca vão vir.
+ * Troca o refresh token guardado por um par novo. Uma renovação por vez: as várias
+ * queries do dashboard que tomam 401 juntas esperam o mesmo `/refresh` — mandar o
+ * mesmo token duas vezes seria lido pelo server como reuso e derrubaria a sessão.
+ * Falha de rede sobe como erro (não é motivo para deslogar); só a recusa do server
+ * conta como sessão morta.
  */
-function failIfUnauthorized(response: Response): void {
+function refreshSession(): Promise<boolean> {
+  pendingRefresh ??= (async () => {
+    const refreshToken = getRefreshToken()
+    if (!refreshToken) {
+      return false
+    }
+    const response = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    })
+    if (!response.ok) {
+      return false
+    }
+    setSession((await response.json()) as AuthSession)
+    return true
+  })().finally(() => {
+    pendingRefresh = null
+  })
+  return pendingRefresh
+}
+
+/**
+ * `fetch` das rotas protegidas. O JWT vence a cada 15 minutos, então o primeiro 401
+ * tenta renovar a sessão e repete o pedido uma vez, com o token novo. Se nem assim
+ * passa, a sessão morreu: descarta os tokens, o que faz a UI voltar sozinha para a
+ * tela de login em vez de insistir em pedir dados que nunca vão vir.
+ */
+async function authorizedFetch(
+  path: string,
+  init: RequestInit = {},
+  contentType = 'application/json',
+): Promise<Response> {
+  const send = () => fetch(path, { headers: authHeaders(contentType), ...init })
+  let response = await send()
+  if (response.status === 401 && (await refreshSession())) {
+    response = await send()
+  }
   if (response.status === 401) {
     setToken(null)
     throw new UnauthorizedError()
   }
+  return response
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
-    headers: authHeaders('application/json'),
-    ...init,
-  })
-  failIfUnauthorized(response)
+  const response = await authorizedFetch(path, init)
   if (!response.ok) {
     throw new Error(`API ${response.status}: ${await response.text()}`)
   }
@@ -423,6 +464,37 @@ async function authenticate(path: string, email: string, password: string): Prom
   throw new Error(`API ${response.status}: ${await response.text()}`)
 }
 
+/**
+ * "Sair" deste dispositivo. A sessão local acaba na hora; avisar o server é melhor
+ * esforço — sem rede, o refresh token só deixa de existir aqui e vence sozinho.
+ */
+async function logout(): Promise<void> {
+  const refreshToken = getRefreshToken()
+  setToken(null)
+  if (!refreshToken) {
+    return
+  }
+  await fetch('/api/auth/logout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  }).catch(() => undefined)
+}
+
+/**
+ * Derruba as sessões de todos os dispositivos, esta inclusive. Aqui o server precisa
+ * confirmar: se a chamada falhar, a sessão local fica para o usuário tentar de novo.
+ */
+async function logoutAll(): Promise<number> {
+  const { revokedSessions } = await request<{ revokedSessions: number }>(
+    '/api/auth/logout-all',
+    // Corpo vazio com Content-Type JSON é 400 no Fastify: manda um objeto vazio.
+    { method: 'POST', body: '{}' },
+  )
+  setToken(null)
+  return revokedSessions
+}
+
 export interface FileDownload {
   blob: Blob
   filename: string
@@ -434,8 +506,7 @@ export interface FileDownload {
  * componente disparar o download.
  */
 async function downloadFile(path: string, fallbackFilename: string): Promise<FileDownload> {
-  const response = await fetch(path, { headers: authHeaders('application/json') })
-  failIfUnauthorized(response)
+  const response = await authorizedFetch(path)
   if (!response.ok) {
     throw new Error(`API ${response.status}: ${await response.text()}`)
   }
@@ -453,12 +524,11 @@ const exportMonthlyReport = (month: string) =>
 
 // Fora do `request`: o 400 aqui não é falha genérica, é o relatório de erros do arquivo.
 async function importTransactionsCsv(csv: string): Promise<CsvImportResult> {
-  const response = await fetch('/api/transactions/import', {
-    method: 'POST',
-    headers: authHeaders('text/csv'),
-    body: csv,
-  })
-  failIfUnauthorized(response)
+  const response = await authorizedFetch(
+    '/api/transactions/import',
+    { method: 'POST', body: csv },
+    'text/csv',
+  )
   if (response.status === 400) {
     const body = (await response.json()) as {
       error?: string
@@ -480,12 +550,11 @@ async function importTransactionsCsv(csv: string): Promise<CsvImportResult> {
 // (no máximo 2 MB, já validado) dá um ArrayBuffer que qualquer `fetch` aceita como corpo,
 // inclusive o do Node nos testes, onde o File do jsdom viraria "[object File]".
 async function uploadAttachment(id: number, file: File): Promise<void> {
-  const response = await fetch(`/api/transactions/${id}/attachment`, {
-    method: 'PUT',
-    headers: authHeaders(file.type),
-    body: await file.arrayBuffer(),
-  })
-  failIfUnauthorized(response)
+  const response = await authorizedFetch(
+    `/api/transactions/${id}/attachment`,
+    { method: 'PUT', body: await file.arrayBuffer() },
+    file.type,
+  )
   if (!response.ok) {
     throw new Error(`API ${response.status}: ${await response.text()}`)
   }
@@ -493,10 +562,7 @@ async function uploadAttachment(id: number, file: File): Promise<void> {
 
 /** Como no export: a rota exige o header, então o preview usa blob, não `<img src>` direto. */
 async function fetchAttachment(id: number): Promise<Blob> {
-  const response = await fetch(`/api/transactions/${id}/attachment`, {
-    headers: authHeaders('application/json'),
-  })
-  failIfUnauthorized(response)
+  const response = await authorizedFetch(`/api/transactions/${id}/attachment`)
   if (!response.ok) {
     throw new Error(`API ${response.status}: ${await response.text()}`)
   }
@@ -507,6 +573,8 @@ export const api = {
   register: (email: string, password: string) =>
     authenticate('/api/auth/register', email, password),
   login: (email: string, password: string) => authenticate('/api/auth/login', email, password),
+  logout,
+  logoutAll,
   listTransactions: (month: string, page: number, filters: TransactionFilters = {}) => {
     const params = new URLSearchParams({
       ...periodParams(month, filters),

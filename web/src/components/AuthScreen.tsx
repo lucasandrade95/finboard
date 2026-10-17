@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { t } from '../i18n'
 import { api } from '../lib/api'
-import { setToken } from '../lib/auth'
+import { setSession } from '../lib/auth'
 
 type Mode = 'login' | 'register'
 
@@ -43,7 +43,7 @@ export function AuthScreen() {
         ? api.login(email, password)
         : api.register(email, password))
       // O token no store já derruba esta tela: o App observa a mesma fonte.
-      setToken(session.token)
+      setSession(session)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t.auth.genericError)
       setPending(false)

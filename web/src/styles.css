@@ -1481,3 +1481,15 @@ kbd {
   color: var(--muted);
   font-size: 0.8rem;
 }
+
+.session-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.session-controls .form-error {
+  flex-basis: 100%;
+  margin: 0;
+}

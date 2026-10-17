@@ -18,3 +18,10 @@ export const loginSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>
 export type LoginInput = z.infer<typeof loginSchema>
+
+// O valor emitido tem 43 caracteres (32 bytes em base64url); o teto só barra lixo grande.
+export const refreshSchema = z.object({
+  refreshToken: z.string().min(1).max(256),
+})
+
+export type RefreshInput = z.infer<typeof refreshSchema>

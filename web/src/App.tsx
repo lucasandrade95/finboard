@@ -12,6 +12,7 @@ import { GoalsPanel } from './components/GoalsPanel'
 import { ImportCsvButton } from './components/ImportCsvButton'
 import { MonthlyReportButton } from './components/MonthlyReportButton'
 import { SearchFilter } from './components/SearchFilter'
+import { SessionControls } from './components/SessionControls'
 import { ShortcutsHelp } from './components/ShortcutsHelp'
 import { SummaryCards } from './components/SummaryCards'
 import { TagFilter } from './components/TagFilter'
@@ -45,7 +46,6 @@ import {
 } from './hooks/use-finance'
 import { t } from './i18n'
 import { PAGE_SIZE, type TransactionType } from './lib/api'
-import { setToken } from './lib/auth'
 import { type DateRange, EMPTY_RANGE, isRangeInverted } from './lib/period'
 import { localToday } from './lib/projection'
 import { DEFAULT_SORT, type TransactionSort } from './lib/sort'
@@ -197,9 +197,7 @@ function Dashboard() {
         >
           <span aria-hidden="true">?</span>
         </button>
-        <button type="button" className="logout" onClick={() => setToken(null)}>
-          {t.dashboard.logout}
-        </button>
+        <SessionControls />
       </header>
 
       <main id="conteudo" tabIndex={-1}>

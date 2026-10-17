@@ -86,8 +86,26 @@ const user = {
 
 const session = {
   type: 'object',
-  properties: { user, token: { type: 'string', description: 'JWT HS256 válido por 7 dias' } },
+  properties: {
+    user,
+    token: { type: 'string', description: 'JWT HS256 válido por 15 minutos' },
+    refreshToken: {
+      type: 'string',
+      description: 'Opaco, de uso único, válido por 30 dias: troca por um novo par em /refresh',
+    },
+  },
 }
+
+const refreshBody = {
+  type: 'object',
+  required: ['refreshToken'],
+  properties: { refreshToken: { type: 'string', minLength: 1, maxLength: 256 } },
+}
+
+const invalidRefreshToken = errorResponse(
+  'Refresh token inexistente, vencido, revogado ou já usado',
+  'invalid_refresh_token',
+)
 
 const transaction = {
   type: 'object',
@@ -248,6 +266,48 @@ export const authDocs = {
     summary: 'Usuário do token',
     response: {
       200: { description: 'Usuário autenticado', type: 'object', properties: { user } },
+      401: unauthorized,
+    },
+  } satisfies FastifySchema,
+
+  refresh: {
+    tags: ['auth'],
+    summary: 'Troca o refresh token por um novo par de tokens',
+    description:
+      'Rotação: o refresh token apresentado deixa de valer. Reapresentar um token já trocado ' +
+      'é tratado como roubo e revoga a sessão inteira daquele dispositivo. ' +
+      'Limite próprio de 10 requisições por minuto por IP.',
+    body: refreshBody,
+    response: {
+      200: { description: 'Sessão renovada', ...session },
+      400: validationError,
+      401: invalidRefreshToken,
+    },
+  } satisfies FastifySchema,
+
+  logout: {
+    tags: ['auth'],
+    summary: 'Encerra a sessão deste dispositivo',
+    description:
+      'Revoga o refresh token e todas as rotações dele. Não exige JWT: funciona mesmo com o ' +
+      'access token vencido. Token desconhecido também responde 204.',
+    body: refreshBody,
+    response: { 204: { description: 'Sessão encerrada', type: 'null' }, 400: validationError },
+  } satisfies FastifySchema,
+
+  logoutAll: {
+    ...authenticated,
+    tags: ['auth'],
+    summary: 'Encerra a sessão em todos os dispositivos',
+    description:
+      'Revoga todos os refresh tokens da conta, inclusive o deste dispositivo. Access tokens já ' +
+      'emitidos continuam valendo até vencer (no máximo 15 minutos).',
+    response: {
+      200: {
+        description: 'Sessões encerradas',
+        type: 'object',
+        properties: { revokedSessions: { type: 'integer', example: 3 } },
+      },
       401: unauthorized,
     },
   } satisfies FastifySchema,
