@@ -311,6 +311,49 @@ export const authDocs = {
       401: unauthorized,
     },
   } satisfies FastifySchema,
+
+  forgotPassword: {
+    tags: ['auth'],
+    summary: 'Pede o e-mail de recuperação de senha',
+    description:
+      'Responde 202 exista a conta ou não, para a rota não revelar quais e-mails estão ' +
+      'cadastrados. O link vale 30 minutos, é de uso único e invalida os pedidos anteriores. ' +
+      'Limite próprio de 10 requisições por minuto por IP.',
+    body: {
+      type: 'object',
+      required: ['email'],
+      properties: { email: { type: 'string', format: 'email', maxLength: 254 } },
+    },
+    response: {
+      202: { description: 'Pedido aceito', type: 'null' },
+      400: validationError,
+    },
+  } satisfies FastifySchema,
+
+  resetPassword: {
+    tags: ['auth'],
+    summary: 'Troca a senha usando o token do e-mail',
+    description:
+      'Grava a senha nova e encerra as sessões de todos os dispositivos da conta. ' +
+      'Limite próprio de 10 requisições por minuto por IP.',
+    body: {
+      type: 'object',
+      required: ['token', 'password'],
+      properties: {
+        token: { type: 'string', minLength: 1, maxLength: 256 },
+        password: { type: 'string', minLength: 8, maxLength: 128 },
+      },
+    },
+    response: {
+      204: { description: 'Senha trocada', type: 'null' },
+      400: {
+        description: 'Corpo inválido, ou token inexistente, vencido ou já usado',
+        type: 'object',
+        properties: { error: { type: 'string', example: 'invalid_reset_token' } },
+        required: ['error'],
+      },
+    },
+  } satisfies FastifySchema,
 }
 
 export const transactionDocs = {

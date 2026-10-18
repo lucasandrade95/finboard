@@ -6,6 +6,8 @@ const app = await buildApp({
   dbPath: config.dbPath,
   jwtSecret: config.jwtSecret,
   trustProxy: config.trustProxy,
+  appUrl: config.appUrl,
+  exposeMailInLogs: config.exposeMailInLogs,
   logger: true,
 })
 

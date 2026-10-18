@@ -465,6 +465,45 @@ async function authenticate(path: string, email: string, password: string): Prom
 }
 
 /**
+ * Pede o e-mail de recuperação. O server responde 202 exista a conta ou não, então
+ * a UI também não distingue: qualquer sucesso vira a mesma mensagem neutra.
+ */
+async function requestPasswordReset(email: string): Promise<void> {
+  const response = await fetch('/api/auth/forgot-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  if (response.status === 400) {
+    throw new Error(t.auth.invalidInput)
+  }
+  if (!response.ok) {
+    throw new Error(t.passwordReset.genericError)
+  }
+}
+
+/** Troca a senha com o token do link. Não abre sessão: o usuário entra com a senha nova. */
+async function resetPassword(token: string, password: string): Promise<void> {
+  const response = await fetch('/api/auth/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  })
+  if (response.ok) {
+    return
+  }
+  if (response.status === 400) {
+    const body = (await response.json().catch(() => ({}))) as { error?: string }
+    throw new Error(
+      body.error === 'invalid_reset_token'
+        ? t.passwordReset.invalidToken
+        : t.passwordReset.invalidPassword,
+    )
+  }
+  throw new Error(t.passwordReset.genericError)
+}
+
+/**
  * "Sair" deste dispositivo. A sessão local acaba na hora; avisar o server é melhor
  * esforço — sem rede, o refresh token só deixa de existir aqui e vence sozinho.
  */
@@ -575,6 +614,8 @@ export const api = {
   login: (email: string, password: string) => authenticate('/api/auth/login', email, password),
   logout,
   logoutAll,
+  requestPasswordReset,
+  resetPassword,
   listTransactions: (month: string, page: number, filters: TransactionFilters = {}) => {
     const params = new URLSearchParams({
       ...periodParams(month, filters),

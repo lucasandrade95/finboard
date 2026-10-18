@@ -4,14 +4,16 @@ import jwt from '@fastify/jwt'
 import rateLimit from '@fastify/rate-limit'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { ZodError } from 'zod'
-import { DEV_JWT_SECRET } from './config.js'
+import { DEV_APP_URL, DEV_JWT_SECRET } from './config.js'
 import { openDatabase } from './db/connection.js'
 import { registerOpenApi } from './docs/openapi.js'
 import { healthDocs } from './docs/schemas.js'
+import { createLogMailer, type Mailer } from './mail/mailer.js'
 import { AccountsRepository } from './modules/accounts/repository.js'
 import { registerAccountRoutes } from './modules/accounts/routes.js'
 import { AttachmentsRepository } from './modules/attachments/repository.js'
 import { registerAttachmentRoutes } from './modules/attachments/routes.js'
+import { PasswordResetRepository } from './modules/auth/password-reset.js'
 import { RefreshTokensRepository } from './modules/auth/refresh-tokens.js'
 import { UsersRepository } from './modules/auth/repository.js'
 import { registerAuthRoutes } from './modules/auth/routes.js'
@@ -34,7 +36,7 @@ import { registerTransferRoutes } from './modules/transfers/routes.js'
 export interface RateLimitSettings {
   /** Teto de requisições por IP, por janela, em qualquer rota. */
   max: number
-  /** Teto por IP, por janela, só em registro, login e refresh. */
+  /** Teto por IP, por janela, só nas rotas de credencial (registro, login, refresh, senha). */
   authMax: number
   /** Janela de contagem (ms ou texto tipo `'1 minute'`). */
   timeWindow: number | string
@@ -64,6 +66,12 @@ export interface BuildAppOptions {
   rateLimit?: RateLimitSettings | false
   /** Confia no `x-forwarded-for` para `request.ip` (rate limit por cliente atrás do nginx). */
   trustProxy?: boolean
+  /** Origem do SPA usada nos links de e-mail; default: Vite em desenvolvimento. */
+  appUrl?: string
+  /** Saída de e-mail; default: escreve no log (testes injetam um que guarda as mensagens). */
+  mailer?: Mailer
+  /** O mailer de log pode imprimir o corpo (com o link de recuperação)? Só fora de produção. */
+  exposeMailInLogs?: boolean
 }
 
 /**
@@ -158,6 +166,13 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     app,
     new UsersRepository(db),
     new RefreshTokensRepository(db),
+    {
+      resets: new PasswordResetRepository(db),
+      mailer:
+        options.mailer ??
+        createLogMailer(app.log, { revealContent: options.exposeMailInLogs ?? true }),
+      appUrl: options.appUrl ?? DEV_APP_URL,
+    },
     rateLimitSettings === false
       ? undefined
       : { max: rateLimitSettings.authMax, timeWindow: rateLimitSettings.timeWindow },

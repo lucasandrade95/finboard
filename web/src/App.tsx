@@ -21,6 +21,7 @@ import { TransactionForm } from './components/TransactionForm'
 import { TransactionList } from './components/TransactionList'
 import { InstallmentsPanel } from './components/InstallmentsPanel'
 import { PeriodFilter } from './components/PeriodFilter'
+import { ResetPasswordScreen } from './components/PasswordRecovery'
 import { ProjectionPanel } from './components/ProjectionPanel'
 import { YearlyBarsChart } from './components/YearlyBarsChart'
 import { TransfersPanel } from './components/TransfersPanel'
@@ -46,6 +47,7 @@ import {
 } from './hooks/use-finance'
 import { t } from './i18n'
 import { PAGE_SIZE, type TransactionType } from './lib/api'
+import { clearResetHash, readResetToken } from './lib/password-reset'
 import { type DateRange, EMPTY_RANGE, isRangeInverted } from './lib/period'
 import { localToday } from './lib/projection'
 import { DEFAULT_SORT, type TransactionSort } from './lib/sort'
@@ -69,6 +71,21 @@ export function App() {
       queryClient.clear()
     }
   }, [token, queryClient])
+
+  // Link de recuperação (`#reset=`) tem prioridade: quem o abre quer trocar a senha,
+  // mesmo que esta aba ainda tenha uma sessão aberta.
+  const [resetToken, setResetToken] = useState(() => readResetToken(location.hash))
+  if (resetToken) {
+    return (
+      <ResetPasswordScreen
+        token={resetToken}
+        onDone={() => {
+          clearResetHash()
+          setResetToken(null)
+        }}
+      />
+    )
+  }
 
   return token ? <Dashboard /> : <AuthScreen />
 }

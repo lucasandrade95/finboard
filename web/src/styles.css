@@ -198,6 +198,12 @@ body {
   outline-offset: 1px;
 }
 
+.auth-card .auth-hint,
+.auth-card [role='status'] {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .auth-card .form-error {
   margin-bottom: 0;
 }

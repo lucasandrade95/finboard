@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { t } from '../i18n'
 import { api } from '../lib/api'
 import { setSession } from '../lib/auth'
+import { ForgotPasswordForm } from './PasswordRecovery'
 
 type Mode = 'login' | 'register'
 
@@ -32,6 +33,7 @@ export function AuthScreen() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [forgot, setForgot] = useState(false)
   const copy = COPY[mode]
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -53,6 +55,19 @@ export function AuthScreen() {
   function switchMode() {
     setMode(mode === 'login' ? 'register' : 'login')
     setError(null)
+  }
+
+  if (forgot) {
+    return (
+      <div className="auth-screen">
+        <ForgotPasswordForm
+          onBack={() => {
+            setForgot(false)
+            setError(null)
+          }}
+        />
+      </div>
+    )
   }
 
   return (
@@ -92,6 +107,11 @@ export function AuthScreen() {
         <button type="button" className="auth-toggle" onClick={switchMode}>
           {copy.toggle}
         </button>
+        {mode === 'login' && (
+          <button type="button" className="auth-toggle" onClick={() => setForgot(true)}>
+            {t.auth.forgotLink}
+          </button>
+        )}
       </form>
     </div>
   )

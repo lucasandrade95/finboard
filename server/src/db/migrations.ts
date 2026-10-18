@@ -353,6 +353,26 @@ export const MIGRATIONS: readonly Migration[] = [
       `)
     },
   },
+  {
+    id: 17,
+    name: 'create_password_reset_tokens',
+    up: (db) => {
+      // Mesmo cuidado do refresh token: o link do e-mail é uma senha temporária, então
+      // o banco guarda só o SHA-256. `used_at` torna o link de uso único.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          token_hash TEXT NOT NULL UNIQUE,
+          expires_at TEXT NOT NULL,
+          used_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user
+          ON password_reset_tokens (user_id);
+      `)
+    },
+  },
 ]
 
 /**

@@ -1,20 +1,37 @@
 import argon2 from 'argon2'
 import type { FastifyInstance, RouteShorthandOptions } from 'fastify'
 import { authDocs } from '../../docs/schemas.js'
+import type { Mailer } from '../../mail/mailer.js'
+import { buildPasswordResetEmail } from '../../mail/password-reset-email.js'
 import { authenticate, ownerId } from './authenticate.js'
+import { PASSWORD_RESET_TTL_MS, type PasswordResetRepository } from './password-reset.js'
 import type { RefreshTokensRepository } from './refresh-tokens.js'
 import type { UserRecord, UsersRepository } from './repository.js'
-import { loginSchema, refreshSchema, registerSchema } from './schemas.js'
+import {
+  forgotPasswordSchema,
+  loginSchema,
+  refreshSchema,
+  registerSchema,
+  resetPasswordSchema,
+} from './schemas.js'
 
 export interface AuthRateLimit {
   max: number
   timeWindow: number | string
 }
 
+export interface PasswordRecovery {
+  resets: PasswordResetRepository
+  mailer: Mailer
+  /** Origem do SPA, base do link enviado por e-mail (ex.: `https://finboard.app`). */
+  appUrl: string
+}
+
 export function registerAuthRoutes(
   app: FastifyInstance,
   repository: UsersRepository,
   refreshTokens: RefreshTokensRepository,
+  recovery: PasswordRecovery,
   rateLimit?: AuthRateLimit,
 ): void {
   // Registro e login são as rotas que um ataque de força bruta martela: cada uma
@@ -118,5 +135,50 @@ export function registerAuthRoutes(
     '/api/auth/logout-all',
     { preHandler: authenticate, schema: authDocs.logoutAll },
     async (request) => ({ revokedSessions: refreshTokens.revokeAllForUser(ownerId(request)) }),
+  )
+
+  // Mesma resposta exista a conta ou não: a rota não pode virar um "este e-mail está
+  // cadastrado?". O envio não é aguardado — a latência do provedor de e-mail também
+  // denunciaria quais endereços têm conta — e a falha dele só vai para o log.
+  app.post(
+    '/api/auth/forgot-password',
+    { ...credentialsRoute, schema: authDocs.forgotPassword },
+    async (request, reply) => {
+      const { email } = forgotPasswordSchema.parse(request.body)
+      const credentials = repository.findCredentialsByEmail(email)
+      if (credentials) {
+        const { token } = recovery.resets.issue(credentials.user.id)
+        // Fragmento (`#`), não query string: o navegador não manda o token para servidor
+        // nenhum, então ele não aparece em log de proxy nem no header Referer.
+        const link = `${recovery.appUrl.replace(/\/+$/, '')}/#reset=${token}`
+        const message = buildPasswordResetEmail({
+          to: credentials.user.email,
+          link,
+          expiresInMinutes: PASSWORD_RESET_TTL_MS / 60_000,
+        })
+        recovery.mailer.send(message).catch((error: unknown) => {
+          request.log.error(error, 'falha ao enviar e-mail de recuperação de senha')
+        })
+      }
+      return reply.code(202).send()
+    },
+  )
+
+  // Senha nova derruba todas as sessões: se alguém pediu a recuperação porque a senha
+  // vazou, quem estava usando a conta com ela sai junto.
+  app.post(
+    '/api/auth/reset-password',
+    { ...credentialsRoute, schema: authDocs.resetPassword },
+    async (request, reply) => {
+      const { token, password } = resetPasswordSchema.parse(request.body)
+      // Hash antes de consultar o token: com token inválido a resposta custa o mesmo.
+      const passwordHash = await argon2.hash(password)
+      const userId = recovery.resets.resetPassword(token, passwordHash)
+      if (userId === undefined) {
+        return reply.code(400).send({ error: 'invalid_reset_token' })
+      }
+      refreshTokens.revokeAllForUser(userId)
+      return reply.code(204).send()
+    },
   )
 }
