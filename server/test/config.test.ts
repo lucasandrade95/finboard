@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEV_JWT_SECRET, loadConfig } from '../src/config.js'
+import { DEV_APP_URL, DEV_JWT_SECRET, loadConfig } from '../src/config.js'
 
 describe('loadConfig', () => {
   it('usa os padrões de desenvolvimento sem nenhuma variável', () => {
@@ -8,6 +8,8 @@ describe('loadConfig', () => {
       dbPath: 'data/finboard.db',
       jwtSecret: DEV_JWT_SECRET,
       trustProxy: false,
+      appUrl: DEV_APP_URL,
+      exposeMailInLogs: true,
     })
   })
 
@@ -25,5 +27,13 @@ describe('loadConfig', () => {
     expect(loadConfig({ TRUST_PROXY: 'true' }).trustProxy).toBe(true)
     expect(loadConfig({ TRUST_PROXY: '1' }).trustProxy).toBe(false)
     expect(loadConfig({ TRUST_PROXY: 'false' }).trustProxy).toBe(false)
+  })
+
+  it('lê a origem do SPA para os links de e-mail', () => {
+    expect(loadConfig({ APP_URL: 'https://finboard.app' }).appUrl).toBe('https://finboard.app')
+  })
+
+  it('não escreve o corpo dos e-mails no log em produção', () => {
+    expect(loadConfig({ NODE_ENV: 'production', JWT_SECRET: 's' }).exposeMailInLogs).toBe(false)
   })
 })

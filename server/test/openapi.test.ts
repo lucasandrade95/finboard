@@ -74,6 +74,8 @@ describe('documento OpenAPI', () => {
       '/api/auth/refresh',
       '/api/auth/logout',
       '/api/auth/logout-all',
+      '/api/auth/forgot-password',
+      '/api/auth/reset-password',
       '/api/transactions',
       '/api/transactions/{id}',
       '/api/transactions/export.csv',
@@ -113,6 +115,8 @@ describe('documento OpenAPI', () => {
     expect(isPublic(operationOf(doc, '/api/auth/login', 'post'))).toBe(true)
     expect(isPublic(operationOf(doc, '/api/auth/refresh', 'post'))).toBe(true)
     expect(isPublic(operationOf(doc, '/api/auth/logout', 'post'))).toBe(true)
+    expect(isPublic(operationOf(doc, '/api/auth/forgot-password', 'post'))).toBe(true)
+    expect(isPublic(operationOf(doc, '/api/auth/reset-password', 'post'))).toBe(true)
 
     expect(operationOf(doc, '/api/auth/me', 'get').security).toEqual([{ bearerAuth: [] }])
     expect(operationOf(doc, '/api/auth/logout-all', 'post').security).toEqual([{ bearerAuth: [] }])
