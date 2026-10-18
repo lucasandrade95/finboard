@@ -14,11 +14,12 @@ finboard/
 │   ├── src/
 │   │   ├── app.ts                    # buildApp(): instância Fastify testável (injeta dbPath)
 │   │   ├── server.ts                 # entrypoint (listen)
-│   │   ├── config.ts                 # config via env (PORT, DB_PATH, JWT_SECRET)
+│   │   ├── config.ts                 # config via env (PORT, DB_PATH, JWT_SECRET, APP_URL)
 │   │   ├── db/connection.ts          # abre SQLite + roda o runner de migrações
 │   │   ├── db/migrations.ts          # lista versionada + runner (schema_migrations)
 │   │   ├── docs/openapi.ts           # @fastify/swagger + UI em /docs
 │   │   ├── docs/schemas.ts           # descrição das rotas (OpenAPI), sem validar nada
+│   │   ├── mail/                     # porta Mailer (adaptador de log em dev) + template pt-BR de recuperação de senha
 │   │   └── modules/                  # auth, transactions, budgets, goals — rotas → repositório, schemas Zod
 │   └── test/                         # Vitest + app.inject (sem rede)
 └── web/      # SPA — React 19 + Vite
@@ -58,6 +59,7 @@ Decisões:
 npm install
 JWT_SECRET=... npm run dev:server   # API em http://localhost:3000 (sem JWT_SECRET usa segredo de dev; em produção é obrigatório)
 npm run dev:web      # SPA em http://localhost:5173 (proxy /api → 3000)
+# Recuperação de senha em dev: sem provedor de e-mail, o e-mail (com o link) sai no log da API. APP_URL muda a origem do link.
 npm run seed         # conta demo (demo@finboard.dev / demo-finboard-123) com 3 meses de dados; rodar de novo recria
 npm run verify       # lint + format + typecheck + testes + build (mesmo gate do CI)
 npm run test:e2e     # Playwright: sobe API (:3100, banco em memória) + SPA (:5174) e roda o fluxo no Chromium
@@ -74,7 +76,7 @@ O `Dockerfile` é multi-stage: um estágio instala o workspace e compila API (`t
 
 ## API
 
-Fora `/health` e `/api/auth/register|login|refresh|logout`, toda rota exige `Authorization: Bearer <token>` e responde só com os dados da conta do token (401 sem token válido). Qualquer rota responde 429 `rate_limit_exceeded` quando o IP passa do teto da janela de 1 minuto — 300 requisições no geral, 10 em registro, login e refresh.
+Fora `/health` e `/api/auth/register|login|refresh|logout|forgot-password|reset-password`, toda rota exige `Authorization: Bearer <token>` e responde só com os dados da conta do token (401 sem token válido). Qualquer rota responde 429 `rate_limit_exceeded` quando o IP passa do teto da janela de 1 minuto — 300 requisições no geral, 10 em registro, login, refresh e nas duas rotas de recuperação de senha.
 
 Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento OpenAPI cru em `/docs/json`): dá para autenticar com o token do login e disparar as chamadas pela própria página.
 
@@ -87,6 +89,8 @@ Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento Op
 | POST   | `/api/auth/refresh`                | Troca `refreshToken` por um par novo (rotação: o antigo deixa de valer; reapresentar um já trocado revoga a sessão do dispositivo; 401 `invalid_refresh_token`)                                            |
 | POST   | `/api/auth/logout`                 | Revoga o `refreshToken` deste dispositivo, sem exigir JWT (204, também para token desconhecido)                                                                                                            |
 | POST   | `/api/auth/logout-all`             | Revoga as sessões de todos os dispositivos da conta e devolve `{ revokedSessions }`                                                                                                                        |
+| POST   | `/api/auth/forgot-password`        | Envia o e-mail pt-BR com o link `APP_URL/#reset=<token>` (30 min, uso único; pedir de novo invalida o anterior). Sempre 202, exista a conta ou não                                                         |
+| POST   | `/api/auth/reset-password`         | Troca a senha com `token` + `password` (8–128) e encerra as sessões de todos os dispositivos (204; 400 `invalid_reset_token`)                                                                              |
 | GET    | `/api/transactions?month=`         | Lista paginada (`limit`/`offset`, período `from=`/`to=` no lugar de `month`, filtros `type=`/`category=`/`tag=`, busca `q=` na descrição, ordenação `sort=date                                             | amount | category`+`order=asc | desc`, devolve `{ items, total, limit, offset }`) |
 | POST   | `/api/transactions`                | Cria transação (`amountCents` inteiro > 0; `recurring` gera cópia mensal no boot; `accountId` opcional, da própria conta; `tags` livres, até 10)                                                           |
 | PUT    | `/api/transactions/:id`            | Atualiza transação (200; 404 se não existe; 409 `transfer_leg`/`installment_part`)                                                                                                                         |
@@ -179,7 +183,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Relatório mensal em PDF (resumo, gráficos, top categorias)
 - [x] Auditoria: histórico de alterações por transação (quem, quando, o quê)
 - [x] Refresh token com rotação + logout de todos os dispositivos
-- [ ] Recuperação de senha por e-mail (token expirável, template pt-BR)
+- [x] Recuperação de senha por e-mail (token expirável, template pt-BR)
 - [ ] Exportar todos os meus dados (JSON) e excluir conta (LGPD)
 - [ ] Notificação por e-mail quando orçamento passa de 80% e 100%
 - [ ] Cache HTTP com ETag/If-None-Match nos endpoints de leitura
