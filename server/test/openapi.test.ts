@@ -71,6 +71,7 @@ describe('documento OpenAPI', () => {
       '/api/auth/register',
       '/api/auth/login',
       '/api/auth/me',
+      '/api/auth/me/export',
       '/api/auth/refresh',
       '/api/auth/logout',
       '/api/auth/logout-all',
@@ -120,6 +121,8 @@ describe('documento OpenAPI', () => {
 
     expect(operationOf(doc, '/api/auth/me', 'get').security).toEqual([{ bearerAuth: [] }])
     expect(operationOf(doc, '/api/auth/logout-all', 'post').security).toEqual([{ bearerAuth: [] }])
+    expect(operationOf(doc, '/api/auth/me', 'delete').security).toEqual([{ bearerAuth: [] }])
+    expect(operationOf(doc, '/api/auth/me/export', 'get').security).toEqual([{ bearerAuth: [] }])
     expect(operationOf(doc, '/api/transactions', 'post').security).toEqual([{ bearerAuth: [] }])
     expect(operationOf(doc, '/api/goals', 'get').security).toEqual([{ bearerAuth: [] }])
     expect(operationOf(doc, '/api/budgets', 'get').security).toEqual([{ bearerAuth: [] }])
