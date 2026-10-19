@@ -926,6 +926,31 @@ button[type='submit']:disabled {
   cursor: default;
 }
 
+/* Ação destrutiva: mesmo formato do submit, na cor de "negativo" do tema. */
+button[type='submit'].danger {
+  background: var(--negative);
+  color: var(--surface);
+}
+
+.privacy-description,
+.privacy-warning {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.privacy-warning {
+  color: var(--negative);
+}
+
+.privacy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
 .table-wrapper {
   overflow-x: auto;
   background: var(--surface);

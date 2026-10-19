@@ -75,6 +75,23 @@ export const ptBR = {
       'Encerrar a sessão em todos os dispositivos, inclusive neste? Será preciso entrar de novo com a senha.',
     logoutAllError: 'Não foi possível sair dos outros dispositivos. Tente de novo.',
   },
+  privacy: {
+    title: 'Meus dados',
+    description: 'Baixe tudo o que o Finboard guarda sobre você (JSON) ou exclua a conta de vez.',
+    export: 'Baixar meus dados (JSON)',
+    exporting: 'Preparando…',
+    exportError: 'Falha ao gerar o arquivo. Tente de novo.',
+    deleteOpen: 'Excluir minha conta',
+    deleteWarning:
+      'A exclusão apaga transações, comprovantes, contas, metas, orçamentos e histórico, e não tem volta. Baixe seus dados antes, se quiser guardá-los.',
+    password: 'Senha atual',
+    deleteSubmit: 'Excluir definitivamente',
+    deletePending: 'Excluindo…',
+    cancel: 'Cancelar',
+    confirmDelete: 'Excluir a conta e todos os dados agora? Esta ação não pode ser desfeita.',
+    wrongPassword: 'Senha incorreta.',
+    deleteError: 'Não foi possível excluir a conta. Tente de novo.',
+  },
   theme: {
     useLight: 'Usar tema claro',
     useDark: 'Usar tema escuro',

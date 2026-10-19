@@ -12,6 +12,7 @@ import { GoalsPanel } from './components/GoalsPanel'
 import { ImportCsvButton } from './components/ImportCsvButton'
 import { MonthlyReportButton } from './components/MonthlyReportButton'
 import { SearchFilter } from './components/SearchFilter'
+import { PrivacyPanel } from './components/PrivacyPanel'
 import { SessionControls } from './components/SessionControls'
 import { ShortcutsHelp } from './components/ShortcutsHelp'
 import { SummaryCards } from './components/SummaryCards'
@@ -272,6 +273,7 @@ function Dashboard() {
           sort={sort}
           onSortChange={handleSortChange}
         />
+        <PrivacyPanel />
       </main>
       {helpOpen && <ShortcutsHelp onClose={closeHelp} />}
     </div>

@@ -52,6 +52,12 @@ export class UsersRepository {
     return row ? toRecord(row) : undefined
   }
 
+  /** Para reconfirmar a senha de quem já está logado (ex.: antes de excluir a conta). */
+  findCredentialsById(id: number): UserCredentials | undefined {
+    const row = this.db.prepare('SELECT * FROM users WHERE id = ?').get(id) as UserRow | undefined
+    return row ? { user: toRecord(row), passwordHash: row.password_hash } : undefined
+  }
+
   findCredentialsByEmail(email: string): UserCredentials | undefined {
     const row = this.db.prepare('SELECT * FROM users WHERE email = ?').get(email) as
       UserRow | undefined

@@ -1204,6 +1204,41 @@ export const reportDocs = {
   } satisfies FastifySchema,
 }
 
+export const privacyDocs = {
+  // Sem schema no 200: o corpo vai como arquivo para baixar, com Content-Disposition.
+  exportData: {
+    ...authenticated,
+    tags: ['privacidade'],
+    summary: 'Exporta todos os dados da conta (JSON)',
+    description:
+      'Portabilidade (LGPD): usuário, contas, categorias, transações com tags, comprovantes ' +
+      'em base64, transferências, parcelamentos, orçamentos, metas e histórico de alterações. ' +
+      'Valores em centavos; o hash da senha e os tokens de sessão nunca saem.',
+    produces: ['application/json'],
+    response: { 401: unauthorized },
+  } satisfies FastifySchema,
+
+  deleteAccount: {
+    ...authenticated,
+    tags: ['privacidade'],
+    summary: 'Exclui a conta e todos os dados dela',
+    description:
+      'Eliminação (LGPD): exige a senha atual e apaga tudo numa transação só, inclusive ' +
+      'sessões e histórico. Irreversível. Limite de 10 requisições por minuto por IP.',
+    body: {
+      type: 'object',
+      required: ['password'],
+      properties: { password: { type: 'string', minLength: 1, maxLength: 128 } },
+    },
+    response: {
+      204: { description: 'Conta excluída', type: 'null' },
+      400: validationError,
+      401: unauthorized,
+      403: errorResponse('Senha atual incorreta', 'invalid_password'),
+    },
+  } satisfies FastifySchema,
+}
+
 export const projectionDocs = {
   get: {
     ...authenticated,

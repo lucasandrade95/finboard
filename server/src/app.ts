@@ -26,6 +26,8 @@ import { registerGoalRoutes } from './modules/goals/routes.js'
 import { InstallmentsRepository } from './modules/installments/repository.js'
 import { registerInstallmentRoutes } from './modules/installments/routes.js'
 import { ProjectionRepository } from './modules/projection/repository.js'
+import { PrivacyRepository } from './modules/privacy/repository.js'
+import { registerPrivacyRoutes } from './modules/privacy/routes.js'
 import { registerProjectionRoutes } from './modules/projection/routes.js'
 import { registerReportRoutes } from './modules/reports/routes.js'
 import { TransactionsRepository } from './modules/transactions/repository.js'
@@ -162,9 +164,14 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   app.get('/health', { schema: healthDocs }, async () => ({ status: 'ok' }))
 
   const repository = new TransactionsRepository(db)
+  const users = new UsersRepository(db)
+  const authRateLimit =
+    rateLimitSettings === false
+      ? undefined
+      : { max: rateLimitSettings.authMax, timeWindow: rateLimitSettings.timeWindow }
   registerAuthRoutes(
     app,
-    new UsersRepository(db),
+    users,
     new RefreshTokensRepository(db),
     {
       resets: new PasswordResetRepository(db),
@@ -173,10 +180,9 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
         createLogMailer(app.log, { revealContent: options.exposeMailInLogs ?? true }),
       appUrl: options.appUrl ?? DEV_APP_URL,
     },
-    rateLimitSettings === false
-      ? undefined
-      : { max: rateLimitSettings.authMax, timeWindow: rateLimitSettings.timeWindow },
+    authRateLimit,
   )
+  registerPrivacyRoutes(app, new PrivacyRepository(db), users, authRateLimit)
   const accounts = new AccountsRepository(db)
   registerTransactionRoutes(app, repository, accounts)
   registerAttachmentRoutes(app, new AttachmentsRepository(db))

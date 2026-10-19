@@ -35,6 +35,7 @@ export async function registerOpenApi(app: FastifyInstance): Promise<void> {
         { name: 'parcelamentos', description: 'Compras parceladas e suas parcelas futuras' },
         { name: 'projeção', description: 'Saldo previsto dos próximos dias' },
         { name: 'relatórios', description: 'Relatório mensal para baixar' },
+        { name: 'privacidade', description: 'Exportar os próprios dados e excluir a conta (LGPD)' },
       ],
       components: {
         securitySchemes: {

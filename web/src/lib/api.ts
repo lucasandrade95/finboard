@@ -561,6 +561,27 @@ const exportTransactionsCsv = (month: string) =>
 const exportMonthlyReport = (month: string) =>
   downloadFile(`/api/reports/monthly.pdf?month=${month}`, `relatorio-${month}.pdf`)
 
+const exportMyData = () => downloadFile('/api/auth/me/export', 'finboard-meus-dados.json')
+
+/**
+ * Exclui a conta de vez. O server pede a senha de novo e responde 403 (não 401) se ela
+ * não confere — 401 aqui derrubaria a sessão como se o token tivesse vencido. Depois
+ * do 204 não há mais conta: os tokens locais saem e a UI volta para o login.
+ */
+async function deleteMyAccount(password: string): Promise<void> {
+  const response = await authorizedFetch('/api/auth/me', {
+    method: 'DELETE',
+    body: JSON.stringify({ password }),
+  })
+  if (response.status === 403) {
+    throw new Error(t.privacy.wrongPassword)
+  }
+  if (!response.ok) {
+    throw new Error(t.privacy.deleteError)
+  }
+  setToken(null)
+}
+
 // Fora do `request`: o 400 aqui não é falha genérica, é o relatório de erros do arquivo.
 async function importTransactionsCsv(csv: string): Promise<CsvImportResult> {
   const response = await authorizedFetch(
@@ -614,6 +635,8 @@ export const api = {
   login: (email: string, password: string) => authenticate('/api/auth/login', email, password),
   logout,
   logoutAll,
+  exportMyData,
+  deleteMyAccount,
   requestPasswordReset,
   resetPassword,
   listTransactions: (month: string, page: number, filters: TransactionFilters = {}) => {
