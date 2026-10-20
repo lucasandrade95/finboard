@@ -61,7 +61,7 @@ Decisões:
 npm install
 JWT_SECRET=... npm run dev:server   # API em http://localhost:3000 (sem JWT_SECRET usa segredo de dev; em produção é obrigatório)
 npm run dev:web      # SPA em http://localhost:5173 (proxy /api → 3000)
-# Recuperação de senha em dev: sem provedor de e-mail, o e-mail (com o link) sai no log da API. APP_URL muda a origem do link.
+# E-mails em dev (recuperação de senha, alerta de orçamento): sem provedor, saem no log da API. APP_URL muda a origem dos links.
 npm run seed         # conta demo (demo@finboard.dev / demo-finboard-123) com 3 meses de dados; rodar de novo recria
 npm run verify       # lint + format + typecheck + testes + build (mesmo gate do CI)
 npm run test:e2e     # Playwright: sobe API (:3100, banco em memória) + SPA (:5174) e roda o fluxo no Chromium
@@ -128,7 +128,7 @@ Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento Op
 | GET    | `/api/summary?month=`              | Receitas, despesas e saldo (com `month`, `previous` do mês anterior); `accounts`: saldo de cada conta no fim do período                                                                                          |
 | GET    | `/api/expenses-by-category?month=` | Total de despesas por categoria, maior primeiro (`{ items, totalCents }`; aceita `from=`/`to=` no lugar de `month`)                                                                                              |
 | GET    | `/api/budgets?month=`              | Orçamentos com gasto do mês por categoria (`month` obrigatório; `{ month, items: [{ category, budgetCents, spentCents }] }`)                                                                                     |
-| PUT    | `/api/budgets/:category`           | Define/atualiza orçamento mensal da categoria (upsert; `{ amountCents }` inteiro > 0)                                                                                                                            |
+| PUT    | `/api/budgets/:category`           | Define/atualiza orçamento mensal da categoria (upsert; `{ amountCents }` inteiro > 0). Despesa que leva a 80% e a 100% manda e-mail, uma vez por mês                                                             |
 | DELETE | `/api/budgets/:category`           | Remove orçamento da categoria (204; 404 se não existe)                                                                                                                                                           |
 | GET    | `/api/goals`                       | Metas de economia (`{ items }`), prazo mais próximo primeiro e sem prazo por último                                                                                                                              |
 | POST   | `/api/goals`                       | Cria meta (`name`, `targetCents` > 0, `savedCents` ≥ 0 opcional, `deadline` YYYY-MM-DD ou null)                                                                                                                  |
@@ -189,7 +189,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Refresh token com rotação + logout de todos os dispositivos
 - [x] Recuperação de senha por e-mail (token expirável, template pt-BR)
 - [x] Exportar todos os meus dados (JSON) e excluir conta (LGPD)
-- [ ] Notificação por e-mail quando orçamento passa de 80% e 100%
+- [x] Notificação por e-mail quando orçamento passa de 80% e 100%
 - [ ] Cache HTTP com ETag/If-None-Match nos endpoints de leitura
 - [ ] Logs estruturados (pino) com request id propagado até o repositório
 - [ ] Healthcheck `/health` e métricas `/metrics` (Prometheus)
