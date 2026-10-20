@@ -214,6 +214,7 @@ describe('GET /api/auth/me/export', () => {
       'transfers',
       'installments',
       'budgets',
+      'budgetAlerts',
       'goals',
       'history',
     ]) {

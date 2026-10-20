@@ -17,6 +17,12 @@ function renderPanel(data: BudgetProgressList | undefined, loading = false, cate
 afterEach(cleanup)
 
 describe('BudgetPanel', () => {
+  it('avisa que o e-mail sai ao chegar a 80% e a 100% do limite', () => {
+    renderPanel({ month: '2026-08', items: [] })
+
+    expect(screen.getByText(/e-mail quando o gasto chega a 80% e a 100%/)).toBeTruthy()
+  })
+
   it('mostra gasto, limite e percentual de cada orçamento', () => {
     renderPanel({
       month: '2026-08',
