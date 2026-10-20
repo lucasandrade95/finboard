@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import type { AccountsRepository } from '../accounts/repository.js'
 import { ownerId, protectedRoute } from '../auth/authenticate.js'
+import { expenseScope, type BudgetAlertNotifier } from '../budgets/alerts.js'
 import { parseTransactionsCsv, transactionsToCsv } from './csv.js'
 import { transactionDocs } from '../../docs/schemas.js'
 import type { TransactionsRepository } from './repository.js'
@@ -51,6 +52,7 @@ export function registerTransactionRoutes(
   app: FastifyInstance,
   repository: TransactionsRepository,
   accounts: AccountsRepository,
+  budgetAlerts: BudgetAlertNotifier,
 ): void {
   const ownsAccount = (userId: number, accountId: number | null | undefined) =>
     accountId == null || accounts.belongsTo(userId, accountId)
@@ -121,7 +123,13 @@ export function registerTransactionRoutes(
           errors: errors.slice(0, MAX_REPORTED_ERRORS),
         })
       }
-      return reply.code(201).send({ imported: repository.createMany(ownerId(request), rows) })
+      const imported = repository.createMany(ownerId(request), rows)
+      budgetAlerts.check(
+        ownerId(request),
+        rows.flatMap((row) => expenseScope(row)),
+        request.log,
+      )
+      return reply.code(201).send({ imported })
     },
   )
 
@@ -134,6 +142,7 @@ export function registerTransactionRoutes(
         return sendUnknownAccount(reply)
       }
       const created = repository.create(ownerId(request), input)
+      budgetAlerts.check(ownerId(request), expenseScope(created), request.log)
       return reply.code(201).send(created)
     },
   )
@@ -156,6 +165,8 @@ export function registerTransactionRoutes(
       if (!updated) {
         return reply.code(404).send({ error: 'not_found' })
       }
+      // Editar valor, categoria ou data pode levar a despesa a um orçamento já apertado.
+      budgetAlerts.check(ownerId(request), expenseScope(updated), request.log)
       return updated
     },
   )

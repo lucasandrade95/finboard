@@ -17,6 +17,7 @@ import { PasswordResetRepository } from './modules/auth/password-reset.js'
 import { RefreshTokensRepository } from './modules/auth/refresh-tokens.js'
 import { UsersRepository } from './modules/auth/repository.js'
 import { registerAuthRoutes } from './modules/auth/routes.js'
+import { BudgetAlertNotifier, BudgetAlertsRepository } from './modules/budgets/alerts.js'
 import { BudgetsRepository } from './modules/budgets/repository.js'
 import { registerBudgetRoutes } from './modules/budgets/routes.js'
 import { CategoriesRepository } from './modules/categories/repository.js'
@@ -169,22 +170,24 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     rateLimitSettings === false
       ? undefined
       : { max: rateLimitSettings.authMax, timeWindow: rateLimitSettings.timeWindow }
+  const mailer =
+    options.mailer ?? createLogMailer(app.log, { revealContent: options.exposeMailInLogs ?? true })
+  const appUrl = options.appUrl ?? DEV_APP_URL
   registerAuthRoutes(
     app,
     users,
     new RefreshTokensRepository(db),
-    {
-      resets: new PasswordResetRepository(db),
-      mailer:
-        options.mailer ??
-        createLogMailer(app.log, { revealContent: options.exposeMailInLogs ?? true }),
-      appUrl: options.appUrl ?? DEV_APP_URL,
-    },
+    { resets: new PasswordResetRepository(db), mailer, appUrl },
     authRateLimit,
   )
   registerPrivacyRoutes(app, new PrivacyRepository(db), users, authRateLimit)
   const accounts = new AccountsRepository(db)
-  registerTransactionRoutes(app, repository, accounts)
+  registerTransactionRoutes(
+    app,
+    repository,
+    accounts,
+    new BudgetAlertNotifier(new BudgetAlertsRepository(db), users, mailer, appUrl),
+  )
   registerAttachmentRoutes(app, new AttachmentsRepository(db))
   registerBudgetRoutes(app, new BudgetsRepository(db))
   registerGoalRoutes(app, new GoalsRepository(db))

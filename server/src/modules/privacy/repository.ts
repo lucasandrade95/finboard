@@ -53,6 +53,8 @@ export interface UserDataExport {
     createdAt: string
   }>
   budgets: Array<{ category: string; amountCents: number; createdAt: string }>
+  /** Avisos de orçamento já enviados por e-mail (limiar 80 ou 100, por categoria e mês). */
+  budgetAlerts: Array<{ category: string; month: string; threshold: number; sentAt: string }>
   goals: Array<{
     id: number
     name: string
@@ -214,6 +216,12 @@ export class PrivacyRepository {
            FROM budgets WHERE user_id = ? ORDER BY category`,
         )
         .all(userId) as UserDataExport['budgets'],
+      budgetAlerts: this.db
+        .prepare(
+          `SELECT category, month, threshold, sent_at AS sentAt
+           FROM budget_alerts WHERE user_id = ? ORDER BY month, category, threshold`,
+        )
+        .all(userId) as UserDataExport['budgetAlerts'],
       goals: this.db
         .prepare(
           `SELECT id, name, target_cents AS targetCents, saved_cents AS savedCents, deadline,
@@ -228,8 +236,8 @@ export class PrivacyRepository {
   /**
    * Apaga a conta e tudo o que é dela, numa transação só: ou some tudo, ou nada.
    * A ordem segue as FKs — lançamentos antes de contas, transferências e parcelamentos
-   * que eles referenciam; tags, comprovantes, sessões, links de senha e histórico vão
-   * por CASCADE. Devolve `false` se a conta já não existia.
+   * que eles referenciam; tags, comprovantes, sessões, links de senha, histórico e
+   * avisos de orçamento vão por CASCADE. Devolve `false` se a conta já não existia.
    */
   deleteUser(userId: number): boolean {
     return this.db.transaction(() => {

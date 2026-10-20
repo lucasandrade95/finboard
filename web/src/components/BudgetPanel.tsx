@@ -110,6 +110,7 @@ export function BudgetPanel({ data, loading, categories = [] }: BudgetPanelProps
           })}
         </ul>
       )}
+      <p className="budget-hint">{t.budgets.emailHint}</p>
       <form className="budget-form" onSubmit={handleSubmit}>
         <div className="form-grid">
           <label>

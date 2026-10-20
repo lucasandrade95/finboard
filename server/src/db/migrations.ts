@@ -373,6 +373,25 @@ export const MIGRATIONS: readonly Migration[] = [
       `)
     },
   },
+  {
+    id: 18,
+    name: 'create_budget_alerts',
+    up: (db) => {
+      // Um registro por limiar avisado (80% ou 100%) por categoria e mês. A chave
+      // primária é a trava contra e-mail repetido: o INSERT só entra uma vez, e é ele
+      // que decide se o aviso sai — duas requisições ao mesmo tempo não mandam dois.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS budget_alerts (
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          category TEXT NOT NULL,
+          month TEXT NOT NULL,
+          threshold INTEGER NOT NULL CHECK (threshold IN (80, 100)),
+          sent_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+          PRIMARY KEY (user_id, category, month, threshold)
+        );
+      `)
+    },
+  },
 ]
 
 /**

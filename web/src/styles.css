@@ -698,6 +698,12 @@ input:focus-visible + .attach-button {
   background: var(--accent);
 }
 
+.budget-hint {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .budget-alert {
   margin: -0.25rem 0 0.75rem;
   padding: 0.5rem 0.75rem;

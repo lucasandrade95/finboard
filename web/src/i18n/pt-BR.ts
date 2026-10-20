@@ -163,6 +163,7 @@ export const ptBR = {
     categoryPlaceholder: 'mercado',
     limitInput: 'Limite mensal (R$)',
     submit: 'Definir orçamento',
+    emailHint: 'Você recebe um e-mail quando o gasto chega a 80% e a 100% do limite.',
   },
   goals: {
     title: 'Metas de economia',
