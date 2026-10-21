@@ -49,6 +49,8 @@ Decisões:
 - **Tudo escopado por usuário** — transações, orçamentos e metas: o `user_id` entra no `WHERE` de toda consulta do repositório, inclusive nas de escrita, e id de outra conta responde 404 (e não 403, que confirmaria a existência). Em orçamento a chave é o par `(user_id, category)`, então duas contas podem ter teto para "mercado" sem uma sobrescrever a outra. O token guardado no SPA é o que libera as rotas; 401 derruba a sessão e devolve a tela de login.
 - **Cabeçalhos de segurança e rate limit por IP** — helmet é o primeiro plugin registrado, então `nosniff`, anti-clickjacking e HSTS valem inclusive nas respostas de erro; o CORP fica em `cross-origin` porque a API é consumida de outra origem. O rate limit tem dois níveis: teto global folgado (300/min por IP — uma tela do dashboard já dispara meia dúzia de chamadas) e teto apertado em registro e login (10/min por rota), que é onde força bruta bate. Cada rota conta no próprio balde, e o 429 sai no formato de erro do resto da API (`{ error: 'rate_limit_exceeded' }`) com `retry-after`.
 
+- **GET condicional com ETag, sem versão no banco** — um hook `onSend` único calcula o ETag (SHA-1 dos bytes) de toda leitura JSON 200 e responde 304 sem corpo quando o `If-None-Match` bate (lista, `W/` e `*` aceitos). Hash do corpo em vez de `updated_at` porque resumo e gráficos são agregados, sem registro único para versionar. Sai com `Cache-Control: private, no-cache` (o navegador guarda, proxy compartilhado não, e sempre revalida — nunca mostra saldo velho) e `Vary: Authorization`; rotas que já pedem `no-store` (comprovante, PDF, export) e respostas que não são JSON ficam de fora. O `fetch` do SPA não muda: o navegador revalida sozinho e entrega o 200 do cache.
+
 - **Direitos do titular (LGPD) num repositório só** — exportar e excluir moram no mesmo `PrivacyRepository` porque os dois precisam conhecer toda tabela com dono: tabela nova com `user_id` entra ali nos dois lados. O export é uma fotografia lida dentro de uma transação; a exclusão apaga na ordem das FKs, também numa transação (ou some tudo, ou nada). Excluir pede a senha de novo — um JWT roubado não basta — e senha errada é 403, não 401, para o SPA não confundir com sessão vencida.
 
 - **Tema em variáveis CSS, preferência em três estados** — o `styles.css` guarda só tokens (`--bg`, `--surface`, `--text`…); o tema escuro troca os valores, nenhuma regra de componente repete cor crua. A preferência persistida é `system` (padrão), `light` ou `dark` — nunca o tema já resolvido, senão entrar uma vez com o SO no escuro congelaria a página no escuro para sempre. Com `system`, o `prefers-color-scheme` manda e continua mandando se o SO virar com a página aberta. O CSS reage sozinho (media query) e o JS só escreve `data-theme` no `<html>` quando a escolha é explícita: como o CSS chega antes do JS rodar, quem usa o SO no escuro não vê o flash branco na carga.
@@ -78,7 +80,7 @@ O `Dockerfile` é multi-stage: um estágio instala o workspace e compila API (`t
 
 ## API
 
-Fora `/health` e `/api/auth/register|login|refresh|logout|forgot-password|reset-password`, toda rota exige `Authorization: Bearer <token>` e responde só com os dados da conta do token (401 sem token válido). Qualquer rota responde 429 `rate_limit_exceeded` quando o IP passa do teto da janela de 1 minuto — 300 requisições no geral, 10 em registro, login, refresh, nas duas rotas de recuperação de senha e na exclusão de conta.
+Fora `/health` e `/api/auth/register|login|refresh|logout|forgot-password|reset-password`, toda rota exige `Authorization: Bearer <token>` e responde só com os dados da conta do token (401 sem token válido). Toda leitura JSON (GET 200) sai com `ETag` e `Cache-Control: private, no-cache`; reenviar a etiqueta em `If-None-Match` devolve 304 sem corpo enquanto os dados não mudam. Qualquer rota responde 429 `rate_limit_exceeded` quando o IP passa do teto da janela de 1 minuto — 300 requisições no geral, 10 em registro, login, refresh, nas duas rotas de recuperação de senha e na exclusão de conta.
 
 Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento OpenAPI cru em `/docs/json`): dá para autenticar com o token do login e disparar as chamadas pela própria página.
 
@@ -190,7 +192,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Recuperação de senha por e-mail (token expirável, template pt-BR)
 - [x] Exportar todos os meus dados (JSON) e excluir conta (LGPD)
 - [x] Notificação por e-mail quando orçamento passa de 80% e 100%
-- [ ] Cache HTTP com ETag/If-None-Match nos endpoints de leitura
+- [x] Cache HTTP com ETag/If-None-Match nos endpoints de leitura
 - [ ] Logs estruturados (pino) com request id propagado até o repositório
 - [ ] Healthcheck `/health` e métricas `/metrics` (Prometheus)
 - [ ] Teste de carga com autocannon e baseline documentado no README
