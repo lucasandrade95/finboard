@@ -8,6 +8,7 @@ import { DEV_APP_URL, DEV_JWT_SECRET } from './config.js'
 import { openDatabase } from './db/connection.js'
 import { registerOpenApi } from './docs/openapi.js'
 import { healthDocs } from './docs/schemas.js'
+import { registerEtag } from './http/etag.js'
 import { createLogMailer, type Mailer } from './mail/mailer.js'
 import { AccountsRepository } from './modules/accounts/repository.js'
 import { registerAccountRoutes } from './modules/accounts/routes.js'
@@ -133,6 +134,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   app.setSerializerCompiler(() => (data) => JSON.stringify(data))
 
   await app.register(cors, { origin: true })
+  registerEtag(app)
   await app.register(jwt, {
     secret: options.jwtSecret ?? DEV_JWT_SECRET,
     // Curto de propósito: o JWT não é consultado no banco, então "sair de todos os
