@@ -55,6 +55,8 @@ Decisões:
 
 - **Tema em variáveis CSS, preferência em três estados** — o `styles.css` guarda só tokens (`--bg`, `--surface`, `--text`…); o tema escuro troca os valores, nenhuma regra de componente repete cor crua. A preferência persistida é `system` (padrão), `light` ou `dark` — nunca o tema já resolvido, senão entrar uma vez com o SO no escuro congelaria a página no escuro para sempre. Com `system`, o `prefers-color-scheme` manda e continua mandando se o SO virar com a página aberta. O CSS reage sozinho (media query) e o JS só escreve `data-theme` no `<html>` quando a escolha é explícita: como o CSS chega antes do JS rodar, quem usa o SO no escuro não vê o flash branco na carga.
 
+- **Request id até o repositório, sem mudar assinatura** — o primeiro hook abre um `AsyncLocalStorage` com o logger da requisição (já com o `reqId`); o `verbose` do better-sqlite3 consulta esse contexto a cada SQL executado, então a linha de log da consulta sai com o id da requisição que a disparou sem passar `request` por nenhum repositório. Como o SQLite entrega a consulta com os parâmetros expandidos, textos, blobs e números viram `?` antes do log — hash de senha e token não vazam. Só liga em `LOG_LEVEL=debug`; em `info` o callback nem é registrado.
+
 - **OpenAPI gerado das rotas, validação continua no Zod** — cada rota declara um `schema` que só descreve a operação (tags, resumo, corpo, respostas, `bearerAuth`); o `@fastify/swagger` monta o documento a partir disso e a UI fica em `/docs`. Para o JSON Schema não virar um segundo validador — recusando requisição com outro formato de erro e recortando campos da resposta —, o `buildApp` registra um `validatorCompiler` e um `serializerCompiler` neutros: quem valida é o Zod no handler, com o 400 detalhado por campo.
 
 ## Rodando
@@ -64,6 +66,7 @@ npm install
 JWT_SECRET=... npm run dev:server   # API em http://localhost:3000 (sem JWT_SECRET usa segredo de dev; em produção é obrigatório)
 npm run dev:web      # SPA em http://localhost:5173 (proxy /api → 3000)
 # E-mails em dev (recuperação de senha, alerta de orçamento): sem provedor, saem no log da API. APP_URL muda a origem dos links.
+# Log JSON do pino; LOG_LEVEL=debug inclui cada SQL executado (só a forma, sem valores) com o reqId da requisição.
 npm run seed         # conta demo (demo@finboard.dev / demo-finboard-123) com 3 meses de dados; rodar de novo recria
 npm run verify       # lint + format + typecheck + testes + build (mesmo gate do CI)
 npm run test:e2e     # Playwright: sobe API (:3100, banco em memória) + SPA (:5174) e roda o fluxo no Chromium
@@ -80,7 +83,7 @@ O `Dockerfile` é multi-stage: um estágio instala o workspace e compila API (`t
 
 ## API
 
-Fora `/health` e `/api/auth/register|login|refresh|logout|forgot-password|reset-password`, toda rota exige `Authorization: Bearer <token>` e responde só com os dados da conta do token (401 sem token válido). Toda leitura JSON (GET 200) sai com `ETag` e `Cache-Control: private, no-cache`; reenviar a etiqueta em `If-None-Match` devolve 304 sem corpo enquanto os dados não mudam. Qualquer rota responde 429 `rate_limit_exceeded` quando o IP passa do teto da janela de 1 minuto — 300 requisições no geral, 10 em registro, login, refresh, nas duas rotas de recuperação de senha e na exclusão de conta.
+Fora `/health` e `/api/auth/register|login|refresh|logout|forgot-password|reset-password`, toda rota exige `Authorization: Bearer <token>` e responde só com os dados da conta do token (401 sem token válido). Toda leitura JSON (GET 200) sai com `ETag` e `Cache-Control: private, no-cache`; reenviar a etiqueta em `If-None-Match` devolve 304 sem corpo enquanto os dados não mudam. Toda resposta leva `X-Request-Id` (reaproveita o recebido se for curto e seguro, senão um UUID novo) — é o `reqId` de todas as linhas de log daquela requisição, e o 500 devolve `{ error: 'internal_error', requestId }` para o relato apontar a linha certa. Qualquer rota responde 429 `rate_limit_exceeded` quando o IP passa do teto da janela de 1 minuto — 300 requisições no geral, 10 em registro, login, refresh, nas duas rotas de recuperação de senha e na exclusão de conta.
 
 Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento OpenAPI cru em `/docs/json`): dá para autenticar com o token do login e disparar as chamadas pela própria página.
 
@@ -193,7 +196,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Exportar todos os meus dados (JSON) e excluir conta (LGPD)
 - [x] Notificação por e-mail quando orçamento passa de 80% e 100%
 - [x] Cache HTTP com ETag/If-None-Match nos endpoints de leitura
-- [ ] Logs estruturados (pino) com request id propagado até o repositório
+- [x] Logs estruturados (pino) com request id propagado até o repositório
 - [ ] Healthcheck `/health` e métricas `/metrics` (Prometheus)
 - [ ] Teste de carga com autocannon e baseline documentado no README
 - [ ] PWA: manifest + service worker com leitura offline do último resumo
