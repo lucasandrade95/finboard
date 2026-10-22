@@ -8,7 +8,7 @@ const app = await buildApp({
   trustProxy: config.trustProxy,
   appUrl: config.appUrl,
   exposeMailInLogs: config.exposeMailInLogs,
-  logger: true,
+  logger: { level: config.logLevel },
 })
 
 // `docker stop` manda SIGTERM. Como PID 1 no container o Node não tem handler

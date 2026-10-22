@@ -8,13 +8,18 @@ export type AppDatabase = Database.Database
 export interface OpenDatabaseOptions {
   /** Recebe os nomes das migrações aplicadas nesta subida (vazio se já estava em dia). */
   onMigrated?: (applied: string[]) => void
+  /** Chamado a cada SQL executado, já com os parâmetros expandidos pelo SQLite. */
+  onQuery?: (sql: string) => void
 }
 
 export function openDatabase(path: string, options: OpenDatabaseOptions = {}): AppDatabase {
   if (path !== ':memory:') {
     mkdirSync(dirname(path), { recursive: true })
   }
-  const db = new Database(path)
+  const db = new Database(
+    path,
+    options.onQuery ? { verbose: (sql) => options.onQuery?.(String(sql)) } : {},
+  )
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
   // Em linha separada de propósito: `fn?.(runMigrations(db))` não avaliaria o

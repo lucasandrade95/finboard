@@ -4,11 +4,17 @@ import jwt from '@fastify/jwt'
 import rateLimit from '@fastify/rate-limit'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { ZodError } from 'zod'
-import { DEV_APP_URL, DEV_JWT_SECRET } from './config.js'
+import { DEV_APP_URL, DEV_JWT_SECRET, type LogLevel } from './config.js'
 import { openDatabase } from './db/connection.js'
 import { registerOpenApi } from './docs/openapi.js'
 import { healthDocs } from './docs/schemas.js'
 import { registerEtag } from './http/etag.js'
+import {
+  REQUEST_ID_HEADER,
+  logQuery,
+  registerRequestContext,
+  resolveRequestId,
+} from './http/request-context.js'
 import { createLogMailer, type Mailer } from './mail/mailer.js'
 import { AccountsRepository } from './modules/accounts/repository.js'
 import { registerAccountRoutes } from './modules/accounts/routes.js'
@@ -59,9 +65,17 @@ export const DEFAULT_RATE_LIMIT: RateLimitSettings = {
 /** Validade do JWT de acesso: é a janela máxima de um token vazado ou de uma sessão já revogada. */
 export const ACCESS_TOKEN_TTL = '15m'
 
+export interface AppLoggerOptions {
+  /** `debug` (ou `trace`) liga também o log de cada SQL executado, com o `reqId`. */
+  level?: LogLevel
+  /** Destino das linhas JSON; default: stdout (testes injetam para ler o log). */
+  stream?: { write(line: string): void }
+}
+
 export interface BuildAppOptions {
   dbPath: string
-  logger?: boolean
+  /** `true` = pino em `info` no stdout; default: sem log (testes). */
+  logger?: boolean | AppLoggerOptions
   /** Mês alvo da geração de recorrentes no boot (YYYY-MM); default: mês atual. Testes injetam. */
   recurringMonth?: string
   /** Segredo HMAC dos JWTs; default só para dev/testes (o server.ts passa o do env). */
@@ -94,17 +108,28 @@ function currentMonth(): string {
 }
 
 export async function buildApp(options: BuildAppOptions): Promise<FastifyInstance> {
+  const logger = options.logger ?? false
   const app = Fastify({
-    logger: options.logger ?? false,
+    logger,
     trustProxy: options.trustProxy ?? false,
+    // Reaproveita o id de quem veio antes (nginx, outro serviço) para a mesma
+    // requisição ter um id só de ponta a ponta; sem ele, um UUID novo.
+    genReqId: (request) => resolveRequestId(request.headers[REQUEST_ID_HEADER]),
   })
+  // Decidido no boot: em `info` (produção) o SQLite nem chama o callback por consulta.
+  const traceSql =
+    typeof logger === 'object' && (logger.level === 'debug' || logger.level === 'trace')
   const db = openDatabase(options.dbPath, {
+    onQuery: traceSql ? logQuery : undefined,
     onMigrated: (applied) => {
       if (applied.length > 0) {
         app.log.info({ migrations: applied }, 'migrações aplicadas')
       }
     },
   })
+
+  // Antes de tudo, para até o 429 do rate limit sair com o `X-Request-Id`.
+  registerRequestContext(app)
 
   // Helmet primeiro: os cabeçalhos de segurança valem para toda resposta, inclusive erro.
   await app.register(helmet, {
@@ -159,9 +184,11 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
         ? fastifyError.statusCode
         : 500
     const known = fastifyError.code ? FRAMEWORK_ERRORS[fastifyError.code] : undefined
-    return reply.code(statusCode).send({
-      error: statusCode >= 500 ? 'internal_error' : (known ?? fastifyError.message ?? 'erro'),
-    })
+    if (statusCode >= 500) {
+      // O detalhe fica só no log; o id na resposta é o que liga o relato à linha certa.
+      return reply.code(statusCode).send({ error: 'internal_error', requestId: request.id })
+    }
+    return reply.code(statusCode).send({ error: known ?? fastifyError.message ?? 'erro' })
   })
 
   app.get('/health', { schema: healthDocs }, async () => ({ status: 'ok' }))

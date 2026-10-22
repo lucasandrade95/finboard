@@ -1,3 +1,7 @@
+export const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const
+
+export type LogLevel = (typeof LOG_LEVELS)[number]
+
 export interface AppConfig {
   port: number
   dbPath: string
@@ -8,6 +12,8 @@ export interface AppConfig {
   appUrl: string
   /** Fora de produção o e-mail vai para o log por inteiro, para o dev clicar no link. */
   exposeMailInLogs: boolean
+  /** Nível do pino; `debug` inclui cada SQL executado (sem os valores) com o `reqId`. */
+  logLevel: LogLevel
 }
 
 /** Só serve para desenvolvimento e testes: em produção o boot exige JWT_SECRET. */
@@ -21,6 +27,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (!jwtSecret && env.NODE_ENV === 'production') {
     throw new Error('JWT_SECRET é obrigatório em produção')
   }
+  const logLevel = env.LOG_LEVEL ?? 'info'
+  if (!isLogLevel(logLevel)) {
+    throw new Error(`LOG_LEVEL inválido: use ${LOG_LEVELS.join(', ')}`)
+  }
   return {
     port: Number(env.PORT ?? 3000),
     dbPath: env.DB_PATH ?? 'data/finboard.db',
@@ -29,5 +39,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     trustProxy: env.TRUST_PROXY === 'true',
     appUrl: env.APP_URL ?? DEV_APP_URL,
     exposeMailInLogs: env.NODE_ENV !== 'production',
+    logLevel,
   }
+}
+
+function isLogLevel(value: string): value is LogLevel {
+  return (LOG_LEVELS as readonly string[]).includes(value)
 }
