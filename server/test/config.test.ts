@@ -10,7 +10,14 @@ describe('loadConfig', () => {
       trustProxy: false,
       appUrl: DEV_APP_URL,
       exposeMailInLogs: true,
+      logLevel: 'info',
     })
+  })
+
+  it('aceita LOG_LEVEL do pino e recusa nível desconhecido', () => {
+    expect(loadConfig({ LOG_LEVEL: 'debug' }).logLevel).toBe('debug')
+    expect(loadConfig({ LOG_LEVEL: 'silent' }).logLevel).toBe('silent')
+    expect(() => loadConfig({ LOG_LEVEL: 'verbose' })).toThrow('LOG_LEVEL inválido')
   })
 
   it('lê porta, banco e segredo do ambiente', () => {
