@@ -40,6 +40,11 @@ describe('loadConfig', () => {
     expect(loadConfig({ APP_URL: 'https://finboard.app' }).appUrl).toBe('https://finboard.app')
   })
 
+  it('lê o token de /metrics só quando definido', () => {
+    expect(loadConfig({ METRICS_TOKEN: 'scrape-123' }).metricsToken).toBe('scrape-123')
+    expect(loadConfig({ METRICS_TOKEN: '' })).not.toHaveProperty('metricsToken')
+  })
+
   it('não escreve o corpo dos e-mails no log em produção', () => {
     expect(loadConfig({ NODE_ENV: 'production', JWT_SECRET: 's' }).exposeMailInLogs).toBe(false)
   })

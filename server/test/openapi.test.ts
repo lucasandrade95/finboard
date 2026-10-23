@@ -68,6 +68,7 @@ describe('documento OpenAPI', () => {
 
     for (const path of [
       '/health',
+      '/metrics',
       '/api/auth/register',
       '/api/auth/login',
       '/api/auth/me',
@@ -112,6 +113,7 @@ describe('documento OpenAPI', () => {
     const isPublic = (operation: OperationDoc) => operation.security === undefined
 
     expect(isPublic(operationOf(doc, '/health', 'get'))).toBe(true)
+    expect(isPublic(operationOf(doc, '/metrics', 'get'))).toBe(true)
     expect(isPublic(operationOf(doc, '/api/auth/register', 'post'))).toBe(true)
     expect(isPublic(operationOf(doc, '/api/auth/login', 'post'))).toBe(true)
     expect(isPublic(operationOf(doc, '/api/auth/refresh', 'post'))).toBe(true)
