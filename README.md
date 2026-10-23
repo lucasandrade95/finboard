@@ -57,6 +57,8 @@ Decisões:
 
 - **Request id até o repositório, sem mudar assinatura** — o primeiro hook abre um `AsyncLocalStorage` com o logger da requisição (já com o `reqId`); o `verbose` do better-sqlite3 consulta esse contexto a cada SQL executado, então a linha de log da consulta sai com o id da requisição que a disparou sem passar `request` por nenhum repositório. Como o SQLite entrega a consulta com os parâmetros expandidos, textos, blobs e números viram `?` antes do log — hash de senha e token não vazam. Só liga em `LOG_LEVEL=debug`; em `info` o callback nem é registrado.
 
+- **Health que olha o banco e métricas sem `prom-client`** — o `/health` faz um `SELECT 1` de verdade e responde 503 se o SQLite não responde, então o `HEALTHCHECK` do Docker pega banco fechado ou disco com problema em vez de dizer "ok" fixo; sai com `no-store` (fora do ETag). O `/metrics` publica, no formato de texto do Prometheus, contador de requisições por método/rota/status, histograma de latência, `finboard_db_up`, uptime e memória — escrito à mão (dois tipos de métrica, sem dependência nova). O label `route` é o molde registrado (`/api/transactions/:id`) e URL que não casa vira `unmatched`: id na série explodiria a cardinalidade. O hook é o `onResponse`, então 4xx, 5xx e o 429 do rate limit entram na conta; o scrape fica fora do rate limit e, com `METRICS_TOKEN`, exige bearer comparado em tempo constante.
+
 - **OpenAPI gerado das rotas, validação continua no Zod** — cada rota declara um `schema` que só descreve a operação (tags, resumo, corpo, respostas, `bearerAuth`); o `@fastify/swagger` monta o documento a partir disso e a UI fica em `/docs`. Para o JSON Schema não virar um segundo validador — recusando requisição com outro formato de erro e recortando campos da resposta —, o `buildApp` registra um `validatorCompiler` e um `serializerCompiler` neutros: quem valida é o Zod no handler, com o 400 detalhado por campo.
 
 ## Rodando
@@ -66,6 +68,7 @@ npm install
 JWT_SECRET=... npm run dev:server   # API em http://localhost:3000 (sem JWT_SECRET usa segredo de dev; em produção é obrigatório)
 npm run dev:web      # SPA em http://localhost:5173 (proxy /api → 3000)
 # E-mails em dev (recuperação de senha, alerta de orçamento): sem provedor, saem no log da API. APP_URL muda a origem dos links.
+# GET /metrics expõe métricas Prometheus; METRICS_TOKEN=... passa a exigir Authorization: Bearer.
 # Log JSON do pino; LOG_LEVEL=debug inclui cada SQL executado (só a forma, sem valores) com o reqId da requisição.
 npm run seed         # conta demo (demo@finboard.dev / demo-finboard-123) com 3 meses de dados; rodar de novo recria
 npm run verify       # lint + format + typecheck + testes + build (mesmo gate do CI)
@@ -83,13 +86,14 @@ O `Dockerfile` é multi-stage: um estágio instala o workspace e compila API (`t
 
 ## API
 
-Fora `/health` e `/api/auth/register|login|refresh|logout|forgot-password|reset-password`, toda rota exige `Authorization: Bearer <token>` e responde só com os dados da conta do token (401 sem token válido). Toda leitura JSON (GET 200) sai com `ETag` e `Cache-Control: private, no-cache`; reenviar a etiqueta em `If-None-Match` devolve 304 sem corpo enquanto os dados não mudam. Toda resposta leva `X-Request-Id` (reaproveita o recebido se for curto e seguro, senão um UUID novo) — é o `reqId` de todas as linhas de log daquela requisição, e o 500 devolve `{ error: 'internal_error', requestId }` para o relato apontar a linha certa. Qualquer rota responde 429 `rate_limit_exceeded` quando o IP passa do teto da janela de 1 minuto — 300 requisições no geral, 10 em registro, login, refresh, nas duas rotas de recuperação de senha e na exclusão de conta.
+Fora `/health`, `/metrics` e `/api/auth/register|login|refresh|logout|forgot-password|reset-password`, toda rota exige `Authorization: Bearer <token>` e responde só com os dados da conta do token (401 sem token válido). Toda leitura JSON (GET 200) sai com `ETag` e `Cache-Control: private, no-cache`; reenviar a etiqueta em `If-None-Match` devolve 304 sem corpo enquanto os dados não mudam. Toda resposta leva `X-Request-Id` (reaproveita o recebido se for curto e seguro, senão um UUID novo) — é o `reqId` de todas as linhas de log daquela requisição, e o 500 devolve `{ error: 'internal_error', requestId }` para o relato apontar a linha certa. Qualquer rota responde 429 `rate_limit_exceeded` quando o IP passa do teto da janela de 1 minuto — 300 requisições no geral, 10 em registro, login, refresh, nas duas rotas de recuperação de senha e na exclusão de conta.
 
 Documentação interativa em [`/docs`](http://localhost:3000/docs) (documento OpenAPI cru em `/docs/json`): dá para autenticar com o token do login e disparar as chamadas pela própria página.
 
 | Método | Rota                               | Descrição                                                                                                                                                                                                        |
 | ------ | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/health`                          | Health check                                                                                                                                                                                                     |
+| GET    | `/health`                          | Health check com `SELECT 1` no banco: 200 `{ status, uptimeSeconds, checks }`, 503 se o banco não responde                                                                                                       |
+| GET    | `/metrics`                         | Métricas Prometheus (texto 0.0.4); com `METRICS_TOKEN`, exige `Authorization: Bearer <token>`                                                                                                                    |
 | POST   | `/api/auth/register`               | Cria conta (`email`, `password` 8–128) e devolve `{ user, token, refreshToken }` (201; 409 `email_taken`)                                                                                                        |
 | POST   | `/api/auth/login`                  | Troca e-mail/senha por `{ user, token, refreshToken }` (401 `invalid_credentials`, igual para e-mail inexistente e senha errada)                                                                                 |
 | GET    | `/api/auth/me`                     | Usuário do token (`Authorization: Bearer <token>`; 401 sem token ou token inválido)                                                                                                                              |
@@ -197,7 +201,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Notificação por e-mail quando orçamento passa de 80% e 100%
 - [x] Cache HTTP com ETag/If-None-Match nos endpoints de leitura
 - [x] Logs estruturados (pino) com request id propagado até o repositório
-- [ ] Healthcheck `/health` e métricas `/metrics` (Prometheus)
+- [x] Healthcheck `/health` e métricas `/metrics` (Prometheus)
 - [ ] Teste de carga com autocannon e baseline documentado no README
 - [ ] PWA: manifest + service worker com leitura offline do último resumo
 - [ ] Storybook dos componentes de UI com estados (loading, vazio, erro)
