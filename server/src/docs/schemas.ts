@@ -214,9 +214,44 @@ const amountBody = {
 export const healthDocs: FastifySchema = {
   tags: ['sistema'],
   summary: 'Health check',
-  description: 'Rota pública usada por deploy e monitoramento.',
+  description:
+    'Rota pública usada por deploy e monitoramento. Faz um `SELECT 1` no banco: 503 se ele não responde.',
   response: {
-    200: { type: 'object', properties: { status: { type: 'string', example: 'ok' } } },
+    200: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', example: 'ok' },
+        uptimeSeconds: { type: 'integer', example: 3600 },
+        checks: {
+          type: 'object',
+          properties: { database: { type: 'string', enum: ['ok', 'error'] } },
+        },
+      },
+    },
+    503: {
+      description: 'Banco indisponível',
+      type: 'object',
+      properties: {
+        status: { type: 'string', example: 'error' },
+        uptimeSeconds: { type: 'integer' },
+        checks: {
+          type: 'object',
+          properties: { database: { type: 'string', example: 'error' } },
+        },
+      },
+    },
+  },
+}
+
+export const metricsDocs: FastifySchema = {
+  tags: ['sistema'],
+  summary: 'Métricas Prometheus',
+  description:
+    'Formato de texto 0.0.4: requisições por método/rota/status, histograma de latência, ' +
+    'banco no ar, uptime e memória. Com `METRICS_TOKEN` definido, exige `Authorization: Bearer <token>`.',
+  response: {
+    200: { description: 'Exposição Prometheus', type: 'string' },
+    401: errorResponse('METRICS_TOKEN definido e token ausente ou errado', 'unauthorized'),
   },
 }
 

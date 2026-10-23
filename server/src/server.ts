@@ -8,6 +8,7 @@ const app = await buildApp({
   trustProxy: config.trustProxy,
   appUrl: config.appUrl,
   exposeMailInLogs: config.exposeMailInLogs,
+  metricsToken: config.metricsToken,
   logger: { level: config.logLevel },
 })
 

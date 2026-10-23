@@ -7,8 +7,10 @@ import { ZodError } from 'zod'
 import { DEV_APP_URL, DEV_JWT_SECRET, type LogLevel } from './config.js'
 import { openDatabase } from './db/connection.js'
 import { registerOpenApi } from './docs/openapi.js'
-import { healthDocs } from './docs/schemas.js'
+import { healthDocs, metricsDocs } from './docs/schemas.js'
 import { registerEtag } from './http/etag.js'
+import { probeDatabase, registerHealthRoute } from './http/health.js'
+import { registerMetricsHook, registerMetricsRoute } from './http/metrics.js'
 import {
   REQUEST_ID_HEADER,
   logQuery,
@@ -90,6 +92,8 @@ export interface BuildAppOptions {
   mailer?: Mailer
   /** O mailer de log pode imprimir o corpo (com o link de recuperação)? Só fora de produção. */
   exposeMailInLogs?: boolean
+  /** Bearer exigido em `/metrics`; sem ele a rota fica aberta (rede interna do compose). */
+  metricsToken?: string
 }
 
 /**
@@ -130,6 +134,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   // Antes de tudo, para até o 429 do rate limit sair com o `X-Request-Id`.
   registerRequestContext(app)
+  // Logo cedo: o `onResponse` conta toda rota registrada depois, inclusive o 429.
+  const metrics = registerMetricsHook(app)
 
   // Helmet primeiro: os cabeçalhos de segurança valem para toda resposta, inclusive erro.
   await app.register(helmet, {
@@ -191,7 +197,12 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     return reply.code(statusCode).send({ error: known ?? fastifyError.message ?? 'erro' })
   })
 
-  app.get('/health', { schema: healthDocs }, async () => ({ status: 'ok' }))
+  registerHealthRoute(app, db, healthDocs)
+  registerMetricsRoute(app, metrics, {
+    token: options.metricsToken,
+    databaseUp: () => probeDatabase(db),
+    schema: metricsDocs,
+  })
 
   const repository = new TransactionsRepository(db)
   const users = new UsersRepository(db)

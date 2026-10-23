@@ -14,6 +14,8 @@ export interface AppConfig {
   exposeMailInLogs: boolean
   /** Nível do pino; `debug` inclui cada SQL executado (sem os valores) com o `reqId`. */
   logLevel: LogLevel
+  /** Bearer de `/metrics`; vazio = rota aberta (o nginx do compose só repassa `/api`). */
+  metricsToken?: string
 }
 
 /** Só serve para desenvolvimento e testes: em produção o boot exige JWT_SECRET. */
@@ -40,6 +42,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     appUrl: env.APP_URL ?? DEV_APP_URL,
     exposeMailInLogs: env.NODE_ENV !== 'production',
     logLevel,
+    ...(env.METRICS_TOKEN ? { metricsToken: env.METRICS_TOKEN } : {}),
   }
 }
 
