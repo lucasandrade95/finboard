@@ -84,6 +84,27 @@ docker compose exec api node server/dist/seed.js --force        # opcional: popu
 
 O `Dockerfile` é multi-stage: um estágio instala o workspace e compila API (`tsc`) e SPA (`vite build`); a imagem `api` leva só `dist/` e as dependências de produção (sem TypeScript, Vite nem código-fonte), roda como usuário `node` e tem `HEALTHCHECK` no `/health`; a imagem `web` é um nginx servindo o build estático e repassando `/api` para a API — mesma origem, sem CORS. O banco fica no volume `finboard-data` e sobrevive a `docker compose down` (só `down -v` apaga). A API sobe com `TRUST_PROXY=true`, então o rate limit conta pelo IP do cliente que o nginx repassa, e não pelo IP do próprio nginx.
 
+### Teste de carga
+
+```bash
+npm run loadtest                                     # 10 conexões, 10 s por cenário
+npm run loadtest -- --duration=30 --connections=50   # carga maior
+```
+
+O script (`server/bench/`) sobe a API de verdade numa porta livre, com banco SQLite em arquivo temporário e a conta demo do seed, e dispara o [autocannon](https://github.com/mcollina/autocannon) em cinco cenários, um de cada vez: healthcheck, resumo do mês, o mesmo resumo revalidado por ETag (304), listagem paginada e criação de transação. Só o rate limit fica desligado — com ele ligado, o teto de 300/min responderia 429 no primeiro segundo e a medição seria do limitador. Cada cenário declara o status esperado e o script sai com código 1 se qualquer resposta vier diferente (401, 500, erro de conexão): número de req/s de resposta errada não é baseline.
+
+Baseline (2026-10-24, Apple M1 8 núcleos, Node 24, 10 conexões, 10 s por cenário):
+
+| Cenário                | Req/s (média) |  p50 | p97,5 |  p99 | Fora do esperado |
+| ---------------------- | ------------: | ---: | ----: | ---: | ---------------: |
+| GET /health            |        21.906 | 0 ms |  0 ms | 1 ms |                0 |
+| GET /api/summary       |         8.573 | 1 ms |  1 ms | 4 ms |                0 |
+| GET /api/summary (304) |         8.779 | 1 ms |  1 ms | 4 ms |                0 |
+| GET /api/transactions  |         6.937 | 1 ms |  1 ms | 4 ms |                0 |
+| POST /api/transactions |         3.860 | 2 ms |  5 ms | 9 ms |                0 |
+
+Leitura: o custo das rotas autenticadas (~8,5 mil req/s contra ~22 mil do `/health`) é JWT + consulta + serialização; a escrita cai para ~3,9 mil req/s porque cada POST grava o lançamento e a linha de auditoria numa transação do SQLite em disco e depois confere o orçamento da categoria. O 304 quase não ganha em req/s porque o ETag é o hash da resposta montada — ele economiza banda e trabalho do cliente, não consulta no servidor. Os números valem para comparar antes × depois na mesma máquina, não como promessa de produção.
+
 ## API
 
 Fora `/health`, `/metrics` e `/api/auth/register|login|refresh|logout|forgot-password|reset-password`, toda rota exige `Authorization: Bearer <token>` e responde só com os dados da conta do token (401 sem token válido). Toda leitura JSON (GET 200) sai com `ETag` e `Cache-Control: private, no-cache`; reenviar a etiqueta em `If-None-Match` devolve 304 sem corpo enquanto os dados não mudam. Toda resposta leva `X-Request-Id` (reaproveita o recebido se for curto e seguro, senão um UUID novo) — é o `reqId` de todas as linhas de log daquela requisição, e o 500 devolve `{ error: 'internal_error', requestId }` para o relato apontar a linha certa. Qualquer rota responde 429 `rate_limit_exceeded` quando o IP passa do teto da janela de 1 minuto — 300 requisições no geral, 10 em registro, login, refresh, nas duas rotas de recuperação de senha e na exclusão de conta.
@@ -202,7 +223,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Cache HTTP com ETag/If-None-Match nos endpoints de leitura
 - [x] Logs estruturados (pino) com request id propagado até o repositório
 - [x] Healthcheck `/health` e métricas `/metrics` (Prometheus)
-- [ ] Teste de carga com autocannon e baseline documentado no README
+- [x] Teste de carga com autocannon e baseline documentado no README
 - [ ] PWA: manifest + service worker com leitura offline do último resumo
 - [ ] Storybook dos componentes de UI com estados (loading, vazio, erro)
 - [ ] CI: publicar imagem Docker no GHCR a cada merge na main
