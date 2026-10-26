@@ -123,4 +123,31 @@ describe('SummaryCards', () => {
     render(<SummaryCards summary={undefined} loading={true} />)
     expect(screen.queryByText('Saldo por conta no fim do mês')).toBeNull()
   })
+  it('avisa quando o resumo é o salvo offline, com a hora', () => {
+    render(
+      <SummaryCards
+        summary={{
+          incomeCents: 500000,
+          expenseCents: 150000,
+          balanceCents: 350000,
+          offlineSavedAt: '2026-10-25T14:30:00Z',
+        }}
+        loading={false}
+      />,
+    )
+
+    expect(screen.getByRole('status').textContent).toMatch(/Sem conexão.*25\/10\/2026/)
+    expect(screen.getByText(/3\.500,00/)).toBeTruthy()
+  })
+
+  it('resumo vindo da API não mostra aviso de offline', () => {
+    render(
+      <SummaryCards
+        summary={{ incomeCents: 500000, expenseCents: 150000, balanceCents: 350000 }}
+        loading={false}
+      />,
+    )
+
+    expect(screen.queryByText(/Sem conexão/)).toBeNull()
+  })
 })
