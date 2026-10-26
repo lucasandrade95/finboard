@@ -103,6 +103,7 @@ export const ptBR = {
     loadingCard: (label: string) => `Carregando ${label.toLowerCase()}…`,
     vsPreviousMonth: (delta: string) => `${delta} vs mês anterior`,
     byAccount: 'Saldo por conta no fim do mês',
+    offline: (savedAt: string) => `Sem conexão: mostrando o resumo salvo em ${savedAt}.`,
   },
   balanceLine: {
     title: 'Evolução do saldo no mês',

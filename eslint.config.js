@@ -27,5 +27,9 @@ export default tseslint.config(
     rules: { ...reactHooks.configs.recommended.rules },
     languageOptions: { globals: globals.browser },
   },
+  {
+    files: ['web/public/sw.js'],
+    languageOptions: { globals: globals.serviceworker },
+  },
   prettier,
 )

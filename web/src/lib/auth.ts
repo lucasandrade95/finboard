@@ -1,3 +1,5 @@
+import { clearSummarySnapshot } from './offline-summary'
+
 const STORAGE_KEY = 'finboard.token'
 const REFRESH_STORAGE_KEY = 'finboard.refreshToken'
 
@@ -49,11 +51,13 @@ export function getRefreshToken(): string | null {
 /**
  * Troca só o JWT de acesso. `null` é fim de sessão: o refresh token vai junto,
  * senão um 401 que manda para o login deixaria uma sessão renovável para trás.
+ * O último resumo salvo para leitura offline também sai: é dado da conta que saiu.
  */
 export function setToken(next: string | null): void {
   if (next === null) {
     refreshToken = null
     writeStored(REFRESH_STORAGE_KEY, null)
+    clearSummarySnapshot()
   }
   if (token === next) {
     return

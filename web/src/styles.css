@@ -390,6 +390,15 @@ input:focus-visible + .attach-button {
   color: var(--negative);
 }
 
+.offline-notice {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  font-size: 0.875rem;
+}
+
 .balance-line,
 .yearly-bars,
 .category-donut,

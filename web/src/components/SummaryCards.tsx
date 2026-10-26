@@ -1,9 +1,10 @@
 import { t } from '../i18n'
-import { formatBRL, type MonthlySummary } from '../lib/api'
+import { formatBRL } from '../lib/api'
+import { formatSnapshotTime, type SummaryView } from '../lib/offline-summary'
 import { Skeleton } from './Skeleton'
 
 interface SummaryCardsProps {
-  summary: MonthlySummary | undefined
+  summary: SummaryView | undefined
   loading: boolean
 }
 
@@ -43,6 +44,11 @@ export function SummaryCards({ summary, loading }: SummaryCardsProps) {
 
   return (
     <>
+      {!loading && summary?.offlineSavedAt && (
+        <p className="offline-notice" role="status">
+          {t.summary.offline(formatSnapshotTime(summary.offlineSavedAt))}
+        </p>
+      )}
       <section className="summary-cards" aria-busy={loading}>
         {cards.map((card) => (
           <article key={card.label} className={`card ${card.tone}`}>

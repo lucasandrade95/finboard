@@ -3,6 +3,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { applyDocumentLocale } from './i18n'
+import { registerServiceWorker } from './lib/pwa'
 import './styles.css'
 
 const queryClient = new QueryClient({
@@ -17,6 +18,7 @@ if (!rootElement) {
 }
 
 applyDocumentLocale()
+registerServiceWorker()
 
 createRoot(rootElement).render(
   <StrictMode>

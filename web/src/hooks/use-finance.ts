@@ -8,7 +8,9 @@ import {
   type CreateInstallmentInput,
   type CreateTransferInput,
   type TransactionFilters,
+  UnauthorizedError,
 } from '../lib/api'
+import { readSummarySnapshot, saveSummarySnapshot, type SummaryView } from '../lib/offline-summary'
 import type { DateRange } from '../lib/period'
 
 export function useTransactions(month: string, page: number, filters: TransactionFilters = {}) {
@@ -147,10 +149,30 @@ export function useBudgets(month: string) {
   })
 }
 
+/**
+ * Resumo com leitura offline: cada resposta boa vira o último resumo salvo e, se a
+ * API não responde (sem rede, ou 5xx do proxy com o server fora), a tela mostra
+ * essa cópia com a hora em que foi salva. Sessão expirada nunca cai aqui: o 401
+ * já apagou a cópia junto com os tokens e a UI volta para o login.
+ */
+export async function fetchSummary(month: string): Promise<SummaryView> {
+  try {
+    const summary = await api.getSummary(month)
+    saveSummarySnapshot(month, summary)
+    return summary
+  } catch (error) {
+    const snapshot = error instanceof UnauthorizedError ? null : readSummarySnapshot(month)
+    if (!snapshot) {
+      throw error
+    }
+    return snapshot
+  }
+}
+
 export function useSummary(month: string) {
   return useQuery({
     queryKey: ['summary', month],
-    queryFn: () => api.getSummary(month),
+    queryFn: () => fetchSummary(month),
   })
 }
 
