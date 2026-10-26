@@ -224,7 +224,7 @@ Uma fatia por dia, sempre com teste e build verde.
 - [x] Logs estruturados (pino) com request id propagado até o repositório
 - [x] Healthcheck `/health` e métricas `/metrics` (Prometheus)
 - [x] Teste de carga com autocannon e baseline documentado no README
-- [ ] PWA: manifest + service worker com leitura offline do último resumo
+- [x] PWA: manifest + service worker com leitura offline do último resumo
 - [ ] Storybook dos componentes de UI com estados (loading, vazio, erro)
 - [ ] CI: publicar imagem Docker no GHCR a cada merge na main
 
